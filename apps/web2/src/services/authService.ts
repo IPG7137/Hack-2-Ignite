@@ -8,6 +8,27 @@ export type UserRole =
   | 'municipal_admin'
   | 'super_admin';
 
+export const VALID_ROLES: readonly UserRole[] = [
+  'citizen',
+  'officer',
+  'dept_admin',
+  'municipal_admin',
+  'super_admin',
+] as const;
+
+export function isValidRole(role: any): role is UserRole {
+  return typeof role === 'string' && VALID_ROLES.includes(role as UserRole);
+}
+
+export function normalizeLegacyRole(rawRole: string): UserRole {
+  const r = rawRole.toLowerCase().trim();
+  if (r === 'super_admin' || r === 'superadmin') return 'super_admin';
+  if (r === 'municipal_admin' || r === 'admin' || r === 'administrator') return 'municipal_admin';
+  if (r === 'dept_admin' || r === 'department_admin') return 'dept_admin';
+  if (r === 'officer' || r === 'field_officer' || r === 'duty_officer' || r === 'contractor') return 'officer';
+  return 'citizen';
+}
+
 export interface AuthUser {
   id: string;
   email: string;
@@ -17,6 +38,26 @@ export interface AuthUser {
   departmentName?: string;
   ward?: string;
   isVerified: boolean;
+}
+
+export interface DatabaseProfile {
+  id: string;
+  email: string | null;
+  full_name: string | null;
+  phone: string | null;
+  department_id: string | null;
+  department_name: string | null;
+  ward: string | null;
+  is_active: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface DatabaseUserRole {
+  id?: number;
+  user_id: string;
+  role: UserRole;
+  created_at?: string;
 }
 
 export interface AuthState {
@@ -31,34 +72,85 @@ export class AuthService {
   /**
    * Helper to map Supabase User / Session to our typed AuthUser
    */
-  public static mapSupabaseUserToAuthUser(user: User): AuthUser {
+  public static mapSupabaseUserToAuthUser(
+    user: User,
+    dbProfile?: DatabaseProfile | null,
+    dbRole?: UserRole | null
+  ): AuthUser {
     const meta = (user as any).user_metadata || (user as any).userMetadata || user.app_metadata || {};
-    const email = user.email || 'officer@civicresolve.gov';
+    const email = user.email || dbProfile?.email || 'officer@civicresolve.gov';
     
-    // Determine default role from metadata or email heuristics
-    let role: UserRole = (meta.role as UserRole) || 'officer';
-    if (email.includes('admin') || meta.is_admin) {
+    // Priority: 1. DB-backed role, 2. Metadata role (validated), 3. Heuristic fallback
+    let role: UserRole = 'citizen';
+    if (dbRole && isValidRole(dbRole)) {
+      role = dbRole;
+    } else if (meta.role && isValidRole(meta.role)) {
+      role = meta.role;
+    } else if (email.includes('admin') || meta.is_admin) {
       role = 'municipal_admin';
     } else if (email.includes('dept')) {
       role = 'dept_admin';
-    } else if (email.includes('citizen')) {
-      role = 'citizen';
+    } else if (email.includes('officer')) {
+      role = 'officer';
     }
 
     return {
       id: user.id,
       email,
       role,
-      fullName: meta.full_name || meta.name || email.split('@')[0],
-      departmentId: meta.department_id || 'DEP-GEN',
-      departmentName: meta.department_name || 'General Municipal Command',
-      ward: meta.ward || 'Zone 2 Command',
+      fullName: dbProfile?.full_name || meta.full_name || meta.name || email.split('@')[0],
+      departmentId: dbProfile?.department_id || meta.department_id || 'DEP-GEN',
+      departmentName: dbProfile?.department_name || meta.department_name || 'General Municipal Command',
+      ward: dbProfile?.ward || meta.ward || 'Zone 2 Command',
       isVerified: Boolean(user.email_confirmed_at || meta.is_verified || true),
     };
   }
 
   /**
-   * Returns current active Supabase Auth session
+   * Fetches profile and role information directly from public.profiles & public.user_roles
+   */
+  public static async fetchUserProfileAndRole(userId: string): Promise<{
+    profile: DatabaseProfile | null;
+    role: UserRole | null;
+  }> {
+    try {
+      // 1. Query public.profiles
+      const { data: profileData, error: profileErr } = await supabase
+        .from('profiles')
+        .select('id, email, full_name, phone, department_id, department_name, ward, is_active')
+        .eq('id', userId)
+        .maybeSingle();
+
+      if (profileErr) {
+        // Table may be unmigrated in local dev or permission pending
+        console.warn('ℹ️ Notice: public.profiles query:', profileErr.message);
+      }
+
+      // 2. Query public.user_roles
+      const { data: roleData, error: roleErr } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (roleErr) {
+        console.warn('ℹ️ Notice: public.user_roles query:', roleErr.message);
+      }
+
+      const role = roleData?.role && isValidRole(roleData.role) ? (roleData.role as UserRole) : null;
+
+      return {
+        profile: (profileData as DatabaseProfile) || null,
+        role,
+      };
+    } catch (err) {
+      console.warn('ℹ️ fetchUserProfileAndRole fallback:', err);
+      return { profile: null, role: null };
+    }
+  }
+
+  /**
+   * Returns current active Supabase Auth session enriched with DB profile/role
    */
   public static async getSession(): Promise<{ user: AuthUser | null; session: Session | null }> {
     try {
@@ -69,8 +161,9 @@ export class AuthService {
       }
 
       if (data.session && data.session.user) {
+        const { profile, role } = await this.fetchUserProfileAndRole(data.session.user.id);
         return {
-          user: this.mapSupabaseUserToAuthUser(data.session.user),
+          user: this.mapSupabaseUserToAuthUser(data.session.user, profile, role),
           session: data.session,
         };
       }
@@ -101,7 +194,8 @@ export class AuthService {
       }
 
       if (data.user && data.session) {
-        const authUser = this.mapSupabaseUserToAuthUser(data.user);
+        const { profile, role } = await this.fetchUserProfileAndRole(data.user.id);
+        const authUser = this.mapSupabaseUserToAuthUser(data.user, profile, role);
         return { user: authUser, session: data.session, error: null };
       }
 
@@ -126,9 +220,9 @@ export class AuthService {
         options: {
           data: {
             full_name: metadata?.fullName || email.split('@')[0],
-            role: metadata?.role || 'officer',
-            department_name: metadata?.departmentName || 'Municipal Operations',
-            ward: metadata?.ward || 'General Command',
+            role: metadata?.role || 'citizen',
+            department_name: metadata?.departmentName || 'General Municipal Command',
+            ward: metadata?.ward || 'Zone 2 Command',
           },
         },
       });

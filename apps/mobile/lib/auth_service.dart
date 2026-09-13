@@ -63,12 +63,40 @@ class AuthService {
           final metaRole = session.user.userMetadata?['role']?.toString();
           if (metaRole != null) {
             _userRole = metaRole;
-            _isAdmin = metaRole == 'admin' || metaRole == 'contractor';
+            _isAdmin = metaRole == 'admin' || metaRole == 'contractor' || metaRole == 'officer';
           }
+          _syncDatabaseProfileAndRole(session.user.id);
         }
       });
     } catch (_) {
       // Supabase may not be initialized in isolated unit tests
+    }
+  }
+
+  Future<void> _syncDatabaseProfileAndRole(String userId) async {
+    try {
+      final roleRes = await Supabase.instance.client
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', userId)
+          .maybeSingle();
+      if (roleRes != null && roleRes['role'] != null) {
+        _userRole = roleRes['role'].toString();
+        _isAdmin = _userRole == 'officer' ||
+            _userRole == 'dept_admin' ||
+            _userRole == 'municipal_admin' ||
+            _userRole == 'super_admin';
+      }
+      final profileRes = await Supabase.instance.client
+          .from('profiles')
+          .select('full_name, phone')
+          .eq('id', userId)
+          .maybeSingle();
+      if (profileRes != null && profileRes['full_name'] != null) {
+        _userFullName = profileRes['full_name'].toString();
+      }
+    } catch (_) {
+      // Safe fallback if offline or table unmigrated
     }
   }
 
