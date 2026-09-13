@@ -13,9 +13,7 @@ class CivicResolveDashboard {
     }
 
     async init() {
-        console.log('⚡ Initializing CivicResolve Dashboard with 100ms target...');
-        
-        // Skip authentication check for speed - do it in background
+        console.log('⚡ Initializing CivicResolve Dashboard with live Supabase data...');
         
         // Initialize components synchronously
         this.setupEventListeners();
@@ -25,13 +23,53 @@ class CivicResolveDashboard {
         // Show default section immediately
         this.showSection('overview');
         
-        // Load data with 100ms target
-        this.loadInstantData();
+        // Setup Realtime subscriptions
+        this.initRealtime();
+        
+        // Load live data from Supabase
+        this.loadRealDashboardData();
         
         // Do auth check in background
         setTimeout(() => this.checkAuth(), 50);
         
-        console.log('✅ Dashboard initialized in ~100ms with instant data');
+        console.log('✅ Dashboard initialized with live Supabase connectivity');
+    }
+
+    initRealtime() {
+        if (window.supabaseService) {
+            window.supabaseService.initRealtimeSubscription(
+                (newReport) => this.handleRealtimeInsert(newReport),
+                (updatedReport) => this.handleRealtimeUpdate(updatedReport)
+            );
+        }
+    }
+
+    handleRealtimeInsert(newReport) {
+        if (!newReport) return;
+        console.log('🔴 Dashboard handling live INSERT:', newReport);
+        if (!this.allReports) this.allReports = [];
+        const exists = this.allReports.some(r => String(r.id) === String(newReport.id));
+        if (!exists) {
+            this.allReports.unshift(newReport);
+        }
+        this.renderCommandCenter(this.allReports);
+    }
+
+    handleRealtimeUpdate(updatedReport) {
+        if (!updatedReport) return;
+        console.log('🔵 Dashboard handling live UPDATE:', updatedReport);
+        if (!this.allReports) this.allReports = [];
+        const index = this.allReports.findIndex(r => String(r.id) === String(updatedReport.id));
+        if (index !== -1) {
+            this.allReports[index] = { ...this.allReports[index], ...updatedReport };
+        } else {
+            this.allReports.unshift(updatedReport);
+        }
+        this.renderCommandCenter(this.allReports);
+    }
+
+    showReportDetails(reportId) {
+        this.openReportModal(reportId);
     }
 
     checkAuth() {
@@ -439,36 +477,46 @@ class CivicResolveDashboard {
 
     async loadRealDashboardData() {
         try {
-            console.log('📊 Loading real dashboard data to replace sample data...');
+            console.log('📊 Loading real dashboard data from Supabase...');
             
-            // Add a subtle indicator that real data is loading
-            this.showDataUpdateIndicator();
-            
+            // Load real reports
+            let reports = [];
+            try {
+                reports = await window.supabaseService.getAllReports({ limit: 100 });
+            } catch (err) {
+                console.warn('⚠️ Reports loading notice:', err.message);
+            }
+
             // Load real statistics
-            const stats = await window.supabaseService.getDashboardStats();
-            if (stats && typeof stats.total === 'number') { // Check for valid numeric data
-                console.log('✅ Real stats loaded:', stats);
+            let stats = null;
+            try {
+                stats = await window.supabaseService.getDashboardStats();
+            } catch (err) {
+                console.warn('⚠️ Stats loading notice:', err.message);
+            }
+
+            if (stats) {
                 this.updateStatsDisplay(stats);
-                this.updateNotificationCount(stats.submitted + stats.urgent);
-                this.showDataUpdatedIndicator('Statistics updated with real data');
             }
 
-            // Load real recent reports
-            const recentReports = await window.supabaseService.getRecentReports(10);
-            if (recentReports && Array.isArray(recentReports) && recentReports.length > 0) {
-                console.log('✅ Real reports loaded:', recentReports.length);
-                this.displayRecentReports(recentReports);
-                this.showDataUpdatedIndicator('Reports updated with real data');
+            if (reports && reports.length > 0) {
+                this.allReports = reports;
+                this.renderCommandCenter(reports);
+            } else if (reports && reports.length === 0) {
+                this.allReports = [];
+                const feedContainer = document.getElementById('incident-feed-list');
+                if (feedContainer) {
+                    feedContainer.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: 40px;">📭 No complaints currently in database.</div>';
+                }
+            } else {
+                const feedContainer = document.getElementById('incident-feed-list');
+                if (feedContainer) {
+                    feedContainer.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: 40px;">⚠️ Live Supabase connection active. Waiting for database table or data.</div>';
+                }
             }
-
-            // Load real charts data
-            await this.loadRealCharts();
-
-            this.hideDataUpdateIndicator();
 
         } catch (error) {
-            console.warn('⚠️ Real data loading failed, keeping instant sample data:', error);
-            this.hideDataUpdateIndicator();
+            console.warn('⚠️ Real data loading notice:', error);
         }
     }
 

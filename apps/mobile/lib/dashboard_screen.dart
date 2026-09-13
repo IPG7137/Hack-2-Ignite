@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'language_service.dart';
 import 'category_selection_screen.dart';
-import 'track_reports_screen.dart';
+import 'comprehensive_track_reports_screen.dart';
 import 'notifications_screen.dart';
 import 'notification_service.dart';
 import 'emergency_contacts_screen.dart';
 import 'map_view_screen.dart';
 import 'language_selection_screen.dart';
 import 'profile_page.dart';
+import 'auth_service.dart';
+import 'comprehensive_database_service.dart';
+import 'comprehensive_report_models.dart';
 
 class DashboardScreen extends StatefulWidget {
   final bool isAdmin;
@@ -18,59 +22,26 @@ class DashboardScreen extends StatefulWidget {
   State<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-class _DashboardScreenState extends State<DashboardScreen> with TickerProviderStateMixin {
+class _DashboardScreenState extends State<DashboardScreen> {
   final LanguageService _languageService = LanguageService();
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
-  
-  int _openReportsCount = 7; // Mock data
-  
-  late AnimationController _animationController;
-  late AnimationController _staggerController;
-  late Animation<double> _fadeAnimation;
-  late Animation<Offset> _slideAnimation;
+  final ComprehensiveDatabaseService _databaseService = ComprehensiveDatabaseService();
+
+  List<ComprehensiveReportModel> _recentReports = [];
+  bool _isLoadingReports = true;
+  StreamSubscription<List<ComprehensiveReportModel>>? _reportsSubscription;
 
   @override
   void initState() {
     super.initState();
     _languageService.addListener(_onLanguageChanged);
-    
-    // Initialize animations
-    _animationController = AnimationController(
-      duration: const Duration(milliseconds: 800),
-      vsync: this,
-    );
-    
-    _staggerController = AnimationController(
-      duration: const Duration(milliseconds: 1200),
-      vsync: this,
-    );
-    
-    _fadeAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeOut,
-    ));
-    
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.3),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeOutCubic,
-    ));
-    
-    // Start animations
-    _animationController.forward();
-    _staggerController.forward();
+    _initializeRecentReports();
   }
 
   @override
   void dispose() {
+    _reportsSubscription?.cancel();
     _languageService.removeListener(_onLanguageChanged);
-    _animationController.dispose();
-    _staggerController.dispose();
     super.dispose();
   }
 
@@ -78,459 +49,447 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
     setState(() {});
   }
 
+  void _initializeRecentReports() {
+    final authService = AuthService.instance;
+    final userId = authService.userEmail ?? 'guest_user';
+
+    _reportsSubscription?.cancel();
+    try {
+      final stream = widget.isAdmin
+          ? _databaseService.getAllReportsStream()
+          : _databaseService.getUserReportsStream(userId);
+
+      _reportsSubscription = stream.listen((reports) {
+        if (mounted) {
+          setState(() {
+            _recentReports = reports.take(5).toList();
+            _isLoadingReports = false;
+          });
+        }
+      }, onError: (e) {
+        if (mounted) {
+          setState(() {
+            _isLoadingReports = false;
+          });
+        }
+      });
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _isLoadingReports = false;
+        });
+      }
+    }
+  }
+
+  String _getTimeGreeting() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) return 'Good morning';
+    if (hour < 17) return 'Good afternoon';
+    return 'Good evening';
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Theme(
-      data: ThemeData.from(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF3B82F6),
-          brightness: Brightness.light,
-        ),
-        useMaterial3: true,
-      ),
-      child: Scaffold(
-        key: _scaffoldKey,
-        backgroundColor: Theme.of(context).colorScheme.surface,
-        appBar: _buildAppBar(),
-        drawer: _buildSidebar(),
-        body: AnimatedBuilder(
-          animation: _fadeAnimation,
-          builder: (context, child) {
-            return FadeTransition(
-              opacity: _fadeAnimation,
-              child: SlideTransition(
-                position: _slideAnimation,
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Welcome Hero Section
-                      _buildWelcomeHeroCard(),
-                      
-                      const SizedBox(height: 24),
-                      
-                      // Dashboard Cards with staggered animation
-                      _buildAnimatedDashboardCard(
-                        title: 'Report a New Issue',
-                        description: 'Spotted a problem? Let us know and help improve your community',
-                        icon: Icons.report_problem_outlined,
-                        buttonText: 'Create Report',
-                        onTap: () => _navigateToReportIssue(),
-                        animationDelay: 0,
-                      ),
-                      
-                      const SizedBox(height: 16),
-                      
-                      _buildAnimatedDashboardCard(
-                        title: 'Track My Reports',
-                        description: 'View the status of your submitted issues and their progress',
-                        icon: Icons.visibility_outlined,
-                        buttonText: 'View Reports',
-                        badge: _openReportsCount > 0 ? '$_openReportsCount Open' : null,
-                        onTap: () => _navigateToTrackReports(),
-                        animationDelay: 100,
-                      ),
-                      
-                      const SizedBox(height: 16),
-                      
-                      _buildAnimatedDashboardCard(
-                        title: 'Emergency Contacts',
-                        description: 'Quick access to local emergency services and important contacts',
-                        icon: Icons.emergency,
-                        buttonText: 'Emergency Help',
-                        onTap: () => _showEmergencyContacts(),
-                        animationDelay: 200,
-                        isEmergency: true,
-                      ),
-                      
-                      if (widget.isAdmin) ...[
-                        const SizedBox(height: 16),
-                        _buildAnimatedDashboardCard(
-                          title: 'Admin Analytics',
-                          description: 'View comprehensive reports statistics and community insights',
-                          icon: Icons.analytics_rounded,
-                          buttonText: 'View Analytics',
-                          onTap: () => _navigateToAnalytics(),
-                          animationDelay: 300,
-                        ),
-                      ],
-                      
-                      const SizedBox(height: 80), // Extra bottom padding
-                    ],
-                  ),
-                ),
-              ),
-            );
-          },
+    return Scaffold(
+      key: _scaffoldKey,
+      backgroundColor: const Color(0xFFF7F9FC),
+      appBar: _buildAppBar(),
+      drawer: _buildSidebar(),
+      body: RefreshIndicator(
+        onRefresh: () async {
+          _initializeRecentReports();
+        },
+        color: const Color(0xFF155EEF),
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // 1. Official Municipal Welcome Card
+              _buildWelcomeCard(),
+              
+              const SizedBox(height: 16),
+              
+              // 2. Primary Action: Report a Problem
+              _buildPrimaryReportBanner(),
+              
+              const SizedBox(height: 20),
+              
+              // 3. Quick Actions Section
+              _buildQuickActionsHeader(),
+              const SizedBox(height: 10),
+              _buildQuickActionsGrid(),
+              
+              const SizedBox(height: 24),
+              
+              // 4. Recent Grievances Section
+              _buildRecentGrievancesHeader(),
+              const SizedBox(height: 10),
+              _buildRecentGrievancesList(),
+              
+              const SizedBox(height: 24),
+              
+              // 5. Official Government Municipal Footer Note
+              _buildGovernmentFooter(),
+              
+              const SizedBox(height: 20),
+            ],
+          ),
         ),
       ),
+      bottomNavigationBar: _buildBottomNav(),
     );
   }
 
-  AppBar _buildAppBar() {
-    final colorScheme = Theme.of(context).colorScheme;
-    
+  PreferredSizeWidget _buildAppBar() {
     return AppBar(
-      backgroundColor: colorScheme.surface,
-      surfaceTintColor: colorScheme.surfaceTint,
+      backgroundColor: const Color(0xFF123B63), // Deep Municipal Navy
+      foregroundColor: Colors.white,
       elevation: 0,
-      scrolledUnderElevation: 3,
       leading: IconButton(
-        icon: Icon(Icons.menu_rounded, color: colorScheme.onSurface),
+        icon: const Icon(Icons.menu_rounded, color: Colors.white),
+        tooltip: 'Menu',
         onPressed: () => _scaffoldKey.currentState?.openDrawer(),
-        style: IconButton.styleFrom(
-          highlightColor: colorScheme.primary.withValues(alpha: 0.1),
-          splashFactory: InkRipple.splashFactory,
-        ),
       ),
-      title: Row(
+      title: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: colorScheme.primaryContainer,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(
-              Icons.location_on_rounded, 
-              color: colorScheme.onPrimaryContainer, 
-              size: 20,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Text(
+          const Text(
             'CivicResolve',
             style: TextStyle(
-              color: colorScheme.onSurface,
-              fontWeight: FontWeight.w600,
-              fontSize: 20,
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: Colors.white,
+              letterSpacing: -0.2,
+            ),
+          ),
+          Text(
+            widget.isAdmin ? 'Municipal Administrative Control' : 'Municipal Citizen Services',
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w400,
+              color: Color(0xFFCBD5E1),
             ),
           ),
         ],
       ),
       actions: [
-        // Notification Button
-        Container(
-          margin: const EdgeInsets.only(right: 8),
-          child: IconButton(
-            onPressed: () => _navigateToNotifications(),
-            icon: ValueListenableBuilder<int>(
-              valueListenable: NotificationService().unreadCountNotifier,
-              builder: (context, unreadCount, child) {
-                return Stack(
-                  children: [
-                    Icon(
-                      Icons.notifications_outlined,
-                      color: colorScheme.onSurface,
-                      size: 24,
-                    ),
-                    // Notification badge
-                    if (unreadCount > 0)
-                      Positioned(
-                        right: 0,
-                        top: 0,
-                        child: Container(
-                          padding: const EdgeInsets.all(2),
-                          decoration: BoxDecoration(
-                            color: Colors.red,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          constraints: const BoxConstraints(
-                            minWidth: 16,
-                            minHeight: 16,
-                          ),
-                          child: Text(
-                            unreadCount > 99 ? '99+' : '$unreadCount',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
+        // Language Selector Action
+        IconButton(
+          icon: const Icon(Icons.translate_rounded, color: Colors.white, size: 20),
+          tooltip: 'Select Language',
+          onPressed: _showLanguageSelector,
+        ),
+        // Notifications Action
+        ValueListenableBuilder<int>(
+          valueListenable: NotificationService().unreadCountNotifier,
+          builder: (context, count, child) {
+            return Stack(
+              alignment: Alignment.center,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.notifications_outlined, color: Colors.white),
+                  tooltip: 'Notifications',
+                  onPressed: _navigateToNotifications,
+                ),
+                if (count > 0)
+                  Positioned(
+                    right: 8,
+                    top: 8,
+                    child: Container(
+                      padding: const EdgeInsets.all(3),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFD92D20),
+                        shape: BoxShape.circle,
                       ),
-                  ],
-                );
-              },
+                      constraints: const BoxConstraints(minWidth: 14, minHeight: 14),
+                      child: Text(
+                        count > 9 ? '9+' : '$count',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 9,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+              ],
+            );
+          },
+        ),
+        const SizedBox(width: 4),
+      ],
+    );
+  }
+
+  Widget _buildWelcomeCard() {
+    final greeting = _getTimeGreeting();
+    final authService = AuthService.instance;
+    final userName = authService.userName ?? 'Citizen';
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE4E7EC)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0A000000),
+            blurRadius: 6,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: const Color(0xFFEFF8FF),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFFB2DDFF)),
             ),
-            style: IconButton.styleFrom(
-              highlightColor: colorScheme.primary.withValues(alpha: 0.1),
-              splashFactory: InkRipple.splashFactory,
+            child: const Icon(
+              Icons.account_balance_rounded,
+              color: Color(0xFF155EEF),
+              size: 24,
             ),
           ),
-        ),
-        Container(
-          margin: const EdgeInsets.only(right: 16),
-          child: PopupMenuButton<String>(
-            offset: const Offset(0, 50),
-            icon: Hero(
-              tag: 'user_avatar',
-              child: Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: colorScheme.primary,
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: colorScheme.primary.withValues(alpha: 0.3),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: Icon(
-                  Icons.person_rounded, 
-                  color: colorScheme.onPrimary, 
-                  size: 22,
-                ),
-              ),
-            ),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            itemBuilder: (context) => [
-              PopupMenuItem(
-                value: 'status',
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            width: 8,
-                            height: 8,
-                            decoration: BoxDecoration(
-                              color: Colors.green,
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          const Text(
-                            'Verified User',
-                            style: TextStyle(fontWeight: FontWeight.w600),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Padding(
-                        padding: const EdgeInsets.only(left: 16),
-                        child: Text(
-                          'Aadhaar Verified',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ),
-                    ],
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '$greeting, $userName',
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF172B4D),
                   ),
                 ),
-              ),
-              const PopupMenuDivider(),
-              PopupMenuItem(
-                value: 'profile',
-                child: Row(
-                  children: [
-                    Icon(Icons.person_outline_rounded, size: 20, color: colorScheme.onSurfaceVariant),
-                    const SizedBox(width: 12),
-                    const Text('Profile'),
-                  ],
+                const SizedBox(height: 2),
+                const Text(
+                  'Solapur Municipal Grievance Redressal Portal',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF667085),
+                  ),
                 ),
-              ),
-              PopupMenuItem(
-                value: 'notifications',
-                child: Row(
-                  children: [
-                    Icon(Icons.notifications_outlined, size: 20, color: colorScheme.onSurfaceVariant),
-                    const SizedBox(width: 12),
-                    const Text('Notifications'),
-                  ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPrimaryReportBanner() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: const Color(0xFF155EEF), // Government primary blue
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x24155EEF),
+            blurRadius: 10,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.18),
+                  borderRadius: BorderRadius.circular(8),
                 ),
+                child: const Icon(Icons.campaign_outlined, color: Colors.white, size: 22),
               ),
-              PopupMenuItem(
-                value: 'language',
-                child: Row(
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(Icons.language_rounded, size: 20, color: colorScheme.onSurfaceVariant),
-                    const SizedBox(width: 12),
-                    const Text('Language'),
-                  ],
-                ),
-              ),
-              const PopupMenuDivider(),
-              PopupMenuItem(
-                value: 'logout',
-                child: Row(
-                  children: [
-                    Icon(Icons.logout_rounded, size: 20, color: colorScheme.error),
-                    const SizedBox(width: 12),
-                    Text('Log out', style: TextStyle(color: colorScheme.error)),
+                    Text(
+                      'Report a Municipal Problem',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      'Potholes, water supply, streetlights, garbage & sanitation',
+                      style: TextStyle(
+                        color: Color(0xFFEFF8FF),
+                        fontSize: 12,
+                      ),
+                    ),
                   ],
                 ),
               ),
             ],
-            onSelected: (value) => _handleProfileMenuAction(value),
           ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            height: 44,
+            child: ElevatedButton.icon(
+              onPressed: _navigateToReportIssue,
+              icon: const Icon(Icons.add_circle_outline, size: 18, color: Color(0xFF155EEF)),
+              label: const Text(
+                'Register New Grievance',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF155EEF),
+                ),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: const Color(0xFF155EEF),
+                elevation: 0,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuickActionsHeader() {
+    return const Text(
+      'Citizen Services',
+      style: TextStyle(
+        fontSize: 15,
+        fontWeight: FontWeight.w700,
+        color: Color(0xFF172B4D),
+      ),
+    );
+  }
+
+  Widget _buildQuickActionsGrid() {
+    return GridView.count(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      crossAxisCount: 2,
+      crossAxisSpacing: 12,
+      mainAxisSpacing: 12,
+      childAspectRatio: 1.55,
+      children: [
+        _buildActionTile(
+          title: 'Track Grievances',
+          subtitle: 'Live status timeline',
+          icon: Icons.track_changes_rounded,
+          iconColor: const Color(0xFF155EEF),
+          bgColor: const Color(0xFFEFF8FF),
+          onTap: _navigateToTrackReports,
+        ),
+        _buildActionTile(
+          title: 'Nearby Civic Map',
+          subtitle: 'OpenStreetMap view',
+          icon: Icons.map_outlined,
+          iconColor: const Color(0xFF059669),
+          bgColor: const Color(0xFFECFDF5),
+          onTap: _navigateToMapView,
+        ),
+        _buildActionTile(
+          title: 'My Reports',
+          subtitle: 'History & feedback',
+          icon: Icons.assignment_outlined,
+          iconColor: const Color(0xFF7C3AED),
+          bgColor: const Color(0xFFF5F3FF),
+          onTap: _navigateToTrackReports,
+        ),
+        _buildActionTile(
+          title: 'Emergency Helpline',
+          subtitle: 'Control room & police',
+          icon: Icons.phone_in_talk_rounded,
+          iconColor: const Color(0xFFD92D20),
+          bgColor: const Color(0xFFFEF3F2),
+          onTap: _showEmergencyContacts,
         ),
       ],
     );
   }
 
-  Widget _buildWelcomeHeroCard() {
-    final colorScheme = Theme.of(context).colorScheme;
-    
-    return Card(
-      elevation: 12,
-      shadowColor: const Color(0xFF6366F1).withValues(alpha: 0.4),
-      color: Colors.transparent,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+  Widget _buildActionTile({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required Color iconColor,
+    required Color bgColor,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
       child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(24),
-          gradient: const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Color(0xFF6366F1), // Indigo
-              Color(0xFF8B5CF6), // Purple
-              Color(0xFFA855F7), // Purple
-            ],
-          ),
-          boxShadow: [
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFE4E7EC)),
+          boxShadow: const [
             BoxShadow(
-              color: const Color(0xFF6366F1).withValues(alpha: 0.3),
-              blurRadius: 20,
-              offset: const Offset(0, 10),
+              color: Color(0x08000000),
+              blurRadius: 4,
+              offset: Offset(0, 1),
             ),
           ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Row(
               children: [
                 Container(
-                  width: 60,
-                  height: 60,
+                  padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.3),
-                      width: 2,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.white.withValues(alpha: 0.2),
-                        blurRadius: 8,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
+                    color: bgColor,
+                    borderRadius: BorderRadius.circular(6),
                   ),
-                  child: const Icon(
-                    Icons.dashboard_rounded,
-                    color: Colors.white,
-                    size: 32,
-                  ),
+                  child: Icon(icon, color: iconColor, size: 18),
                 ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        widget.isAdmin ? 'Admin Dashboard' : 'Welcome to CivicResolve',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 24,
-                          fontWeight: FontWeight.w800,
-                          height: 1.2,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        widget.isAdmin 
-                            ? 'Manage reports and oversee community issues'
-                            : 'Make your community better, one report at a time',
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.9),
-                          fontSize: 15,
-                          height: 1.4,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                const Spacer(),
+                const Icon(Icons.arrow_forward_ios, size: 12, color: Color(0xFF98A2B3)),
               ],
             ),
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    decoration: BoxDecoration(
-                      color: colorScheme.surface.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: colorScheme.outline.withValues(alpha: 0.2),
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.verified_user_rounded,
-                          color: colorScheme.primary,
-                          size: 20,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Verified Account',
-                          style: TextStyle(
-                            color: colorScheme.onPrimaryContainer,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  decoration: BoxDecoration(
-                    color: colorScheme.surface.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: colorScheme.outline.withValues(alpha: 0.2),
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.location_on_rounded,
-                        color: colorScheme.primary,
-                        size: 20,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Local Area',
-                        style: TextStyle(
-                          color: colorScheme.onPrimaryContainer,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+            const SizedBox(height: 8),
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF172B4D),
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            Text(
+              subtitle,
+              style: const TextStyle(
+                fontSize: 11,
+                color: Color(0xFF667085),
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ],
         ),
@@ -538,379 +497,367 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
     );
   }
 
-  Widget _buildAnimatedDashboardCard({
-    required String title,
-    required String description,
-    required IconData icon,
-    required String buttonText,
-    required VoidCallback onTap,
-    required int animationDelay,
-    String? badge,
-    bool isEmergency = false,
-  }) {
-    // Define vibrant colors for different card types
-    Color getCardColor() {
-      if (isEmergency) return const Color(0xFFDC2626); // Strong Emergency Red
-      if (title.contains('Report')) return const Color(0xFF0EA5E9); // Sky Blue
-      if (title.contains('Track')) return const Color(0xFFF59E0B); // Amber
-      if (title.contains('Admin')) return const Color(0xFF059669); // Emerald
-      return const Color(0xFF3B82F6); // Default blue
-    }
-    
-    Color getGradientStart() {
-      if (isEmergency) return const Color(0xFFDC2626); // Strong Emergency Red
-      if (title.contains('Report')) return const Color(0xFF0EA5E9); // Sky Blue
-      if (title.contains('Track')) return const Color(0xFFF59E0B); // Amber
-      if (title.contains('Admin')) return const Color(0xFF059669); // Emerald
-      return const Color(0xFF3B82F6);
-    }
-    
-    Color getGradientEnd() {
-      if (isEmergency) return const Color(0xFFEF4444); // Bright Emergency Red
-      if (title.contains('Report')) return const Color(0xFF38BDF8); // Light Sky Blue
-      if (title.contains('Track')) return const Color(0xFFFBBF24); // Light Amber
-      if (title.contains('Admin')) return const Color(0xFF34D399); // Light Emerald
-      return const Color(0xFF64B5F6);
-    }
-    
-    return AnimatedBuilder(
-      animation: _staggerController,
-      builder: (context, child) {
-        final delay = animationDelay / 1000.0;
-        final progress = Curves.easeOutCubic.transform(
-          (((_staggerController.value - delay) / (1.0 - delay)).clamp(0.0, 1.0)),
-        );
-        
-        return Transform.translate(
-          offset: Offset(0, (1 - progress) * 50),
-          child: Opacity(
-            opacity: progress,
-            child: TweenAnimationBuilder<double>(
-              tween: Tween(begin: 0.95, end: 1.0),
-              duration: const Duration(milliseconds: 200),
-              builder: (context, scale, child) {
-                return Transform.scale(
-                  scale: scale,
-                  child: Card(
-                    elevation: 8,
-                    shadowColor: getCardColor().withValues(alpha: 0.3),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(20),
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [
-                            getGradientStart(),
-                            getGradientEnd(),
-                          ],
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: getCardColor().withValues(alpha: 0.3),
-                            blurRadius: 15,
-                            offset: const Offset(0, 8),
-                          ),
-                        ],
-                      ),
-                      child: InkWell(
-                        onTap: onTap,
-                        borderRadius: BorderRadius.circular(20),
-                        splashColor: Colors.white.withValues(alpha: 0.2),
-                        highlightColor: Colors.white.withValues(alpha: 0.1),
-                        child: Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(20),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Container(
-                                    width: 60,
-                                    height: 60,
-                                    decoration: BoxDecoration(
-                                      color: Colors.white.withValues(alpha: 0.2),
-                                      borderRadius: BorderRadius.circular(18),
-                                      border: Border.all(
-                                        color: Colors.white.withValues(alpha: 0.3),
-                                        width: 2,
-                                      ),
-                                    ),
-                                    child: Icon(
-                                      icon, 
-                                      color: Colors.white, 
-                                      size: 32,
-                                    ),
-                                  ),
-                                  const Spacer(),
-                                  if (badge != null)
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                                      decoration: BoxDecoration(
-                                        color: Colors.white.withValues(alpha: 0.9),
-                                        borderRadius: BorderRadius.circular(20),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: Colors.black.withValues(alpha: 0.1),
-                                            blurRadius: 4,
-                                            offset: const Offset(0, 2),
-                                          ),
-                                        ],
-                                      ),
-                                      child: Text(
-                                        badge,
-                                        style: TextStyle(
-                                          color: getCardColor(),
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                      ),
-                                    ),
-                                ],
-                              ),
-                              const SizedBox(height: 18),
-                              Text(
-                                title,
-                                style: const TextStyle(
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.w700,
-                                  color: Colors.white,
-                                  height: 1.2,
-                                ),
-                              ),
-                              const SizedBox(height: 10),
-                              Text(
-                                description,
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  color: Colors.white.withValues(alpha: 0.9),
-                                  height: 1.4,
-                                ),
-                              ),
-                              const SizedBox(height: 22),
-                              SizedBox(
-                                width: double.infinity,
-                                child: ElevatedButton(
-                                  onPressed: onTap,
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.white,
-                                    foregroundColor: getCardColor(),
-                                    elevation: 4,
-                                    shadowColor: Colors.black.withValues(alpha: 0.2),
-                                    padding: const EdgeInsets.symmetric(vertical: 16),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(14),
-                                    ),
-                                  ),
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Text(
-                                        buttonText,
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.w700,
-                                          fontSize: 16,
-                                          color: getCardColor(),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 10),
-                                      Icon(
-                                        Icons.arrow_forward_rounded,
-                                        size: 20,
-                                        color: getCardColor(),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildSidebar() {
-    final colorScheme = Theme.of(context).colorScheme;
-    
-    return NavigationDrawer(
-      backgroundColor: colorScheme.surface,
-      surfaceTintColor: colorScheme.surfaceTint,
-      onDestinationSelected: _handleDrawerNavigation,
+  Widget _buildRecentGrievancesHeader() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Container(
-          height: 180,
-          margin: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                colorScheme.primaryContainer,
-                colorScheme.primaryContainer.withValues(alpha: 0.8),
-              ],
+        const Text(
+          'Recent Grievances',
+          style: TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
+            color: Color(0xFF172B4D),
+          ),
+        ),
+        if (_recentReports.isNotEmpty)
+          TextButton(
+            onPressed: _navigateToTrackReports,
+            style: TextButton.styleFrom(
+              padding: EdgeInsets.zero,
+              visualDensity: VisualDensity.compact,
+              foregroundColor: const Color(0xFF155EEF),
             ),
-            borderRadius: BorderRadius.circular(16),
+            child: const Text('View All', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
           ),
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  width: 64,
-                  height: 64,
-                  decoration: BoxDecoration(
-                    color: colorScheme.primary,
-                    borderRadius: BorderRadius.circular(32),
-                    boxShadow: [
-                      BoxShadow(
-                        color: colorScheme.primary.withValues(alpha: 0.3),
-                        blurRadius: 12,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Icon(
-                    Icons.person_rounded, 
-                    color: colorScheme.onPrimary, 
-                    size: 32,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'CivicResolve',
-                  style: TextStyle(
-                    color: colorScheme.onPrimaryContainer,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  widget.isAdmin ? 'Admin Panel' : 'Citizen Portal',
-                  style: TextStyle(
-                    color: colorScheme.onPrimaryContainer.withValues(alpha: 0.8),
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: 8),
-        NavigationDrawerDestination(
-          icon: Icon(Icons.dashboard_rounded),
-          label: Text('Dashboard'),
-        ),
-        NavigationDrawerDestination(
-          icon: Icon(Icons.add_circle_outline_rounded),
-          label: Text('Report New Issue'),
-        ),
-        NavigationDrawerDestination(
-          icon: Icon(Icons.track_changes_rounded),
-          label: Text('Track My Reports'),
-        ),
-        NavigationDrawerDestination(
-          icon: Icon(Icons.map_rounded),
-          label: Text('Map View'),
-        ),
-        if (widget.isAdmin)
-          NavigationDrawerDestination(
-            icon: Icon(Icons.analytics_rounded),
-            label: Text('Analytics'),
-          ),
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Divider(),
-        ),
-        NavigationDrawerDestination(
-          icon: Icon(Icons.notifications_rounded),
-          label: Text('Notifications'),
-        ),
-        NavigationDrawerDestination(
-          icon: Icon(Icons.person_rounded),
-          label: Text('Profile'),
-        ),
-        NavigationDrawerDestination(
-          icon: Icon(Icons.emergency_rounded),
-          label: Text('Emergency Contacts'),
-        ),
-        NavigationDrawerDestination(
-          icon: Icon(Icons.language_rounded),
-          label: Text('Language'),
-        ),
       ],
     );
   }
 
-  void _handleDrawerNavigation(int index) {
-    Navigator.pop(context); // Close drawer first
-    
-    // Adjust index for admin-only analytics item
-    int adjustedIndex = index;
-    if (!widget.isAdmin && index >= 4) {
-      adjustedIndex = index + 1; // Skip the analytics index
+  Widget _buildRecentGrievancesList() {
+    if (_isLoadingReports) {
+      return Container(
+        padding: const EdgeInsets.all(24),
+        alignment: Alignment.center,
+        child: const SizedBox(
+          width: 24,
+          height: 24,
+          child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF155EEF)),
+        ),
+      );
     }
-    
-    switch (adjustedIndex) {
-      case 0: // Dashboard - do nothing, already here
-        break;
-      case 1: // Report New Issue
-        _navigateToReportIssue();
-        break;
-      case 2: // Track My Reports
-        _navigateToTrackReports();
-        break;
-      case 3: // Map View
-        _navigateToMapView();
-        break;
-      case 4: // Analytics (admin only)
-        if (widget.isAdmin) _navigateToAnalytics();
-        break;
-      case 5: // Notifications
-        _navigateToNotifications();
-        break;
-      case 6: // Profile
-        _navigateToProfile();
-        break;
-      case 7: // Emergency Contacts
-        _showEmergencyContacts();
-        break;
-      case 8: // Language
-        _showLanguageSelector();
-        break;
+
+    if (_recentReports.isEmpty) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFE4E7EC)),
+        ),
+        child: Column(
+          children: [
+            const Icon(Icons.inbox_outlined, size: 36, color: Color(0xFF98A2B3)),
+            const SizedBox(height: 8),
+            const Text(
+              'No grievances submitted yet',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF344054),
+              ),
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'Spotted a civic issue in your ward? Use the button above to register.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 12,
+                color: Color(0xFF667085),
+              ),
+            ),
+          ],
+        ),
+      );
     }
+
+    return Column(
+      children: _recentReports.map((report) => _buildRecentReportItem(report)).toList(),
+    );
   }
 
-  void _handleProfileMenuAction(String action) {
-    switch (action) {
-      case 'profile':
-        _navigateToProfile();
-        break;
-      case 'notifications':
-        _navigateToNotifications();
-        break;
-      case 'language':
-        _showLanguageSelector();
-        break;
-      case 'logout':
-        _handleLogout();
-        break;
-    }
+  Widget _buildRecentReportItem(ComprehensiveReportModel report) {
+    final formattedId = '#CR-${report.id.padLeft(4, '0')}';
+    final statusColor = _getStatusColor(report.status);
+    final statusText = _getStatusLabel(report.status);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE4E7EC)),
+      ),
+      child: InkWell(
+        onTap: _navigateToTrackReports,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF2F4F7),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(_getCategoryIcon(report.category), size: 18, color: const Color(0xFF344054)),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        formattedId,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF155EEF),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: statusColor.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          statusText,
+                          style: TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.bold,
+                            color: statusColor,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    report.title.isNotEmpty ? report.title : report.category,
+                    style: const TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF172B4D),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${report.location.isNotEmpty ? report.location : "Ward Area"} • ${report.submittedTime}',
+                    style: const TextStyle(
+                      fontSize: 11.5,
+                      color: Color(0xFF667085),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right, size: 18, color: Color(0xFF98A2B3)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGovernmentFooter() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF2F4F7),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: const Row(
+        children: [
+          Icon(Icons.shield_outlined, size: 16, color: Color(0xFF475467)),
+          SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Official Civic Redressal Service • Public Grievance Cell',
+              style: TextStyle(
+                fontSize: 11,
+                color: Color(0xFF475467),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBottomNav() {
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(top: BorderSide(color: Color(0xFFE4E7EC), width: 1)),
+      ),
+      child: BottomNavigationBar(
+        currentIndex: 0,
+        backgroundColor: Colors.white,
+        selectedItemColor: const Color(0xFF155EEF),
+        unselectedItemColor: const Color(0xFF667085),
+        selectedFontSize: 12,
+        unselectedFontSize: 12,
+        type: BottomNavigationBarType.fixed,
+        elevation: 0,
+        onTap: (index) {
+          switch (index) {
+            case 0:
+              // Home - already here
+              break;
+            case 1:
+              _navigateToReportIssue();
+              break;
+            case 2:
+              _navigateToTrackReports();
+              break;
+            case 3:
+              _navigateToMapView();
+              break;
+          }
+        },
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.home_outlined),
+            activeIcon: Icon(Icons.home),
+            label: 'Home',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.add_circle_outline),
+            activeIcon: Icon(Icons.add_circle),
+            label: 'Report',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.track_changes_outlined),
+            activeIcon: Icon(Icons.track_changes),
+            label: 'Track',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.map_outlined),
+            activeIcon: Icon(Icons.map),
+            label: 'Map',
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSidebar() {
+    final authService = AuthService.instance;
+    final userName = authService.userName ?? 'Citizen';
+    final userEmail = authService.userEmail ?? '';
+
+    return Drawer(
+      child: ListView(
+        padding: EdgeInsets.zero,
+        children: [
+          DrawerHeader(
+            decoration: const BoxDecoration(
+              color: Color(0xFF123B63),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                const CircleAvatar(
+                  radius: 24,
+                  backgroundColor: Color(0xFFEFF8FF),
+                  child: Icon(Icons.person, color: Color(0xFF155EEF), size: 28),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  userName,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                if (userEmail.isNotEmpty)
+                  Text(
+                    userEmail,
+                    style: const TextStyle(
+                      color: Color(0xFFCBD5E1),
+                      fontSize: 12,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          ListTile(
+            leading: const Icon(Icons.home_outlined, color: Color(0xFF155EEF)),
+            title: const Text('Home Dashboard'),
+            onTap: () => Navigator.pop(context),
+          ),
+          ListTile(
+            leading: const Icon(Icons.add_circle_outline, color: Color(0xFF155EEF)),
+            title: const Text('Register Grievance'),
+            onTap: () {
+              Navigator.pop(context);
+              _navigateToReportIssue();
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.track_changes_outlined, color: Color(0xFF155EEF)),
+            title: const Text('Track Complaints'),
+            onTap: () {
+              Navigator.pop(context);
+              _navigateToTrackReports();
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.map_outlined, color: Color(0xFF155EEF)),
+            title: const Text('Nearby Issues Map'),
+            onTap: () {
+              Navigator.pop(context);
+              _navigateToMapView();
+            },
+          ),
+          const Divider(),
+          ListTile(
+            leading: const Icon(Icons.phone_in_talk_outlined, color: Color(0xFF344054)),
+            title: const Text('Emergency Helpline'),
+            onTap: () {
+              Navigator.pop(context);
+              _showEmergencyContacts();
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.language_rounded, color: Color(0xFF344054)),
+            title: const Text('Change Language'),
+            onTap: () {
+              Navigator.pop(context);
+              _showLanguageSelector();
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.person_outline, color: Color(0xFF344054)),
+            title: const Text('Profile'),
+            onTap: () {
+              Navigator.pop(context);
+              _navigateToProfile();
+            },
+          ),
+          const Divider(),
+          ListTile(
+            leading: const Icon(Icons.logout, color: Color(0xFFD92D20)),
+            title: const Text('Log Out', style: TextStyle(color: Color(0xFFD92D20))),
+            onTap: () {
+              Navigator.pop(context);
+              _handleLogout();
+            },
+          ),
+        ],
+      ),
+    );
   }
 
   void _navigateToReportIssue() {
@@ -923,7 +870,7 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
   void _navigateToTrackReports() {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => const TrackReportsScreen()),
+      MaterialPageRoute(builder: (context) => const ComprehensiveTrackReportsScreen()),
     );
   }
 
@@ -931,12 +878,6 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
     Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => const MapViewScreen()),
-    );
-  }
-
-  void _navigateToAnalytics() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Analytics screen coming soon!')),
     );
   }
 
@@ -969,6 +910,48 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
   }
 
   void _handleLogout() {
+    AuthService.instance.signOut();
     Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+  }
+
+  static Color _getStatusColor(ReportStatus status) {
+    switch (status) {
+      case ReportStatus.submitted:
+        return const Color(0xFF155EEF);
+      case ReportStatus.review:
+        return const Color(0xFF4F46E5);
+      case ReportStatus.assigned:
+        return const Color(0xFF7C3AED);
+      case ReportStatus.progress:
+        return const Color(0xFFD97706);
+      case ReportStatus.resolved:
+        return const Color(0xFF12B76A);
+    }
+  }
+
+  static String _getStatusLabel(ReportStatus status) {
+    switch (status) {
+      case ReportStatus.submitted:
+        return 'Submitted';
+      case ReportStatus.review:
+        return 'Under Review';
+      case ReportStatus.assigned:
+        return 'Assigned';
+      case ReportStatus.progress:
+        return 'In Progress';
+      case ReportStatus.resolved:
+        return 'Resolved';
+    }
+  }
+
+  static IconData _getCategoryIcon(String category) {
+    final cat = category.toLowerCase();
+    if (cat.contains('road') || cat.contains('pothole')) return Icons.add_road_rounded;
+    if (cat.contains('water') || cat.contains('leak')) return Icons.water_drop_rounded;
+    if (cat.contains('drain') || cat.contains('sewage')) return Icons.water_rounded;
+    if (cat.contains('electric') || cat.contains('light')) return Icons.lightbulb_rounded;
+    if (cat.contains('garbage') || cat.contains('waste')) return Icons.delete_outline_rounded;
+    if (cat.contains('safety') || cat.contains('manhole')) return Icons.shield_outlined;
+    return Icons.report_problem_outlined;
   }
 }

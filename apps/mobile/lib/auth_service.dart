@@ -17,6 +17,7 @@ class AuthService {
   bool get isAdmin => _isAdmin;
   String get userRole => _userRole;
   String? get userEmail => _userEmail;
+  String get userName => _userEmail?.split('@').first ?? 'Citizen';
 
   // Simple login with explicit role passing
   Future<AuthResult> login(String emailOrId, String password, {String role = 'citizen'}) async {
@@ -54,6 +55,8 @@ class AuthService {
     await AppPreferences.clearUserRole();
     await _clearLoginState();
   }
+
+  Future<void> signOut() => logout();
 
   // Load saved login state
   Future<bool> loadSavedSession() async {

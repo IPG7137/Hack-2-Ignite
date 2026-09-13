@@ -49,6 +49,9 @@ apps/mobile/ios/Flutter/flutter_assets/
 
 # --- Node / JavaScript / Web ---
 node_modules/
+dist/
+build/
+.turbo/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*

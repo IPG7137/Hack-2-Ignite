@@ -4,10 +4,17 @@ class LeafletMapService {
     required double longitude,
     double zoom = 15.0,
     List<Map<String, dynamic>> reports = const [],
+    String? reportsGeoJson,
+    String? hotspotsGeoJson,
+    String? incidentsGeoJson,
     bool showTraffic = false,
     bool showSatellite = false,
   }) {
-    String reportsJson = _convertReportsToJson(reports);
+    String reportsJson = reportsGeoJson != null && reportsGeoJson.isNotEmpty
+        ? reportsGeoJson
+        : _convertReportsToJson(reports);
+    String rawHotspotsJson = hotspotsGeoJson ?? '{"type":"FeatureCollection","features":[]}';
+    String rawIncidentsJson = incidentsGeoJson ?? '{"type":"FeatureCollection","features":[]}';
     
     return '''
 <!DOCTYPE html>
@@ -416,11 +423,11 @@ class LeafletMapService {
     <script>
         // Initialize enhanced map
         var map = L.map('map').setView([$latitude, $longitude], $zoom);
-        
-        // Layer groups
+             // Layer groups
         var baseLayers = {};
         var overlayLayers = {};
         var reportsLayer = L.layerGroup().addTo(map);
+        var hotspotsLayer = L.layerGroup().addTo(map);
         var userMarkersLayer = L.layerGroup().addTo(map);
         
         // Base layers
@@ -461,33 +468,75 @@ class LeafletMapService {
             draggable: true
         }).addTo(userMarkersLayer);
         
-        // Reports data
+        // Reports and Hotspots data
         var reportsData = $reportsJson;
+        var hotspotsData = $rawHotspotsJson;
+        var incidentsData = $rawIncidentsJson;
         
         // Create custom icons for different priorities
-        function createReportIcon(priority, category) {
+        function createReportIcon(priority, category, status) {
             var color = '#10b981'; // Default green (low)
-            if (priority === 'High') color = '#ef4444';
-            else if (priority === 'Medium') color = '#f59e0b';
+            var p = (priority || '').toLowerCase();
+            var s = (status || '').toLowerCase();
             
+            if (s === 'resolved') {
+                color = '#059669';
+            } else if (p === 'high' || p === 'critical' || p === 'urgent') {
+                color = '#ef4444';
+            } else if (p === 'medium') {
+                color = '#f59e0b';
+            } else if (p === 'low') {
+                color = '#3b82f6';
+            }
+            
+            var initial = (category ? category.charAt(0) : '!').toUpperCase();
             return L.divIcon({
                 className: 'custom-report-icon',
-                html: '<div style="background: ' + color + '; width: 24px; height: 24px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 10px;">' + (category ? category.charAt(0) : '!') + '</div>',
-                iconSize: [24, 24],
-                iconAnchor: [12, 12]
+                html: '<div style="background: ' + color + '; width: 28px; height: 28px; border-radius: 50%; border: 2.5px solid white; box-shadow: 0 3px 10px rgba(0,0,0,0.35); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 11px;">' + initial + '</div>',
+                iconSize: [28, 28],
+                iconAnchor: [14, 14]
             });
         }
         
-        // Add reports to map
+        // Add reports to map (supports array or GeoJSON FeatureCollection)
         function addReportsToMap() {
             reportsLayer.clearLayers();
             
-            reportsData.forEach(function(report) {
+            var items = [];
+            if (reportsData && reportsData.type === 'FeatureCollection' && Array.isArray(reportsData.features)) {
+                items = reportsData.features.map(function(f) {
+                    var p = f.properties || {};
+                    var coords = (f.geometry && f.geometry.coordinates) || [0, 0];
+                    return {
+                        id: f.id || p.reportId,
+                        title: p.title,
+                        description: p.description,
+                        category: p.categoryDisplayName || p.category,
+                        priority: p.priorityDisplay || p.priority,
+                        status: p.status,
+                        latitude: coords[1],
+                        longitude: coords[0],
+                        location: p.location,
+                        reportedTime: p.submittedTime,
+                        is_duplicate: p.isPotentialDuplicate
+                    };
+                });
+            } else if (Array.isArray(reportsData)) {
+                items = reportsData;
+            }
+            
+            items.forEach(function(report) {
                 if (report.latitude && report.longitude) {
                     var marker = L.marker([report.latitude, report.longitude], {
-                        icon: createReportIcon(report.priority, report.category)
+                        icon: createReportIcon(report.priority, report.category, report.status)
                     });
                     
+                    marker.on('click', function() {
+                        if (window.onReportSelected) {
+                            window.onReportSelected.postMessage(report.id.toString());
+                        }
+                    });
+
                     var popupContent = formatReportPopup(report);
                     marker.bindPopup(popupContent, {
                         maxWidth: 300,
@@ -495,6 +544,43 @@ class LeafletMapService {
                     });
                     
                     reportsLayer.addLayer(marker);
+                }
+            });
+        }
+
+        // Add emerging problem hotspots to map (GeoJSON Polygon/Circle buffers)
+        function addHotspotsToMap() {
+            hotspotsLayer.clearLayers();
+            if (!hotspotsData || !hotspotsData.features || hotspotsData.features.length === 0) return;
+
+            hotspotsData.features.forEach(function(feature) {
+                var props = feature.properties || {};
+                var isSevere = props.isSevere === true;
+                var strokeColor = isSevere ? '#dc2626' : '#ea580c';
+                var fillColor = isSevere ? '#fecaca' : '#fed7aa';
+
+                if (feature.geometry && feature.geometry.type === 'Polygon') {
+                    var polyCoords = feature.geometry.coordinates[0].map(function(c) {
+                        return [c[1], c[0]]; // Convert GeoJSON [lng, lat] to Leaflet [lat, lng]
+                    });
+
+                    var polygon = L.polygon(polyCoords, {
+                        color: strokeColor,
+                        weight: 2,
+                        opacity: 0.85,
+                        dashArray: '4, 6',
+                        fillColor: fillColor,
+                        fillOpacity: 0.25
+                    });
+
+                    var popup = '<div style="font-family: sans-serif; padding: 4px;">' +
+                        '<div style="font-weight: bold; color: ' + strokeColor + '; font-size: 13px;">🚨 ' + (props.classificationLabel || 'Emerging Problem Area') + '</div>' +
+                        '<div style="font-size: 12px; color: #334155; margin-top: 4px;">Category: <b>' + (props.category || 'Civic Issue') + '</b></div>' +
+                        '<div style="font-size: 11px; color: #64748b; margin-top: 2px;">Activity: <b>' + (props.surgeDisplay || (props.complaintCount + ' reports')) + '</b></div>' +
+                        '</div>';
+
+                    polygon.bindPopup(popup);
+                    hotspotsLayer.addLayer(polygon);
                 }
             });
         }
@@ -512,15 +598,15 @@ class LeafletMapService {
                 '<div class="priority-badge ' + priorityClass + '">' + (report.priority || 'Medium') + ' Priority</div>' +
                 '<div class="coord-display">' +
                     '<div class="coord-label">Location</div>' +
-                    '<div class="coord-value">' + report.latitude.toFixed(6) + ', ' + report.longitude.toFixed(6) + '</div>' +
+                    '<div class="coord-value">' + (typeof report.latitude === 'number' ? report.latitude.toFixed(6) : report.latitude) + ', ' + (typeof report.longitude === 'number' ? report.longitude.toFixed(6) : report.longitude) + '</div>' +
                 '</div>' +
                 '<div class="report-time">📅 ' + (report.reportedTime || 'Recently reported') + '</div>' +
             '</div>';
         }
-
         
-        // Initialize reports
+        // Initialize layers
         addReportsToMap();
+        addHotspotsToMap();tsToMap();
         
         // Control button handlers
         var locationBtn = document.getElementById('locationBtn');
@@ -605,7 +691,7 @@ class LeafletMapService {
             }
         });
         
-        // Measure distance on click
+        // Handle map click: measuring distance OR selecting complaint location
         map.on('click', function(e) {
             if (measureMode) {
                 measurePoints.push(e.latlng);
@@ -635,6 +721,17 @@ class LeafletMapService {
                         .setLatLng(e.latlng)
                         .setContent('<div style="text-align: center; font-weight: bold; color: #3b82f6;">📏 Distance: ' + distanceText + '</div>')
                         .openOn(map);
+                }
+            } else {
+                // Pinpoint and move location marker to clicked point
+                var lat = e.latlng.lat;
+                var lng = e.latlng.lng;
+                userLocationMarker.setLatLng([lat, lng]);
+                currentLocationMarker.setLatLng([lat, lng]);
+                userLocationMarker.setPopupContent(formatCoordinates(lat, lng));
+                
+                if (window.onLocationChanged) {
+                    window.onLocationChanged.postMessage('latitude:' + lat + ',longitude:' + lng);
                 }
             }
         });
@@ -730,9 +827,15 @@ class LeafletMapService {
             filteredReports.forEach(function(report) {
                 if (report.latitude && report.longitude) {
                     var marker = L.marker([report.latitude, report.longitude], {
-                        icon: createReportIcon(report.priority, report.category)
+                        icon: createReportIcon(report.priority, report.category, report.status)
                     });
                     
+                    marker.on('click', function() {
+                        if (window.onReportSelected) {
+                            window.onReportSelected.postMessage(report.id.toString());
+                        }
+                    });
+
                     var popupContent = formatReportPopup(report);
                     marker.bindPopup(popupContent, {
                         maxWidth: 300,
@@ -744,11 +847,30 @@ class LeafletMapService {
             });
         }
         
+        // Center on coordinates helper
+        function centerOnCoordinates(lat, lng, zoom) {
+            map.setView([lat, lng], zoom || 16);
+        }
+
+        // Dynamic real-time update function
+        function updateMapLayers(newReportsData, newHotspotsData) {
+            if (newReportsData !== undefined && newReportsData !== null) {
+                reportsData = typeof newReportsData === 'string' ? JSON.parse(newReportsData) : newReportsData;
+                addReportsToMap();
+            }
+            if (newHotspotsData !== undefined && newHotspotsData !== null) {
+                hotspotsData = typeof newHotspotsData === 'string' ? JSON.parse(newHotspotsData) : newHotspotsData;
+                addHotspotsToMap();
+            }
+        }
+
         // Make functions globally available
         window.updateLocation = updateLocation;
         window.setLocationLoading = setLocationLoading;
         window.addReport = addReport;
         window.filterReports = filterReports;
+        window.centerOnCoordinates = centerOnCoordinates;
+        window.updateMapLayers = updateMapLayers;
         
         // Map event handlers
         map.on('zoom', function() {
@@ -785,9 +907,12 @@ class LeafletMapService {
       buffer.write(',"description":"${_escapeJson(report['description'] ?? '')}"');
       buffer.write(',"category":"${report['category'] ?? 'General'}"');
       buffer.write(',"priority":"${report['priority'] ?? 'Medium'}"');
+      buffer.write(',"status":"${report['status'] ?? 'submitted'}"');
       buffer.write(',"latitude":${report['latitude'] ?? 0}');
       buffer.write(',"longitude":${report['longitude'] ?? 0}');
+      buffer.write(',"location":"${_escapeJson(report['location'] ?? '')}"');
       buffer.write(',"reportedTime":"${report['reportedTime'] ?? 'Recently'}"');
+      buffer.write(',"is_duplicate":${report['is_duplicate'] == true}');
       buffer.write('}');
     }
     buffer.write(']');

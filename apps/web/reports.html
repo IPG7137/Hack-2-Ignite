@@ -223,6 +223,7 @@
     </div>
 
     <!-- Scripts -->
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <script src="js/config.js"></script>
     <script src="js/database.js"></script>
     <script src="js/auth-simple.js"></script>
@@ -246,126 +247,94 @@
                 this.loadReports();
                 this.loadCategories();
                 this.updateNotificationCount();
+                this.initRealtime();
+            }
+
+            initRealtime() {
+                if (window.supabaseService) {
+                    window.supabaseService.initRealtimeSubscription(
+                        (newReport) => {
+                            console.log('🔴 Realtime new report on reports page:', newReport);
+                            this.loadReports();
+                        },
+                        (updatedReport) => {
+                            console.log('🔵 Realtime updated report on reports page:', updatedReport);
+                            this.loadReports();
+                        }
+                    );
+                }
             }
 
             initializeEventListeners() {
                 // Filter events
-                document.getElementById('status-filter').addEventListener('change', () => this.applyFilters());
-                document.getElementById('category-filter').addEventListener('change', () => this.applyFilters());
-                document.getElementById('priority-filter').addEventListener('change', () => this.applyFilters());
-                document.getElementById('date-filter').addEventListener('change', () => this.applyFilters());
+                document.getElementById('status-filter')?.addEventListener('change', () => this.applyFilters());
+                document.getElementById('category-filter')?.addEventListener('change', () => this.applyFilters());
+                document.getElementById('priority-filter')?.addEventListener('change', () => this.applyFilters());
+                document.getElementById('date-filter')?.addEventListener('change', () => this.applyFilters());
                 
                 // Search events
-                document.getElementById('search-input').addEventListener('input', this.debounce(() => this.applyFilters(), 500));
-                document.getElementById('search-btn').addEventListener('click', () => this.applyFilters());
+                document.getElementById('search-input')?.addEventListener('input', this.debounce(() => this.applyFilters(), 500));
+                document.getElementById('search-btn')?.addEventListener('click', () => this.applyFilters());
                 
                 // Action buttons
-                document.getElementById('refresh-btn').addEventListener('click', () => this.refreshReports());
-                document.getElementById('clear-filters-btn').addEventListener('click', () => this.clearFilters());
-                document.getElementById('export-btn').addEventListener('click', () => this.exportReports());
+                document.getElementById('refresh-btn')?.addEventListener('click', () => this.refreshReports());
+                document.getElementById('clear-filters-btn')?.addEventListener('click', () => this.clearFilters());
+                document.getElementById('export-btn')?.addEventListener('click', () => this.exportReports());
                 
                 // View toggle
-                document.getElementById('table-view-btn').addEventListener('click', () => this.switchView('table'));
-                document.getElementById('card-view-btn').addEventListener('click', () => this.switchView('card'));
-                document.getElementById('map-view-btn').addEventListener('click', () => this.switchView('map'));
+                document.getElementById('table-view-btn')?.addEventListener('click', () => this.switchView('table'));
+                document.getElementById('card-view-btn')?.addEventListener('click', () => this.switchView('card'));
+                document.getElementById('map-view-btn')?.addEventListener('click', () => this.switchView('map'));
                 
                 // Error/Empty state buttons
-                document.getElementById('retry-btn').addEventListener('click', () => this.retryLoading());
-                document.getElementById('clear-search-btn').addEventListener('click', () => this.clearFilters());
+                document.getElementById('retry-btn')?.addEventListener('click', () => this.retryLoading());
+                document.getElementById('clear-search-btn')?.addEventListener('click', () => this.clearFilters());
                 
                 // Pagination
-                document.getElementById('prev-page').addEventListener('click', () => this.prevPage());
-                document.getElementById('next-page').addEventListener('click', () => this.nextPage());
+                document.getElementById('prev-page')?.addEventListener('click', () => this.prevPage());
+                document.getElementById('next-page')?.addEventListener('click', () => this.nextPage());
             }
 
             async loadReports() {
                 try {
-                    // Start performance timing
                     this.loadStartTime = performance.now();
-                    console.log('🚀 Loading reports...');
+                    console.log('🚀 Loading live database reports...');
                     this.showLoading();
                     
-                    // Add fast loading animation class
                     const loadingElement = document.getElementById('loading-state');
-                    loadingElement.classList.add('fast-loading');
+                    if (loadingElement) loadingElement.classList.add('fast-loading');
                     
-                    // Build filters once
                     const filters = this.buildFilters();
                     
-                    // Try database first, fall back to sample data immediately if not available
-                    let reports, totalCount;
-                    
-                    try {
-                        // Start both requests simultaneously for fastest loading
-                        [reports, totalCount] = await Promise.all([
-                            window.supabaseService.getAllReports({
-                                ...filters,
-                                limit: this.pageSize,
-                                offset: (this.currentPage - 1) * this.pageSize
-                            }),
-                            window.supabaseService.getReportsCount(filters)
-                        ]);
-                    } catch (dbError) {
-                        console.log('🔄 Database unavailable, using sample data instantly');
-                        // Use sample data immediately for fastest possible response
-                        reports = window.supabaseService.generateSampleReports({
+                    const [reports, totalCount] = await Promise.all([
+                        window.supabaseService.getAllReports({
                             ...filters,
                             limit: this.pageSize,
                             offset: (this.currentPage - 1) * this.pageSize
-                        });
-                        totalCount = window.supabaseService.getSampleReportsCount(filters);
-                    }
+                        }),
+                        window.supabaseService.getReportsCount(filters)
+                    ]);
 
-                    // Remove fast loading animation
-                    loadingElement.classList.remove('fast-loading');
-
-                    // Calculate load time
+                    if (loadingElement) loadingElement.classList.remove('fast-loading');
                     const loadTime = performance.now() - this.loadStartTime;
 
-                    // Display results immediately
                     if (reports && reports.length > 0) {
                         this.displayReports(reports);
                         this.updatePagination(totalCount);
                         this.hideLoading();
-                        console.log(`✅ Loaded ${reports.length} reports in ${loadTime.toFixed(2)}ms`);
-                        window.supabaseService.showToast('success', `⚡ Loaded ${reports.length} reports (${loadTime.toFixed(0)}ms)`);
+                        console.log(`✅ Loaded ${reports.length} live reports in ${loadTime.toFixed(2)}ms`);
                     } else {
                         this.showEmpty();
-                        console.log('📭 No reports found matching filters');
+                        console.log('📭 No reports found in database');
                     }
                     
                 } catch (error) {
                     console.error('❌ Error loading reports:', error);
-                    
-                    // Remove fast loading animation on error
                     const loadingElement = document.getElementById('loading-state');
-                    loadingElement.classList.remove('fast-loading');
+                    if (loadingElement) loadingElement.classList.remove('fast-loading');
                     
                     this.showError();
-                    window.supabaseService.showToast('error', '❌ Failed to load reports');
-                }
-            }
-
-            async loadSampleReports() {
-                try {
-                    this.showLoading();
-                    const filters = this.buildFilters();
-                    
-                    // Force sample data generation
-                    const reports = window.supabaseService.generateSampleReports(filters);
-                    const totalCount = window.supabaseService.getSampleReportsCount(filters);
-                    
-                    if (reports && reports.length > 0) {
-                        this.displayReports(reports);
-                        this.updatePagination(totalCount);
-                        this.hideLoading();
-                        console.log(`✅ Loaded ${reports.length} sample reports as fallback`);
-                    } else {
-                        this.showEmpty();
-                    }
-                } catch (error) {
-                    console.error('❌ Even sample data failed:', error);
-                    this.showError();
+                    window.supabaseService?.showToast('error', `❌ Database: ${error.message}`);
                 }
             }
 

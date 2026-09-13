@@ -1,0 +1,104 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 220" width="1000" height="220">
+  <defs>
+    <linearGradient id="fadeEdge" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#123B6D" stop-opacity="0.35"/>
+      <stop offset="25%" stop-color="#123B6D" stop-opacity="0.22"/>
+      <stop offset="60%" stop-color="#123B6D" stop-opacity="0.08"/>
+      <stop offset="85%" stop-color="#123B6D" stop-opacity="0.25"/>
+      <stop offset="100%" stop-color="#123B6D" stop-opacity="0.35"/>
+    </linearGradient>
+  </defs>
+
+  <g fill="url(#fadeEdge)" stroke="none">
+    <!-- Ground Line -->
+    <rect x="0" y="212" width="1000" height="8"/>
+
+    <!-- Left Heritage Administrative Corporation Building & Clock Tower -->
+    <!-- Clock Tower -->
+    <rect x="40" y="70" width="46" height="142"/>
+    <polygon points="35,70 63,20 91,70"/>
+    <!-- Dome Finial -->
+    <line x1="63" y1="20" x2="63" y2="6" stroke="#123B6D" stroke-width="2.5" opacity="0.4"/>
+    <circle cx="63" cy="5" r="3.5" fill="#123B6D" opacity="0.4"/>
+    <!-- Clock Dial -->
+    <circle cx="63" cy="92" r="13" fill="#FFFFFF" opacity="0.6"/>
+    <circle cx="63" cy="92" r="13" stroke="#123B6D" stroke-width="1.5" fill="none" opacity="0.4"/>
+    <line x1="63" y1="92" x2="63" y2="84" stroke="#123B6D" stroke-width="1.8" opacity="0.5"/>
+    <line x1="63" y1="92" x2="69" y2="92" stroke="#123B6D" stroke-width="1.8" opacity="0.5"/>
+    <!-- Tower Windows & Louvers -->
+    <rect x="52" y="118" width="8" height="18" rx="4"/>
+    <rect x="66" y="118" width="8" height="18" rx="4"/>
+    <rect x="52" y="146" width="8" height="20" rx="4"/>
+    <rect x="66" y="146" width="8" height="20" rx="4"/>
+    <rect x="52" y="176" width="8" height="22" rx="4"/>
+    <rect x="66" y="176" width="8" height="22" rx="4"/>
+
+    <!-- Main Heritage Hall / Colonnade -->
+    <rect x="86" y="110" width="130" height="102"/>
+    <polygon points="80,110 151,80 222,110"/>
+    <!-- Arch Colonnade -->
+    <path d="M 98 170 Q 106 150 114 170 L 114 212 L 98 212 Z" fill="#FFFFFF" opacity="0.5"/>
+    <path d="M 122 170 Q 130 150 138 170 L 138 212 L 122 212 Z" fill="#FFFFFF" opacity="0.5"/>
+    <path d="M 146 170 Q 154 150 162 170 L 162 212 L 146 212 Z" fill="#FFFFFF" opacity="0.5"/>
+    <path d="M 170 170 Q 178 150 186 170 L 186 212 L 170 212 Z" fill="#FFFFFF" opacity="0.5"/>
+    <path d="M 194 170 Q 202 150 210 170 L 210 212 L 194 212 Z" fill="#FFFFFF" opacity="0.5"/>
+
+    <!-- Upper Windows -->
+    <rect x="100" y="126" width="10" height="18" rx="5"/>
+    <rect x="124" y="126" width="10" height="18" rx="5"/>
+    <rect x="148" y="126" width="10" height="18" rx="5"/>
+    <rect x="172" y="126" width="10" height="18" rx="5"/>
+    <rect x="196" y="126" width="10" height="18" rx="5"/>
+
+    <!-- Wing 2 with Balconies -->
+    <rect x="216" y="130" width="60" height="82"/>
+    <polygon points="216,130 246,114 276,130"/>
+    <rect x="226" y="142" width="12" height="20" rx="4"/>
+    <rect x="250" y="142" width="12" height="20" rx="4"/>
+    <rect x="226" y="174" width="12" height="24" rx="4"/>
+    <rect x="250" y="174" width="12" height="24" rx="4"/>
+
+    <!-- Trees & Green Canopy -->
+    <circle cx="295" cy="180" r="22"/>
+    <circle cx="318" cy="172" r="26"/>
+    <circle cx="340" cy="184" r="18"/>
+    <rect x="314" y="195" width="8" height="17"/>
+
+    <!-- Middle Distant City Skyline Silhouettes -->
+    <rect x="420" y="160" width="35" height="52" opacity="0.6"/>
+    <rect x="465" y="140" width="28" height="72" opacity="0.5"/>
+    <polygon points="465,140 479,122 493,140" opacity="0.5"/>
+    <rect x="505" y="152" width="42" height="60" opacity="0.6"/>
+    <rect x="560" y="166" width="30" height="46" opacity="0.5"/>
+
+    <!-- Right Municipal Infrastructure & Urban Center -->
+    <!-- Modern Metro Viaduct / Bridge arch -->
+    <path d="M 680 212 C 720 185 760 185 800 212 Z" opacity="0.6"/>
+    <path d="M 780 212 C 820 185 860 185 900 212 Z" opacity="0.6"/>
+
+    <!-- Right Civic Assembly Dome Complex -->
+    <rect x="800" y="124" width="140" height="88"/>
+    <!-- Grand Central Classical Dome -->
+    <ellipse cx="870" cy="124" rx="38" ry="46"/>
+    <rect x="840" y="120" width="60" height="8"/>
+    <polygon points="866,74 870,55 874,74"/>
+    <circle cx="870" cy="52" r="3.5"/>
+    <!-- Dome Lantern Arches -->
+    <rect x="852" y="98" width="6" height="14" rx="3" fill="#FFFFFF" opacity="0.6"/>
+    <rect x="867" y="98" width="6" height="14" rx="3" fill="#FFFFFF" opacity="0.6"/>
+    <rect x="882" y="98" width="6" height="14" rx="3" fill="#FFFFFF" opacity="0.6"/>
+    <!-- Front Pillars -->
+    <rect x="815" y="144" width="8" height="68"/>
+    <rect x="835" y="144" width="8" height="68"/>
+    <rect x="855" y="144" width="8" height="68"/>
+    <rect x="875" y="144" width="8" height="68"/>
+    <rect x="895" y="144" width="8" height="68"/>
+    <rect x="915" y="144" width="8" height="68"/>
+
+    <!-- Trees Right Side -->
+    <circle cx="760" cy="182" r="20"/>
+    <circle cx="780" cy="174" r="24"/>
+    <circle cx="958" cy="178" r="22"/>
+    <circle cx="978" cy="186" r="18"/>
+  </g>
+</svg>

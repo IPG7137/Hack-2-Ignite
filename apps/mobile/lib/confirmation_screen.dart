@@ -6,7 +6,8 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:http/http.dart' as http;
 import 'language_service.dart';
 import 'category_selection_screen.dart';
-import 'track_reports_screen.dart';
+import 'comprehensive_track_reports_screen.dart';
+import 'dashboard_screen.dart';
 import 'comprehensive_database_service.dart';
 import 'auth_service.dart';
 import 'notification_service.dart';
@@ -14,6 +15,7 @@ import 'credit_service.dart';
 
 class ConfirmationScreen extends StatefulWidget {
   final ReportCategory category;
+  final String? title;
   final String description;
   final List<File> images;
   final String location;
@@ -25,6 +27,7 @@ class ConfirmationScreen extends StatefulWidget {
   const ConfirmationScreen({
     super.key,
     required this.category,
+    this.title,
     required this.description,
     required this.images,
     required this.location,
@@ -46,21 +49,20 @@ class _ConfirmationScreenState extends State<ConfirmationScreen>
   late Animation<double> _iconScaleAnimation;
   late Animation<double> _contentFadeAnimation;
 
+  bool _isSubmitting = false;
+  bool _isSubmitted = false;
   String reportId = '';
+  String? _errorMessage;
+  String? _finalPriority;
 
   @override
   void initState() {
     super.initState();
     _languageService.addListener(_onLanguageChanged);
 
-    // Generate a mock report ID
-    reportId =
-        'CIV${DateTime.now().millisecondsSinceEpoch.toString().substring(8)}';
+    _finalPriority = widget.priority ?? 'Medium';
 
-    // Save the report to local storage
-    _saveReportToStorage();
-
-    // Initialize animations
+    // Initialize animations for success state
     _iconAnimationController = AnimationController(
       duration: const Duration(milliseconds: 800),
       vsync: this,
@@ -84,12 +86,6 @@ class _ConfirmationScreenState extends State<ConfirmationScreen>
         curve: Curves.easeInOut,
       ),
     );
-
-    // Start animations
-    _iconAnimationController.forward();
-    Future.delayed(const Duration(milliseconds: 400), () {
-      _contentAnimationController.forward();
-    });
   }
 
   @override
@@ -104,257 +100,137 @@ class _ConfirmationScreenState extends State<ConfirmationScreen>
     setState(() {});
   }
 
-  Future<void> _saveReportToStorage() async {
+  Future<void> _handleFinalSubmission() async {
+    setState(() {
+      _isSubmitting = true;
+      _errorMessage = null;
+    });
+
     int retryCount = 0;
     const maxRetries = 3;
-    
+
     while (retryCount < maxRetries) {
       try {
         final databaseService = ComprehensiveDatabaseService();
-        
-        // Convert images to data URLs for web compatibility
+
+        // Convert images to data URLs for database storage
         final imageDataUrls = <String>[];
         for (int i = 0; i < widget.images.length; i++) {
           final imageFile = widget.images[i];
           try {
-            print('🔄 Processing image file $i: ${imageFile.path}');
-            
-            // For web, handle XFile differently with proper error handling
             Uint8List bytes;
             if (kIsWeb) {
-              // Web-specific handling - try multiple approaches
               try {
                 bytes = await imageFile.readAsBytes();
-                print('✅ Web: Successfully read ${bytes.length} bytes');
-              } catch (webError) {
-                print('❌ Web readAsBytes failed: $webError');
-                // Try using HTTP request for blob URLs
-                try {
-                  if (imageFile.path.startsWith('blob:') || imageFile.path.startsWith('data:')) {
-                    final response = await http.get(Uri.parse(imageFile.path));
-                    if (response.statusCode == 200) {
-                      bytes = response.bodyBytes;
-                      print('✅ Web HTTP fallback: Successfully read ${bytes.length} bytes');
-                    } else {
-                      throw Exception('HTTP request failed with status ${response.statusCode}');
-                    }
+              } catch (_) {
+                if (imageFile.path.startsWith('blob:') || imageFile.path.startsWith('data:')) {
+                  final response = await http.get(Uri.parse(imageFile.path));
+                  if (response.statusCode == 200) {
+                    bytes = response.bodyBytes;
                   } else {
-                    throw Exception('Unsupported path format: ${imageFile.path}');
+                    continue;
                   }
-                } catch (httpError) {
-                  print('❌ Web HTTP fallback failed: $httpError');
-                  continue; // Skip this image
+                } else {
+                  continue;
                 }
               }
             } else {
               bytes = await imageFile.readAsBytes();
-              print('✅ Mobile: Successfully read ${bytes.length} bytes');
             }
-            
-            print('📊 Image bytes read: ${bytes.length} bytes');
-            
-            // Validate image size (must be at least 100 bytes for a valid image)
-            if (bytes.length < 100) {
-              print('⚠️ Image too small (${bytes.length} bytes), skipping');
-              continue;
-            }
-            
-            // Validate that we have actual image data
-            if (bytes.every((byte) => byte == 0)) {
-              print('⚠️ Image contains only null bytes, skipping');
-              continue;
-            }
-            
-            // Convert to base64 data URL
+
+            if (bytes.length < 50) continue;
+
             final base64String = base64Encode(bytes);
             final dataUrl = 'data:image/jpeg;base64,$base64String';
             imageDataUrls.add(dataUrl);
-            print('✅ Converted image $i to data URL (${bytes.length} bytes -> ${dataUrl.length} chars)');
-            print('   Base64 preview: ${base64String.substring(0, 50)}...');
-          } catch (e, stackTrace) {
-            print('❌ Error converting image $i: $e');
-            print('📚 Stack trace: ${stackTrace.toString().substring(0, 500)}...');
-            // Skip this image instead of adding invalid placeholder
-            print('⚠️ Skipping corrupted image file $i');
+          } catch (e) {
+            print('⚠️ Error encoding image $i: $e');
           }
         }
-        
-        // Get current user ID from authentication service
+
         final authService = AuthService.instance;
-        final userId = authService.userEmail ?? 'guest_user'; // Fallback to guest user
-        
-        print('💾 Saving comprehensive report with ${imageDataUrls.length} images... (Attempt ${retryCount + 1}/$maxRetries)');
-        print('🔍 User ID: $userId');
-        
-        // Test database connection first
-        final connectionTest = await databaseService.testDatabaseConnection();
-        if (!connectionTest) {
-          throw Exception('Database connection failed - please check your internet connection and try again');
-        }
-        
-        // Map category ID to database category name
-        String categoryName = widget.category.id;
-        
-        print('📋 Report details:');
-        print('   Title: ${widget.category.name}');
-        print('   Description: ${widget.description.length} characters');
-        print('   Category: $categoryName');
-        print('   Location: ${widget.location}');
-        print('   Coordinates: (${widget.latitude}, ${widget.longitude})');
-        print('   Images: ${imageDataUrls.length} data URLs');
-        
+        final userId = authService.userEmail ?? 'guest_user';
+        final reportTitle = (widget.title != null && widget.title!.trim().isNotEmpty)
+            ? widget.title!.trim()
+            : widget.category.name;
+
         final result = await databaseService.submitComprehensiveReport(
           userId: userId,
-          title: widget.category.name,
+          title: reportTitle,
           description: widget.description,
-          category: categoryName,
+          category: widget.category.id,
           location: widget.location,
           latitude: widget.latitude,
           longitude: widget.longitude,
           imageUrls: imageDataUrls,
-          contactNumber: null, // This will be filled from user profile
+          contactNumber: null,
         );
-        
+
         if (result.success && result.reportId != null) {
-          // Update the report ID with the one from database only if widget is still mounted
           if (mounted) {
             setState(() {
               reportId = result.reportId!;
+              _finalPriority = result.priority ?? _finalPriority;
+              _isSubmitted = true;
+              _isSubmitting = false;
             });
-          }
-          
-          print('✅ Comprehensive report saved successfully with ID: ${result.reportId}');
-          print('Report priority: ${result.priority}');
-          
-          // Add notification for successful report submission
-          NotificationService().addReportSubmittedNotification(
-            result.reportId!,
-            widget.category.name,
-          );
-          
-          // Simulate status changes for demo purposes
-          NotificationService().simulateReportStatusChanges(
-            result.reportId!,
-            widget.category.name,
-          );
-          
-          // Award credits for report submission
-          await _awardCreditsForReport(result.reportId!, widget.category.name);
-          
-          // Show success message
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('✅ Report saved successfully! ID: ${result.reportId} | Priority: ${result.priority?.toUpperCase() ?? 'MEDIUM'}'),
-                backgroundColor: Colors.green,
-                duration: const Duration(seconds: 4),
-              ),
+
+            // Start celebration animations
+            _iconAnimationController.forward();
+            Future.delayed(const Duration(milliseconds: 300), () {
+              if (mounted) _contentAnimationController.forward();
+            });
+
+            // Add notification
+            NotificationService().addReportSubmittedNotification(
+              result.reportId!,
+              widget.category.name,
             );
+
+            // Award credits
+            await _awardCreditsForReport(result.reportId!, widget.category.name);
           }
-          
-          // Successfully saved, break out of retry loop
           return;
         } else {
-          throw Exception('Database error: ${result.message}');
+          throw Exception(result.message);
         }
       } catch (e) {
         retryCount++;
-        print('❌ Error saving comprehensive report (attempt $retryCount/$maxRetries): $e');
-        
-        // Show specific error message to user
-        if (mounted) {
-          String errorMessage = 'Failed to save report';
-          if (e.toString().contains('connection')) {
-            errorMessage = 'Connection failed - please check internet';
-          } else if (e.toString().contains('timeout')) {
-            errorMessage = 'Request timed out - please try again';
-          } else if (e.toString().contains('authentication')) {
-            errorMessage = 'Authentication failed - please log in again';
-          } else if (e.toString().contains('Database error:')) {
-            errorMessage = e.toString().replaceFirst('Exception: Database error: ', '');
-          }
-          
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('❌ $errorMessage'),
-              backgroundColor: Colors.red,
-              duration: const Duration(seconds: 3),
-            ),
-          );
-        }
-        
-        if (retryCount < maxRetries) {
-          // Wait before retrying (exponential backoff)
-          final delaySeconds = retryCount * 2;
-          print('⏳ Retrying in $delaySeconds seconds...');
-          await Future.delayed(Duration(seconds: delaySeconds));
-          
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('⏳ Retrying to save report... (${retryCount}/$maxRetries)'),
-                backgroundColor: Colors.orange,
-                duration: Duration(seconds: delaySeconds),
-              ),
-            );
-          }
-        } else {
-          // Final attempt failed
-          print('❌ All retry attempts failed. Final error: $e');
-          
-          // Create a fallback local save mechanism
-          final fallbackReportId = 'LOCAL_${DateTime.now().millisecondsSinceEpoch}';
-          
+        print('❌ Submission attempt $retryCount failed: $e');
+
+        if (retryCount >= maxRetries) {
           if (mounted) {
             setState(() {
-              reportId = fallbackReportId;
+              _isSubmitting = false;
+              _errorMessage = 'Unable to submit your complaint right now. Please check your internet connection and try again.';
             });
-            
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('⚠️ Report saved locally with ID: $fallbackReportId'),
-                    Text('We will sync this to the database when connection is restored.'),
-                    Text('Please check "Track My Reports" later to confirm sync status.'),
-                  ],
-                ),
-                backgroundColor: Colors.amber[700],
-                duration: const Duration(seconds: 6),
-                action: SnackBarAction(
-                  label: 'Retry Now',
-                  textColor: Colors.white,
-                  onPressed: () => _saveReportToStorage(),
-                ),
-              ),
-            );
           }
-          
-          // Save to local storage as backup
-          await _saveReportLocally(fallbackReportId);
+        } else {
+          await Future.delayed(Duration(seconds: retryCount));
         }
       }
     }
   }
 
-  /// Save report to local storage as backup
-  Future<void> _saveReportLocally(String fallbackId) async {
+  Future<void> _awardCreditsForReport(String reportId, String category) async {
     try {
-      // Implementation for local storage backup
-      // This is a fallback mechanism
-      print('💾 Saving report locally with ID: $fallbackId');
-      // You could implement SharedPreferences or local database here
-    } catch (e) {
-      print('❌ Error saving report locally: $e');
-    }
+      const userId = 'user_12345';
+      await CreditService.awardCreditsForReport(userId, reportId);
+    } catch (_) {}
   }
 
   void _navigateToTrackReports() {
     Navigator.pushAndRemoveUntil(
       context,
-      MaterialPageRoute(builder: (context) => const TrackReportsScreen()),
+      MaterialPageRoute(builder: (context) => const ComprehensiveTrackReportsScreen()),
+      (route) => false,
+    );
+  }
+
+  void _navigateToDashboard() {
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (context) => const DashboardScreen(isAdmin: false)),
       (route) => false,
     );
   }
@@ -362,334 +238,914 @@ class _ConfirmationScreenState extends State<ConfirmationScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFF8FAFC),
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        scrolledUnderElevation: 2,
+        leading: _isSubmitted
+            ? null
+            : IconButton(
+                icon: const Icon(Icons.arrow_back_rounded, color: Color(0xFF0F172A)),
+                onPressed: () => Navigator.pop(context),
+              ),
+        title: Text(
+          _isSubmitted ? 'Confirmation' : 'Step 3 of 3: Review & Submit',
+          style: const TextStyle(
+            color: Color(0xFF0F172A),
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            children: [
-              Expanded(
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
+        child: _isSubmitted ? _buildSuccessView() : _buildReviewView(),
+      ),
+    );
+  }
+
+  // ===========================================================================
+  // STEP 3: REVIEW & SUBMIT VIEW
+  // ===========================================================================
+  Widget _buildReviewView() {
+    final effectiveTitle = (widget.title != null && widget.title!.trim().isNotEmpty)
+        ? widget.title!.trim()
+        : widget.category.name;
+
+    return Column(
+      children: [
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Step Progress Indicator Header
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEFF6FF),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFBFDBFE)),
+                  ),
+                  child: Row(
                     children: [
-                      // Animated Success Icon
-                      AnimatedBuilder(
-                        animation: _iconScaleAnimation,
-                        builder: (context, child) {
-                          return Transform.scale(
-                            scale: _iconScaleAnimation.value,
-                            child: Container(
-                              width: 120,
-                              height: 120,
-                              decoration: BoxDecoration(
-                                color: Colors.green[50],
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: Colors.green[200]!,
-                                  width: 2,
-                                ),
-                              ),
-                              child: Icon(
-                                Icons.check_circle,
-                                size: 80,
-                                color: Colors.green[600],
+                      const Icon(Icons.fact_check_rounded, color: Color(0xFF1E40AF), size: 22),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: const [
+                            Text(
+                              'Review Your Complaint',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF1E40AF),
                               ),
                             ),
-                          );
-                        },
-                      ),
-
-                      const SizedBox(height: 32),
-
-                      // Animated Content
-                      AnimatedBuilder(
-                        animation: _contentFadeAnimation,
-                        builder: (context, child) {
-                          return Opacity(
-                            opacity: _contentFadeAnimation.value,
-                            child: Column(
-                              children: [
-                                // Success Message
-                                const Text(
-                                  'Report Submitted Successfully!',
-                                  style: TextStyle(
-                                    fontSize: 28,
-                                    fontWeight: FontWeight.bold,
-                                    color: Color(0xFF1F2937),
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-
-                                const SizedBox(height: 16),
-
-                                // Report ID
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 16,
-                                    vertical: 8,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: Colors.blue[50],
-                                    borderRadius: BorderRadius.circular(20),
-                                    border: Border.all(
-                                      color: Colors.blue[200]!,
-                                    ),
-                                  ),
-                                  child: Text(
-                                    'Report ID: $reportId',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.blue[800],
-                                    ),
-                                  ),
-                                ),
-
-                                const SizedBox(height: 24),
-
-                                // Report Summary
-                                Container(
-                                  width: double.infinity,
-                                  padding: const EdgeInsets.all(20),
-                                  decoration: BoxDecoration(
-                                    color: Colors.grey[50],
-                                    borderRadius: BorderRadius.circular(16),
-                                    border: Border.all(
-                                      color: Colors.grey[200]!,
-                                    ),
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      const Text(
-                                        'Report Summary',
-                                        style: TextStyle(
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.bold,
-                                          color: Color(0xFF1F2937),
-                                        ),
-                                      ),
-                                      const SizedBox(height: 16),
-
-                                      // Category
-                                      Row(
-                                        children: [
-                                          Container(
-                                            width: 32,
-                                            height: 32,
-                                            decoration: BoxDecoration(
-                                              color: widget.category.color
-                                                  .withValues(alpha: 0.1),
-                                              borderRadius:
-                                                  BorderRadius.circular(8),
-                                            ),
-                                            child: Icon(
-                                              widget.category.icon,
-                                              color: widget.category.color,
-                                              size: 18,
-                                            ),
-                                          ),
-                                          const SizedBox(width: 12),
-                                          Expanded(
-                                            child: Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              children: [
-                                                Text(
-                                                  'Category',
-                                                  style: TextStyle(
-                                                    fontSize: 14,
-                                                    color: Colors.grey[600],
-                                                  ),
-                                                ),
-                                                Text(
-                                                  widget.category.name,
-                                                  style: const TextStyle(
-                                                    fontSize: 16,
-                                                    fontWeight: FontWeight.w600,
-                                                    color: Color(0xFF1F2937),
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-
-                                      const SizedBox(height: 16),
-
-                                      // Images Count
-                                      Row(
-                                        children: [
-                                          const Icon(
-                                            Icons.photo_library,
-                                            color: Color(0xFF3B82F6),
-                                            size: 20,
-                                          ),
-                                          const SizedBox(width: 12),
-                                          Text(
-                                            '${widget.images.length} image(s) attached',
-                                            style: TextStyle(
-                                              fontSize: 14,
-                                              color: Colors.grey[700],
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-
-                                      const SizedBox(height: 12),
-
-                                      // Location
-                                      Row(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          const Icon(
-                                            Icons.location_on,
-                                            color: Color(0xFF10B981),
-                                            size: 20,
-                                          ),
-                                          const SizedBox(width: 12),
-                                          Expanded(
-                                            child: Text(
-                                              widget.location,
-                                              style: TextStyle(
-                                                fontSize: 14,
-                                                color: Colors.grey[700],
-                                                height: 1.4,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                ),
-
-                                const SizedBox(height: 24),
-
-                                // Next Steps Info
-                                Container(
-                                  width: double.infinity,
-                                  padding: const EdgeInsets.all(16),
-                                  decoration: BoxDecoration(
-                                    color: Colors.amber[50],
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(
-                                      color: Colors.amber[200]!,
-                                    ),
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Row(
-                                        children: [
-                                          Icon(
-                                            Icons.info_outline,
-                                            color: Colors.amber[700],
-                                            size: 20,
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Text(
-                                            'What happens next?',
-                                            style: TextStyle(
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.w600,
-                                              color: Colors.amber[800],
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Text(
-                                        '• Your report will be reviewed by our team\n• You\'ll receive updates on progress\n• Track status in "Track My Reports"',
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          color: Colors.amber[800],
-                                          height: 1.4,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
+                            SizedBox(height: 2),
+                            Text(
+                              'Please verify all details before submitting to municipal authorities.',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Color(0xFF3B82F6),
+                              ),
                             ),
-                          );
-                        },
+                          ],
+                        ),
                       ),
                     ],
                   ),
                 ),
+
+                const SizedBox(height: 16),
+
+                // Error Banner if submission failed
+                if (_errorMessage != null) ...[
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFEF2F2),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFFCA5A5)),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(Icons.error_outline_rounded, color: Color(0xFFDC2626), size: 22),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Submission Failed',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF991B1B),
+                                  fontSize: 13.5,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                _errorMessage!,
+                                style: const TextStyle(
+                                  color: Color(0xFFB91C1C),
+                                  fontSize: 12.5,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+
+                // 1. Category Section
+                _buildReviewCard(
+                  title: 'CIVIC CATEGORY',
+                  icon: Icons.category_rounded,
+                  iconColor: widget.category.color,
+                  content: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: widget.category.color.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Icon(widget.category.icon, color: widget.category.color, size: 24),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              widget.category.name,
+                              style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF0F172A),
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              widget.category.description,
+                              style: const TextStyle(
+                                fontSize: 12.5,
+                                color: Color(0xFF64748B),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  onEdit: () => Navigator.pop(context),
+                ),
+
+                const SizedBox(height: 12),
+
+                // 2. Complaint Title & Description
+                _buildReviewCard(
+                  title: 'PROBLEM DETAILS',
+                  icon: Icons.description_rounded,
+                  iconColor: const Color(0xFF1E40AF),
+                  content: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        effectiveTitle,
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF0F172A),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        widget.description,
+                        style: const TextStyle(
+                          fontSize: 13.5,
+                          color: Color(0xFF334155),
+                          height: 1.45,
+                        ),
+                      ),
+                    ],
+                  ),
+                  onEdit: () => Navigator.pop(context),
+                ),
+
+                const SizedBox(height: 12),
+
+                // 3. Location & GPS
+                _buildReviewCard(
+                  title: 'LOCATION & ADDRESS',
+                  icon: Icons.location_on_rounded,
+                  iconColor: const Color(0xFF059669),
+                  content: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        widget.location,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF0F172A),
+                          height: 1.35,
+                        ),
+                      ),
+                      if (widget.latitude != null && widget.longitude != null) ...[
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF1F5F9),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.gps_fixed_rounded, size: 14, color: Color(0xFF059669)),
+                              const SizedBox(width: 6),
+                              Text(
+                                'GPS: ${widget.latitude!.toStringAsFixed(6)}, ${widget.longitude!.toStringAsFixed(6)}',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontFamily: 'monospace',
+                                  color: Color(0xFF475569),
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                  onEdit: () => Navigator.pop(context),
+                ),
+
+                const SizedBox(height: 12),
+
+                // 4. Evidence Media
+                _buildReviewCard(
+                  title: 'ATTACHED EVIDENCE (${widget.images.length})',
+                  icon: Icons.photo_library_rounded,
+                  iconColor: const Color(0xFF7C3AED),
+                  content: widget.images.isEmpty
+                      ? const Text(
+                          'No images attached.',
+                          style: TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
+                        )
+                      : SizedBox(
+                          height: 80,
+                          child: ListView.separated(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: widget.images.length,
+                            separatorBuilder: (_, __) => const SizedBox(width: 8),
+                            itemBuilder: (context, index) {
+                              return ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: _buildEvidenceImage(
+                                  widget.images[index],
+                                  width: 80,
+                                  height: 80,
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                  onEdit: () => Navigator.pop(context),
+                ),
+
+                const SizedBox(height: 12),
+
+                // 5. AI-Assisted Analysis Summary
+                _buildAiAssistedSummaryCard(),
+
+                const SizedBox(height: 24),
+              ],
+            ),
+          ),
+        ),
+
+        // Bottom Action Bar
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            border: const Border(top: BorderSide(color: Color(0xFFE2E8F0))),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04),
+                offset: const Offset(0, -3),
+                blurRadius: 10,
               ),
-
-              const SizedBox(height: 16),
-
-              // Action Button
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
               SizedBox(
                 width: double.infinity,
-                height: 48,
+                height: 50,
                 child: ElevatedButton(
-                  onPressed: _navigateToTrackReports,
+                  onPressed: _isSubmitting ? null : _handleFinalSubmission,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF3B82F6),
+                    backgroundColor: const Color(0xFF1E40AF),
                     foregroundColor: Colors.white,
+                    disabledBackgroundColor: const Color(0xFF93C5FD),
                     elevation: 0,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: const Text(
-                    'Track My Reports',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
+                  child: _isSubmitting
+                      ? Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: const [
+                            SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.2,
+                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              ),
+                            ),
+                            SizedBox(width: 12),
+                            Text(
+                              'Submitting Complaint...',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        )
+                      : const Text(
+                          'SUBMIT COMPLAINT',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'By submitting, you confirm that this report describes a genuine civic issue.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Color(0xFF64748B),
                 ),
               ),
             ],
           ),
         ),
-      ),
+      ],
     );
   }
 
-  Future<void> _awardCreditsForReport(String reportId, String category) async {
-    try {
-      const userId = 'user_12345'; // In real app, get from auth
-      
-      // Award base credits for report submission
-      final success = await CreditService.awardCreditsForReport(userId, reportId);
-      
-      if (success) {
-        print('🎉 Credits awarded for report submission: $reportId');
-        
-        // Show a nice credit reward notification
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Row(
+  Widget _buildEvidenceImage(File imageFile, {double width = 80, double height = 80}) {
+    if (kIsWeb) {
+      final path = imageFile.path;
+      if (path.startsWith('http://') ||
+          path.startsWith('https://') ||
+          path.startsWith('blob:') ||
+          path.startsWith('data:')) {
+        return Image.network(
+          path,
+          width: width,
+          height: height,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) => Container(
+            width: width,
+            height: height,
+            color: const Color(0xFFE2E8F0),
+            child: const Icon(
+              Icons.broken_image_rounded,
+              color: Color(0xFF94A3B8),
+              size: 28,
+            ),
+          ),
+        );
+      }
+      return FutureBuilder<Uint8List>(
+        future: imageFile.readAsBytes(),
+        builder: (context, snapshot) {
+          if (snapshot.hasData) {
+            return Image.memory(
+              snapshot.data!,
+              width: width,
+              height: height,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) => Container(
+                width: width,
+                height: height,
+                color: const Color(0xFFE2E8F0),
+                child: const Icon(
+                  Icons.broken_image_rounded,
+                  color: Color(0xFF94A3B8),
+                  size: 28,
+                ),
+              ),
+            );
+          }
+          if (snapshot.hasError) {
+            return Container(
+              width: width,
+              height: height,
+              color: const Color(0xFFE2E8F0),
+              child: const Icon(
+                Icons.broken_image_rounded,
+                color: Color(0xFF94A3B8),
+                size: 28,
+              ),
+            );
+          }
+          return Container(
+            width: width,
+            height: height,
+            color: const Color(0xFFF1F5F9),
+            child: const Center(
+              child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ),
+          );
+        },
+      );
+    } else {
+      final path = imageFile.path;
+      if (path.startsWith('http://') || path.startsWith('https://')) {
+        return Image.network(
+          path,
+          width: width,
+          height: height,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) => Container(
+            width: width,
+            height: height,
+            color: const Color(0xFFE2E8F0),
+            child: const Icon(
+              Icons.broken_image_rounded,
+              color: Color(0xFF94A3B8),
+              size: 28,
+            ),
+          ),
+        );
+      }
+      return Image.file(
+        imageFile,
+        width: width,
+        height: height,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => Container(
+          width: width,
+          height: height,
+          color: const Color(0xFFE2E8F0),
+          child: const Icon(
+            Icons.broken_image_rounded,
+            color: Color(0xFF94A3B8),
+            size: 28,
+          ),
+        ),
+      );
+    }
+  }
+
+  Widget _buildReviewCard({
+    required String title,
+    required IconData icon,
+    required Color iconColor,
+    required Widget content,
+    required VoidCallback onEdit,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
                 children: [
-                  const Text('🌱', style: TextStyle(fontSize: 20)),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'You earned 10 Green Credits for submitting a $category report!',
-                      style: const TextStyle(fontWeight: FontWeight.w600),
+                  Icon(icon, size: 16, color: iconColor),
+                  const SizedBox(width: 6),
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF64748B),
+                      letterSpacing: 0.5,
                     ),
                   ),
                 ],
               ),
-              backgroundColor: const Color(0xFF22C55E),
-              behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              duration: const Duration(seconds: 4),
+              InkWell(
+                onTap: onEdit,
+                borderRadius: BorderRadius.circular(6),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  child: Row(
+                    children: const [
+                      Icon(Icons.edit_rounded, size: 14, color: Color(0xFF1E40AF)),
+                      SizedBox(width: 4),
+                      Text(
+                        'Edit',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF1E40AF),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          content,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAiAssistedSummaryCard() {
+    final priority = _finalPriority ?? 'Medium';
+    final priorityColor = _getPriorityColor(priority);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFCBD5E1)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF3B82F6).withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: const [
+                    Icon(Icons.auto_awesome_rounded, size: 13, color: Color(0xFF1E40AF)),
+                    SizedBox(width: 4),
+                    Text(
+                      'AI-assisted analysis',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF1E40AF),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: priorityColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: priorityColor.withValues(alpha: 0.3)),
+                ),
+                child: Text(
+                  'Priority: ${priority.toUpperCase()}',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    color: priorityColor,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            widget.aiAnalysisResult != null && widget.aiAnalysisResult!.isNotEmpty
+                ? widget.aiAnalysisResult!
+                : 'Automated civic triage assessed based on category parameters and visual verification.',
+            style: const TextStyle(
+              fontSize: 12.5,
+              color: Color(0xFF475569),
+              height: 1.4,
             ),
-          );
-        }
-      }
-    } catch (e) {
-      print('❌ Failed to award credits: $e');
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ===========================================================================
+  // SUBMISSION SUCCESS VIEW
+  // ===========================================================================
+  Widget _buildSuccessView() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24.0),
+      child: Column(
+        children: [
+          const SizedBox(height: 16),
+
+          // Animated Green Success Circle
+          AnimatedBuilder(
+            animation: _iconScaleAnimation,
+            builder: (context, child) {
+              return Transform.scale(
+                scale: _iconScaleAnimation.value,
+                child: Container(
+                  width: 100,
+                  height: 100,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFECFDF5),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: const Color(0xFFA7F3D0),
+                      width: 2.5,
+                    ),
+                  ),
+                  child: const Center(
+                    child: Icon(
+                      Icons.check_circle_rounded,
+                      size: 64,
+                      color: Color(0xFF059669),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+
+          const SizedBox(height: 24),
+
+          // Animated Text Content
+          AnimatedBuilder(
+            animation: _contentFadeAnimation,
+            builder: (context, child) {
+              return Opacity(
+                opacity: _contentFadeAnimation.value,
+                child: Column(
+                  children: [
+                    const Text(
+                      'Complaint Submitted',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF0F172A),
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Your complaint has been received by CivicResolve and forwarded to municipal authorities.',
+                      style: TextStyle(
+                        fontSize: 13.5,
+                        color: Color(0xFF64748B),
+                        height: 1.45,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    // Complaint ID Box
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFEFF6FF),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFFBFDBFE)),
+                      ),
+                      child: Column(
+                        children: [
+                          const Text(
+                            'COMPLAINT ID',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF1E40AF),
+                              letterSpacing: 0.8,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '#CR-$reportId',
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF1E3A8A),
+                              fontFamily: 'monospace',
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    // Green Credits Award Box
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF0FDF4),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFFBBF7D0)),
+                      ),
+                      child: Row(
+                        children: const [
+                          Text('🌱', style: TextStyle(fontSize: 22)),
+                          SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              '+10 Green Credits earned for active civic reporting!',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF15803D),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    // Next Steps Card
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: const [
+                              Icon(Icons.info_outline_rounded, color: Color(0xFF0F172A), size: 18),
+                              SizedBox(width: 8),
+                              Text(
+                                'What Happens Next?',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF0F172A),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          _buildNextStepItem('1', 'Automated municipal validation & department assignment.'),
+                          _buildNextStepItem('2', 'Field inspection team dispatched to site.'),
+                          _buildNextStepItem('3', 'Track real-time progress and photos in "Track My Reports".'),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 28),
+
+                    // Primary Action: Track Complaint
+                    SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: ElevatedButton.icon(
+                        onPressed: _navigateToTrackReports,
+                        icon: const Icon(Icons.timeline_rounded, size: 20),
+                        label: const Text(
+                          'Track Complaint',
+                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF1E40AF),
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 10),
+
+                    // Secondary Action: Return to Dashboard
+                    SizedBox(
+                      width: double.infinity,
+                      height: 46,
+                      child: OutlinedButton(
+                        onPressed: _navigateToDashboard,
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFF475569),
+                          side: const BorderSide(color: Color(0xFFCBD5E1)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: const Text(
+                          'Return to Home',
+                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNextStepItem(String number, String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 20,
+            height: 20,
+            decoration: BoxDecoration(
+              color: const Color(0xFFEFF6FF),
+              shape: BoxShape.circle,
+              border: Border.all(color: const Color(0xFF93C5FD)),
+            ),
+            child: Center(
+              child: Text(
+                number,
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF1E40AF),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              text,
+              style: const TextStyle(
+                fontSize: 12.5,
+                color: Color(0xFF475569),
+                height: 1.35,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Color _getPriorityColor(String priority) {
+    switch (priority.toLowerCase()) {
+      case 'high':
+      case 'critical':
+        return const Color(0xFFDC2626);
+      case 'low':
+        return const Color(0xFF059669);
+      case 'medium':
+      default:
+        return const Color(0xFFD97706);
     }
   }
 }

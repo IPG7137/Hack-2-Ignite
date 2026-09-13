@@ -2,6 +2,10 @@ import 'dart:math' as math;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'comprehensive_report_models.dart';
 import 'credit_service.dart';
+import 'similarity_engine.dart';
+import 'emerging_problem_engine.dart';
+import 'incident_grouping_engine.dart';
+import 'resolution_verification_engine.dart';
 
 class ComprehensiveDatabaseService {
   static final ComprehensiveDatabaseService _instance = ComprehensiveDatabaseService._internal();
@@ -11,7 +15,7 @@ class ComprehensiveDatabaseService {
   final SupabaseClient _supabase = Supabase.instance.client;
 
   // ========================================
-  // PROXIMITY & DUPLICATE DETECTION (PS 02)
+  // PROXIMITY & DUPLICATE DETECTION (PS 02 & Phase 3A)
   // ========================================
 
   /// Calculate distance between two coordinates in meters using the Haversine formula
@@ -26,21 +30,37 @@ class ComprehensiveDatabaseService {
     return earthRadius * c;
   }
 
-  /// Find active open reports within a proximity radius (default 200 meters) sharing the same category
-  Future<({bool hasDuplicate, String? parentReportId, double? distanceMeters, Map<String, dynamic>? parentReport})> findNearbyDuplicateReports({
+  /// Multi-Signal Duplicate Check: Evaluates candidate reports using Location, Category, Text, and Recency signals.
+  /// Preserves exact backward-compatible return fields while adding multi-signal evaluation result.
+  Future<({
+    bool hasDuplicate,
+    String? parentReportId,
+    double? distanceMeters,
+    Map<String, dynamic>? parentReport,
+    SimilarityAnalysisResult? analysisResult,
+  })> findNearbyDuplicateReports({
     required double latitude,
     required double longitude,
     required String category,
+    String? title,
+    String? description,
+    DateTime? createdAt,
     double radiusMeters = 200.0,
   }) async {
     try {
-      print('🔍 Checking for nearby duplicate reports within ${radiusMeters}m for category: $category');
+      print('🔍 Multi-Signal duplicate evaluation within ${radiusMeters}m for category: $category');
       
-      // Fetch open/active reports (not closed or rejected)
+      // Fetch candidate active reports (not closed or rejected)
       final response = await _supabase
           .from('reports')
-          .select('id, title, category, status, coordinates, latitude, longitude, created_at')
-          .not('status', 'in', '(closed,rejected)');
+          .select('id, title, description, category, status, coordinates, latitude, longitude, created_at')
+          .not('status', 'in', '(closed,rejected)')
+          .order('created_at', ascending: false)
+          .limit(100);
+
+      SimilarityAnalysisResult? bestMatch;
+      double highestConfidence = 0.0;
+      Map<String, dynamic>? bestCandidateRaw;
 
       for (final report in response) {
         double? reportLat;
@@ -56,31 +76,126 @@ class ComprehensiveDatabaseService {
 
         if (reportLat == null || reportLng == null) continue;
 
-        // Check if category matches
-        final reportCategory = (report['category'] ?? '').toString().toLowerCase();
-        final targetCategory = category.toLowerCase();
-        final isCategoryMatch = reportCategory == targetCategory ||
-            reportCategory.contains(targetCategory) ||
-            targetCategory.contains(reportCategory);
-
-        if (!isCategoryMatch) continue;
-
         final dist = calculateDistanceMeters(latitude, longitude, reportLat, reportLng);
-        if (dist <= radiusMeters) {
-          final parentId = report['id'].toString();
-          print('📍 Proximity match found: Report #$parentId is ${dist.toStringAsFixed(1)}m away');
-          return (
-            hasDuplicate: true,
-            parentReportId: parentId,
-            distanceMeters: dist,
-            parentReport: Map<String, dynamic>.from(report)
-          );
+
+        // Evaluate using the multi-signal similarity engine
+        final candidateId = report['id'].toString();
+        final analysis = CivicSimilarityEngine.evaluateCandidate(
+          candidateReportId: candidateId,
+          distanceMeters: dist,
+          newCategory: category,
+          candidateCategory: report['category']?.toString(),
+          newTitle: title,
+          newDescription: description,
+          candidateTitle: report['title']?.toString(),
+          candidateDescription: report['description']?.toString(),
+          newCreatedAt: createdAt ?? DateTime.now(),
+          candidateCreatedAt: report['created_at'],
+          candidateRawData: Map<String, dynamic>.from(report),
+        );
+
+        // Check if report qualifies as duplicate within proximity boundary or has high multi-signal confidence
+        if (dist <= radiusMeters && analysis.totalConfidence > highestConfidence) {
+          highestConfidence = analysis.totalConfidence;
+          bestMatch = analysis;
+          bestCandidateRaw = Map<String, dynamic>.from(report);
         }
       }
-      return (hasDuplicate: false, parentReportId: null, distanceMeters: null, parentReport: null);
+
+      // Backward-compatible determination: If best match within radius has valid category match or score >= 0.50
+      if (bestMatch != null && (bestMatch.categoryScore >= 0.70 || bestMatch.totalConfidence >= 0.50)) {
+        final parentId = bestMatch.candidateReportId;
+        print('📍 Multi-signal duplicate candidate identified: Report #$parentId (${bestMatch.distanceMeters?.toStringAsFixed(1)}m, confidence: ${(bestMatch.totalConfidence * 100).toStringAsFixed(1)}%)');
+        return (
+          hasDuplicate: true,
+          parentReportId: parentId,
+          distanceMeters: bestMatch.distanceMeters,
+          parentReport: bestCandidateRaw,
+          analysisResult: bestMatch,
+        );
+      }
+
+      return (
+        hasDuplicate: false,
+        parentReportId: null,
+        distanceMeters: null,
+        parentReport: null,
+        analysisResult: null,
+      );
     } catch (e) {
-      print('⚠️ Duplicate check warning: $e');
-      return (hasDuplicate: false, parentReportId: null, distanceMeters: null, parentReport: null);
+      print('⚠️ Multi-signal duplicate check warning: $e');
+      return (
+        hasDuplicate: false,
+        parentReportId: null,
+        distanceMeters: null,
+        parentReport: null,
+        analysisResult: null,
+      );
+    }
+  }
+
+  /// Get all ranked multi-signal duplicate/related candidates for a given complaint
+  Future<List<SimilarityAnalysisResult>> findMultiSignalDuplicates({
+    required double latitude,
+    required double longitude,
+    required String category,
+    String? title,
+    String? description,
+    DateTime? createdAt,
+    double radiusMeters = 500.0,
+  }) async {
+    try {
+      final response = await _supabase
+          .from('reports')
+          .select('id, title, description, category, status, coordinates, latitude, longitude, created_at')
+          .not('status', 'in', '(closed,rejected)')
+          .order('created_at', ascending: false)
+          .limit(100);
+
+      final List<SimilarityAnalysisResult> results = [];
+
+      for (final report in response) {
+        double? reportLat;
+        double? reportLng;
+
+        if (report['latitude'] != null && report['longitude'] != null) {
+          reportLat = double.tryParse(report['latitude'].toString());
+          reportLng = double.tryParse(report['longitude'].toString());
+        } else if (report['coordinates'] is Map) {
+          reportLat = double.tryParse(report['coordinates']['lat']?.toString() ?? '');
+          reportLng = double.tryParse(report['coordinates']['lng']?.toString() ?? '');
+        }
+
+        if (reportLat == null || reportLng == null) continue;
+
+        final dist = calculateDistanceMeters(latitude, longitude, reportLat, reportLng);
+        if (dist > radiusMeters) continue;
+
+        final analysis = CivicSimilarityEngine.evaluateCandidate(
+          candidateReportId: report['id'].toString(),
+          distanceMeters: dist,
+          newCategory: category,
+          candidateCategory: report['category']?.toString(),
+          newTitle: title,
+          newDescription: description,
+          candidateTitle: report['title']?.toString(),
+          candidateDescription: report['description']?.toString(),
+          newCreatedAt: createdAt ?? DateTime.now(),
+          candidateCreatedAt: report['created_at'],
+          candidateRawData: Map<String, dynamic>.from(report),
+        );
+
+        if (analysis.totalConfidence >= 0.40) {
+          results.add(analysis);
+        }
+      }
+
+      // Sort descending by total confidence
+      results.sort((a, b) => b.totalConfidence.compareTo(a.totalConfidence));
+      return results;
+    } catch (e) {
+      print('⚠️ Error in findMultiSignalDuplicates: $e');
+      return [];
     }
   }
 
@@ -152,8 +267,8 @@ class ComprehensiveDatabaseService {
     }
   }
 
-  /// Update user profile
-  Future<bool> updateUserProfile(String userId, Map<String, dynamic> updates) async {
+  /// Update user profile raw data
+  Future<bool> updateUserProfileData(String userId, Map<String, dynamic> updates) async {
     try {
       await _supabase
           .from('users')
@@ -161,7 +276,7 @@ class ComprehensiveDatabaseService {
           .eq('id', userId);
       return true;
     } catch (e) {
-      print('Error updating user profile: $e');
+      print('Error updating user profile data: $e');
       return false;
     }
   }
@@ -354,6 +469,135 @@ class ComprehensiveDatabaseService {
       print('❌ Error fetching all reports: $e');
       return [];
     }
+  }
+
+  /// Get live civic reports for nearby map visualization with distance filtering
+  Future<List<ComprehensiveReportModel>> getNearbyMapReports({
+    double? latitude,
+    double? longitude,
+    double radiusKm = 15.0,
+    String? category,
+    String? statusFilter,
+  }) async {
+    try {
+      print('🗺️ Fetching live reports for map view (lat: $latitude, lng: $longitude, radius: ${radiusKm}km)');
+      var query = _supabase.from('reports').select();
+
+      if (category != null && category != 'All') {
+        query = query.ilike('category', '%$category%');
+      }
+
+      if (statusFilter != null && statusFilter != 'All') {
+        if (statusFilter == 'Active') {
+          query = query.not('status', 'in', '(resolved,closed,rejected)');
+        } else if (statusFilter == 'Resolved') {
+          query = query.eq('status', 'resolved');
+        }
+      }
+
+      final response = await query.order('created_at', ascending: false).limit(150);
+
+      final List<ComprehensiveReportModel> reports = [];
+      for (final json in response) {
+        try {
+          final model = ComprehensiveReportModel.fromJson(json);
+          if (model.latitude != null && model.longitude != null) {
+            if (latitude != null && longitude != null) {
+              final distMeters = calculateDistanceMeters(
+                latitude,
+                longitude,
+                model.latitude!,
+                model.longitude!,
+              );
+              // Filter by radius in kilometers
+              if (distMeters <= (radiusKm * 1000)) {
+                reports.add(model);
+              }
+            } else {
+              reports.add(model);
+            }
+          }
+        } catch (e) {
+          print('⚠️ Error parsing map report: $e');
+        }
+      }
+
+      print('✅ Found ${reports.length} reports with valid coordinates for map');
+      return reports;
+    } catch (e) {
+      print('❌ Error fetching map reports: $e');
+      return [];
+    }
+  }
+
+  /// Detect emerging civic problem hotspots from recent reports (Phase 3C)
+  Future<List<EmergingHotspotResult>> detectEmergingHotspots({
+    double? latitude,
+    double? longitude,
+    double radiusKm = 15.0,
+    int currentWindowHours = 24,
+    int baselineDays = 7,
+  }) async {
+    try {
+      final reports = await getNearbyMapReports(
+        latitude: latitude,
+        longitude: longitude,
+        radiusKm: radiusKm,
+      );
+
+      return EmergingProblemEngine.detectHotspots(
+        reports: reports,
+        currentWindowHours: currentWindowHours,
+        baselineDays: baselineDays,
+      );
+    } catch (e) {
+      print('⚠️ Error in detectEmergingHotspots: $e');
+      return [];
+    }
+  }
+
+  /// Group localized reports into potential common incidents (Phase 3D)
+  Future<List<PotentialIncidentResult>> groupReportsIntoIncidents({
+    double? latitude,
+    double? longitude,
+    double radiusKm = 15.0,
+    double groupingRadiusMeters = 500.0,
+  }) async {
+    try {
+      final reports = await getNearbyMapReports(
+        latitude: latitude,
+        longitude: longitude,
+        radiusKm: radiusKm,
+      );
+
+      final activeHotspots = EmergingProblemEngine.detectHotspots(
+        reports: reports,
+      );
+
+      return IncidentGroupingEngine.groupReportsIntoIncidents(
+        reports: reports,
+        activeHotspots: activeHotspots,
+        groupingRadiusMeters: groupingRadiusMeters,
+      );
+    } catch (e) {
+      print('⚠️ Error in groupReportsIntoIncidents: $e');
+      return [];
+    }
+  }
+
+  /// Verify civic resolution evidence for a report (Phase 3E)
+  ResolutionVerificationResult verifyReportResolution(
+    ComprehensiveReportModel report, {
+    List<String>? afterImageUrls,
+    bool? isProblemResolvedVisual,
+    double? aiConfidence,
+  }) {
+    return ResolutionVerificationEngine.evaluateReport(
+      report,
+      afterImageUrls: afterImageUrls,
+      isProblemResolvedVisual: isProblemResolvedVisual,
+      aiConfidence: aiConfidence,
+    );
   }
 
   /// Get reports by status
@@ -561,6 +805,40 @@ class ComprehensiveDatabaseService {
     } catch (e) {
       print('Error fetching status history: $e');
       return [];
+    }
+  }
+
+  /// Stream real-time status history for a specific complaint
+  Stream<List<ReportStatusHistoryModel>> getReportStatusHistoryStream(String reportId) {
+    print('🔄 Subscribing to real-time status history stream for report #$reportId');
+    return _supabase
+        .from('report_status_history')
+        .stream(primaryKey: ['id'])
+        .eq('report_id', reportId)
+        .order('created_at', ascending: false)
+        .map((data) => data.map((json) => ReportStatusHistoryModel.fromJson(json)).toList());
+  }
+
+  /// Submit citizen rating and feedback for a resolved complaint
+  Future<bool> submitCitizenFeedback({
+    required String reportId,
+    required int rating,
+    required String feedback,
+  }) async {
+    try {
+      await _supabase
+          .from('reports')
+          .update({
+            'rating': rating,
+            'citizen_feedback': feedback.trim(),
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id', reportId);
+      print('✅ Citizen feedback submitted for report #$reportId (Rating: $rating)');
+      return true;
+    } catch (e) {
+      print('❌ Error submitting citizen feedback: $e');
+      return false;
     }
   }
 

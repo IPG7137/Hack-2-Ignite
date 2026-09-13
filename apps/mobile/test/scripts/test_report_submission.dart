@@ -1,6 +1,6 @@
 import 'dart:io';
-import 'lib/comprehensive_database_service.dart';
-import 'lib/auth_service.dart';
+import 'package:civic_resolve/comprehensive_database_service.dart';
+import 'package:civic_resolve/auth_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 void main() async {

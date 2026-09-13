@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:io';
+import 'dart:async';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:image_picker/image_picker.dart';
 import 'package:geolocator/geolocator.dart';
@@ -11,8 +12,11 @@ import 'confirmation_screen.dart';
 import 'image_analysis_service.dart';
 import 'python_disaster_classifier.dart';
 import 'comprehensive_database_service.dart';
+import 'comprehensive_report_models.dart';
 import 'credit_service.dart';
 import 'leaflet_map_service.dart';
+import 'geospatial_geojson_service.dart';
+import 'similarity_engine.dart';
 
 class ReportDetailsScreen extends StatefulWidget {
   final ReportCategory category;
@@ -42,11 +46,12 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> with TickerPr
   String? aiAnalysisResult;
   late AnimationController _scannerController;
 
-  // Proximity Duplicate Detection
+  // Proximity & Multi-Signal Duplicate Detection
   bool _hasDuplicate = false;
   String? _duplicateParentId;
   double? _duplicateDistance;
   Map<String, dynamic>? _duplicateReport;
+  SimilarityAnalysisResult? _duplicateAnalysisResult;
   bool _duplicateDismissed = false;
   
   // WebView controller for Leaflet map (mobile/desktop)
@@ -54,6 +59,10 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> with TickerPr
   // Default coordinates for Solapur, Maharashtra, India
   static const double _defaultLatitude = 17.68687;
   static const double _defaultLongitude = 75.92275;
+
+  // Nearby reports for real-time map visualization
+  List<ComprehensiveReportModel> _nearbyReports = [];
+  StreamSubscription<List<ComprehensiveReportModel>>? _nearbyReportsSubscription;
 
   @override
   void initState() {
@@ -71,12 +80,14 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> with TickerPr
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initializeMap();
       _checkNearbyDuplicates();
+      _subscribeToRealtimeNearbyReports();
     });
   }
 
   @override
   void dispose() {
     _scannerController.dispose();
+    _nearbyReportsSubscription?.cancel();
     _descriptionController.removeListener(_onDescriptionChanged);
     _descriptionController.dispose();
     _addressController.dispose();
@@ -84,7 +95,7 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> with TickerPr
     super.dispose();
   }
 
-  /// Proximity-based duplicate pre-check within 200m radius
+  /// Multi-signal duplicate pre-check within proximity radius
   Future<void> _checkNearbyDuplicates() async {
     final lat = currentLatitude ?? _defaultLatitude;
     final lng = currentLongitude ?? _defaultLongitude;
@@ -95,6 +106,8 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> with TickerPr
         latitude: lat,
         longitude: lng,
         category: widget.category.name,
+        title: widget.category.name,
+        description: _descriptionController.text.trim(),
         radiusMeters: 200.0,
       );
 
@@ -104,6 +117,7 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> with TickerPr
           _duplicateParentId = res.parentReportId;
           _duplicateDistance = res.distanceMeters;
           _duplicateReport = res.parentReport;
+          _duplicateAnalysisResult = res.analysisResult;
         });
       }
     } catch (e) {
@@ -162,13 +176,71 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> with TickerPr
 
 
 
-  void _initializeMap() {
-    // Initialize the map with default coordinates
+  Future<void> _initializeMap() async {
+    // Initialize the map with default or detected coordinates and load nearby reports
+    final lat = currentLatitude ?? _defaultLatitude;
+    final lng = currentLongitude ?? _defaultLongitude;
+
     setState(() {
-      currentLatitude = _defaultLatitude;
-      currentLongitude = _defaultLongitude;
+      currentLatitude = lat;
+      currentLongitude = lng;
       showMap = true;
     });
+
+    try {
+      final reports = await ComprehensiveDatabaseService().getNearbyMapReports(
+        latitude: lat,
+        longitude: lng,
+        radiusKm: 10.0,
+      );
+      if (mounted) {
+        setState(() {
+          _nearbyReports = reports;
+        });
+        _syncMapLayers();
+      }
+    } catch (e) {
+      print('Note: Could not load initial nearby reports: $e');
+    }
+  }
+
+  void _subscribeToRealtimeNearbyReports() {
+    _nearbyReportsSubscription?.cancel();
+    try {
+      _nearbyReportsSubscription = ComprehensiveDatabaseService()
+          .getAllReportsStream()
+          .listen((reports) {
+        if (mounted) {
+          final lat = currentLatitude ?? _defaultLatitude;
+          final lng = currentLongitude ?? _defaultLongitude;
+          final filtered = reports.where((r) {
+            if (r.latitude == null || r.longitude == null) return false;
+            final dist = GeospatialGeoJsonService.calculateDistanceMeters(lat, lng, r.latitude!, r.longitude!);
+            return dist <= 10000.0; // 10km radius
+          }).toList();
+
+          setState(() {
+            _nearbyReports = filtered;
+          });
+          _syncMapLayers();
+        }
+      }, onError: (e) {
+        print('Realtime nearby reports stream note: $e');
+      });
+    } catch (e) {
+      print('Realtime subscription note: $e');
+    }
+  }
+
+  void _syncMapLayers() {
+    if (_webViewController != null && _nearbyReports.isNotEmpty) {
+      try {
+        final geoJsonStr = GeospatialGeoJsonService.reportsToFeatureCollection(_nearbyReports).toJsonString();
+        _webViewController!.runJavaScript('updateMapLayers($geoJsonStr, null);');
+      } catch (e) {
+        print('Error syncing map layers: $e');
+      }
+    }
   }
 
   Future<void> _getCurrentLocationSafely() async {
@@ -299,65 +371,51 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> with TickerPr
 
   Future<String> _reverseGeocode(double lat, double lng) async {
     try {
+      // Validate coordinates range
+      if (lat < -90.0 || lat > 90.0 || lng < -180.0 || lng > 180.0 || lat.isNaN || lng.isNaN) {
+        return 'Coordinates: ${lat.toStringAsFixed(5)}, ${lng.toStringAsFixed(5)}';
+      }
+
       // Use real reverse geocoding
       List<Placemark> placemarks = await placemarkFromCoordinates(lat, lng);
       
       if (placemarks.isNotEmpty) {
         Placemark place = placemarks[0];
+        List<String> addressParts = [];
         
-        // Build a comprehensive address string
-        String address = '';
-        
-        // Add street number and name
+        // Add specific locality/street info if present
+        if (place.name != null && place.name!.isNotEmpty && place.name != place.street) {
+          addressParts.add(place.name!);
+        }
         if (place.street != null && place.street!.isNotEmpty) {
-          address += place.street!;
+          addressParts.add(place.street!);
         }
-        
-        // Add locality/neighborhood
+        if (place.subLocality != null && place.subLocality!.isNotEmpty) {
+          addressParts.add(place.subLocality!);
+        }
         if (place.locality != null && place.locality!.isNotEmpty) {
-          if (address.isNotEmpty) address += ', ';
-          address += place.locality!;
+          addressParts.add(place.locality!);
         }
-        
-        // Add administrative area (state/province)
+        if (place.subAdministrativeArea != null && place.subAdministrativeArea!.isNotEmpty && place.subAdministrativeArea != place.locality) {
+          addressParts.add(place.subAdministrativeArea!);
+        }
         if (place.administrativeArea != null && place.administrativeArea!.isNotEmpty) {
-          if (address.isNotEmpty) address += ', ';
-          address += place.administrativeArea!;
+          addressParts.add(place.administrativeArea!);
         }
-        
-        // Add country
-        if (place.country != null && place.country!.isNotEmpty) {
-          if (address.isNotEmpty) address += ', ';
-          address += place.country!;
-        }
-        
-        // Add postal code if available
         if (place.postalCode != null && place.postalCode!.isNotEmpty) {
-          address += ' ' + place.postalCode!;
+          addressParts.add(place.postalCode!);
         }
         
-        // Return the formatted address or fallback
-        return address.isNotEmpty ? address : _getFallbackAddress(lat, lng);
+        if (addressParts.isNotEmpty) {
+          return addressParts.join(', ');
+        }
       }
     } catch (e) {
-      print('Reverse geocoding error: $e');
+      print('Reverse geocoding note: $e');
     }
     
-    // Fallback to coordinate-based address
-    return _getFallbackAddress(lat, lng);
-  }
-  
-  String _getFallbackAddress(double lat, double lng) {
-    // Generate a realistic mock address based on coordinates for fallback
-    final streetNumbers = [123, 456, 789, 101, 234, 567];
-    final streetNames = ['Main Street', 'Oak Avenue', 'Pine Road', 'Elm Drive', 'Maple Lane', 'Cedar Boulevard'];
-    final neighborhoods = ['Downtown', 'City Center', 'Riverside', 'Hillcrest', 'Parkview', 'Lakeside'];
-    
-    final streetNumber = streetNumbers[DateTime.now().millisecond % streetNumbers.length];
-    final streetName = streetNames[DateTime.now().second % streetNames.length];
-    final neighborhood = neighborhoods[DateTime.now().minute % neighborhoods.length];
-    
-    return '$streetNumber $streetName, $neighborhood, Your City';
+    // Clean fallback to exact coordinates without fake street names
+    return 'Location at ${lat.toStringAsFixed(5)}, ${lng.toStringAsFixed(5)}';
   }
 
   // WebView-based map methods
@@ -383,14 +441,14 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> with TickerPr
       currentLongitude = longitude;
     });
 
-    // Update address based on coordinates
+    // Reverse geocode the selected coordinates and update form
     try {
       final address = await _reverseGeocode(latitude, longitude);
-      if (_addressController.text.isEmpty) {
-        setState(() {
-          _addressController.text = address;
-        });
-      }
+      setState(() {
+        currentLocation = address;
+        _addressController.text = address;
+      });
+      _checkNearbyDuplicates();
     } catch (e) {
       print('Failed to get address: $e');
     }
@@ -408,31 +466,29 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> with TickerPr
       builder: (context, child) {
         return Container(
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFF3B82F6), width: 2),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFF155EEF), width: 1.5),
           ),
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(12),
             child: Stack(
               children: [
                 Container(
-                  color: Colors.blue.withValues(alpha: 0.12),
+                  color: const Color(0xFF155EEF).withValues(alpha: 0.08),
                 ),
                 Positioned(
                   top: _scannerController.value * 120,
                   left: 0,
                   right: 0,
                   child: Container(
-                    height: 4,
+                    height: 3,
                     decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Colors.transparent, Color(0xFF60A5FA), Colors.white, Color(0xFF60A5FA), Colors.transparent],
-                      ),
+                      color: const Color(0xFF155EEF),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFF3B82F6).withValues(alpha: 0.8),
-                          blurRadius: 12,
-                          spreadRadius: 3,
+                          color: const Color(0xFF155EEF).withValues(alpha: 0.4),
+                          blurRadius: 6,
+                          spreadRadius: 2,
                         ),
                       ],
                     ),
@@ -440,19 +496,22 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> with TickerPr
                 ),
                 Center(
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.75),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: const Color(0xFF60A5FA).withValues(alpha: 0.5)),
+                      color: const Color(0xFF123B63).withValues(alpha: 0.85),
+                      borderRadius: BorderRadius.circular(8),
                     ),
                     child: const Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.auto_awesome, color: Color(0xFF60A5FA), size: 16),
+                        SizedBox(
+                          width: 12,
+                          height: 12,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        ),
                         SizedBox(width: 8),
                         Text(
-                          'Gemini AI Triage Scanning...',
+                          'Verifying image...',
                           style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 12),
                         ),
                       ],
@@ -473,22 +532,19 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> with TickerPr
     final distanceText = _duplicateDistance != null 
         ? '${_duplicateDistance!.toStringAsFixed(0)}m away' 
         : 'nearby (within 200m)';
-    final issueTitle = _duplicateReport?['title'] ?? 'Existing report #${_duplicateParentId ?? ""}';
+    final issueTitle = _duplicateReport?['title'] ?? 'Complaint #${_duplicateParentId ?? ""}';
+    final isHighConfidence = _duplicateAnalysisResult?.classification == SimilarityClassification.highConfidenceDuplicate;
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 20),
-      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: const Color(0xFFFFFBEB),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFF59E0B), width: 1.5),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFFF59E0B).withValues(alpha: 0.12),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: const Color(0xFFF79009), 
+          width: 1,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -497,41 +553,70 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> with TickerPr
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
                   color: const Color(0xFFFEF3C7),
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Icon(Icons.warning_amber_rounded, color: Color(0xFFD97706), size: 22),
+                child: const Icon(
+                  Icons.info_outline_rounded, 
+                  color: Color(0xFFD97706), 
+                  size: 20,
+                ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 10),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      '⚠️ Nearby duplicate issue #$_duplicateParentId detected ($distanceText)',
-                      style: const TextStyle(
-                        fontSize: 14,
+                    const Text(
+                      'Possible related complaint nearby',
+                      style: TextStyle(
+                        fontSize: 13,
                         fontWeight: FontWeight.w700,
                         color: Color(0xFF92400E),
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Title: "$issueTitle". Upvoting helps municipal authorities prioritize this location faster without creating redundant work orders.',
+                      'Complaint #${_duplicateParentId ?? ""} ($distanceText) was reported: "$issueTitle". Another complaint may describe a similar issue in this area.',
                       style: const TextStyle(
-                        fontSize: 12.5,
-                        color: Color(0xFFB45309),
-                        height: 1.3,
+                        fontSize: 12,
+                        color: Color(0xFF78350F),
+                        height: 1.35,
                       ),
                     ),
+                    if (_duplicateAnalysisResult != null && _duplicateAnalysisResult!.explainableReasons.isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 4,
+                        children: _duplicateAnalysisResult!.explainableReasons.map((reason) {
+                          return Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(color: const Color(0xFFFDE68A)),
+                            ),
+                            child: Text(
+                              reason,
+                              style: const TextStyle(
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF92400E),
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ],
                   ],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
           Row(
             children: [
               Expanded(
@@ -543,31 +628,25 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> with TickerPr
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Row(
-                            children: [
-                              const Icon(Icons.thumb_up, color: Colors.white),
-                              const SizedBox(width: 8),
-                              Text('Upvoted issue #$_duplicateParentId! +5 Green Credits awarded.'),
-                            ],
-                          ),
-                          backgroundColor: const Color(0xFF059669),
+                          content: Text('Upvoted complaint #${_duplicateParentId ?? ""}! +5 Green Credits awarded.'),
+                          backgroundColor: const Color(0xFF12B76A),
                         ),
                       );
                       Navigator.pop(context);
                     }
                   },
-                  icon: const Icon(Icons.thumb_up_alt_rounded, size: 16),
-                  label: const Text('Upvote Existing Issue', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                  icon: const Icon(Icons.thumb_up_alt_rounded, size: 14),
+                  label: const Text('Upvote Existing Complaint', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFD97706),
+                    backgroundColor: const Color(0xFF155EEF),
                     foregroundColor: Colors.white,
                     elevation: 0,
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 8),
               OutlinedButton(
                 onPressed: () {
                   setState(() {
@@ -575,12 +654,12 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> with TickerPr
                   });
                 },
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: const Color(0xFF92400E),
-                  side: const BorderSide(color: Color(0xFFD97706)),
-                  padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  foregroundColor: const Color(0xFF667085),
+                  side: const BorderSide(color: Color(0xFFE4E7EC)),
+                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 ),
-                child: const Text('Proceed Anyway', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                child: const Text('Proceed Anyway', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
               ),
             ],
           ),
@@ -850,6 +929,9 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> with TickerPr
     if (_webViewController == null) {
       final double lat = currentLatitude ?? _defaultLatitude;
       final double lng = currentLongitude ?? _defaultLongitude;
+      final nearbyGeoJson = _nearbyReports.isNotEmpty
+          ? GeospatialGeoJsonService.reportsToFeatureCollection(_nearbyReports).toJsonString()
+          : null;
       
       _webViewController = WebViewController()
         ..setJavaScriptMode(JavaScriptMode.unrestricted)
@@ -859,7 +941,7 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> with TickerPr
             try {
               final data = message.message;
               // Parse the coordinate data from JavaScript
-              final regex = RegExp(r'latitude:(\d+\.\d+),longitude:(\d+\.\d+)');
+              final regex = RegExp(r'latitude:(-?\d+\.?\d*),longitude:(-?\d+\.?\d*)');
               final match = regex.firstMatch(data);
               if (match != null) {
                 final lat = double.parse(match.group(1)!);
@@ -878,9 +960,10 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> with TickerPr
           },
         )
         ..loadHtmlString(
-          LeafletMapService.getMapHTML(
+          LeafletMapService.getEnhancedMapHTML(
             latitude: lat,
             longitude: lng,
+            reportsGeoJson: nearbyGeoJson,
           ),
         );
     }
@@ -1033,116 +1116,36 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> with TickerPr
           isAnalyzingImage = false;
         });
 
-        // Show AI analysis result with enhanced messaging
-        String analysisMessage = '🎯 AI Priority: $detectedPriority';
-        if (currentDescription.isNotEmpty) {
-          analysisMessage += ' (Image + Description Analysis)';
-        } else {
-          analysisMessage += ' (Image Analysis Only)';
-        }
-
-        // Add special messaging for high priority disasters
-        if (detectedPriority == 'High') {
-          analysisMessage = '🚨 DISASTER DETECTED! Priority: HIGH';
-        }
-
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Row(
               children: [
                 Icon(
-                  detectedPriority == 'High' ? Icons.warning_amber_rounded : Icons.smart_toy_rounded,
+                  detectedPriority == 'High' ? Icons.priority_high_rounded : Icons.info_outline_rounded,
                   color: Colors.white,
                   size: 20,
                 ),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: Text(analysisMessage),
+                  child: Text('Suggested priority: $detectedPriority based on details provided.'),
                 ),
               ],
             ),
-            backgroundColor: ImageAnalysisService.getPriorityColor(detectedPriority),
-            duration: const Duration(seconds: 5),
+            backgroundColor: const Color(0xFF155EEF),
+            duration: const Duration(seconds: 3),
             action: SnackBarAction(
-              label: 'Details',
+              label: 'View',
               textColor: Colors.white,
               onPressed: () => _showAIAnalysisDialog(),
             ),
           ),
         );
-
-        // If high priority detected, show additional warning
-        if (detectedPriority == 'High') {
-          Future.delayed(const Duration(seconds: 1), () {
-            if (mounted) {
-              showDialog(
-                context: context,
-                builder: (context) => AlertDialog(
-                  icon: const Icon(Icons.warning_amber_rounded, color: Colors.red, size: 48),
-                  title: const Text('🚨 DISASTER DETECTED'),
-                  content: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text(
-                        'AI has detected potential disaster or emergency conditions in your report.',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 12),
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.red.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.red.withOpacity(0.3)),
-                        ),
-                        child: Text(
-                          aiAnalysisResult ?? 'High priority emergency detected.',
-                          style: const TextStyle(fontSize: 14),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      const Text(
-                        'This report will be marked as HIGH PRIORITY for immediate attention.',
-                        style: TextStyle(fontSize: 14, color: Colors.grey),
-                      ),
-                    ],
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      child: const Text('Understood'),
-                    ),
-                  ],
-                ),
-              );
-            }
-          });
-        }
       }
     } catch (e) {
       if (mounted) {
         setState(() {
           isAnalyzingImage = false;
         });
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('AI analysis failed: ${e.toString()}'),
-                const SizedBox(height: 4),
-                const Text(
-                  'Tip: Add disaster keywords in description for automatic priority detection',
-                  style: TextStyle(fontSize: 12, color: Colors.white70),
-                ),
-              ],
-            ),
-            backgroundColor: Colors.red[700],
-            duration: const Duration(seconds: 4),
-          ),
-        );
       }
     }
   }
@@ -1155,11 +1158,11 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> with TickerPr
         title: Row(
           children: [
             Icon(
-              Icons.smart_toy_rounded,
+              Icons.info_outline_rounded,
               color: ImageAnalysisService.getPriorityColor(selectedPriority),
             ),
             const SizedBox(width: 8),
-            const Text('AI Analysis Result'),
+            const Text('Smart Assistance', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
           ],
         ),
         content: Column(
@@ -1168,12 +1171,12 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> with TickerPr
           children: [
             Row(
               children: [
-                const Text('Detected Priority: ', style: TextStyle(fontWeight: FontWeight.bold)),
+                const Text('Suggested Priority: ', style: TextStyle(fontWeight: FontWeight.w600)),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                    color: ImageAnalysisService.getPriorityColor(selectedPriority).withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12),
+                    color: ImageAnalysisService.getPriorityColor(selectedPriority).withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(6),
                     border: Border.all(
                       color: ImageAnalysisService.getPriorityColor(selectedPriority).withValues(alpha: 0.3),
                     ),
@@ -1183,15 +1186,24 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> with TickerPr
                     style: TextStyle(
                       color: ImageAnalysisService.getPriorityColor(selectedPriority),
                       fontWeight: FontWeight.bold,
+                      fontSize: 12,
                     ),
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 12),
-            const Text('Analysis:', style: TextStyle(fontWeight: FontWeight.bold)),
+            const Text('Assessment note:', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
             const SizedBox(height: 4),
-            Text(aiAnalysisResult ?? 'No analysis details available.'),
+            Text(
+              aiAnalysisResult ?? 'Standard triage assessment applied.',
+              style: const TextStyle(fontSize: 13, color: Color(0xFF475569)),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'AI-generated suggestions may be reviewed by municipal staff.',
+              style: TextStyle(fontSize: 11, color: Color(0xFF667085), fontStyle: FontStyle.italic),
+            ),
           ],
         ),
         actions: [
@@ -1317,19 +1329,29 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> with TickerPr
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: const Color(0xFFF7F9FC),
       appBar: AppBar(
         backgroundColor: Colors.white,
-        elevation: 1,
+        elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Color(0xFF1F2937)),
+          icon: const Icon(Icons.arrow_back_rounded, color: Color(0xFF172B4D)),
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
-          'Step 2: Provide Details',
+          'Step 2 of 3: Provide Details',
           style: TextStyle(
-            color: Color(0xFF1F2937),
-            fontWeight: FontWeight.bold,
+            color: Color(0xFF172B4D),
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        bottom: const PreferredSize(
+          preferredSize: Size.fromHeight(4),
+          child: LinearProgressIndicator(
+            value: 0.66,
+            backgroundColor: Color(0xFFE4E7EC),
+            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF155EEF)),
+            minHeight: 4,
           ),
         ),
       ),
@@ -1349,53 +1371,44 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> with TickerPr
                     // Selected Category Display
                     Container(
                       width: double.infinity,
-                      padding: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
-                        color: widget.category.color.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: widget.category.color.withValues(alpha: 0.25),
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: widget.category.color.withValues(alpha: 0.06),
-                            blurRadius: 10,
-                            offset: const Offset(0, 3),
-                          ),
-                        ],
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFFE4E7EC)),
                       ),
                       child: Row(
                         children: [
                           Container(
-                            width: 44,
-                            height: 44,
+                            width: 40,
+                            height: 40,
                             decoration: BoxDecoration(
-                              color: widget.category.color.withValues(alpha: 0.2),
-                              borderRadius: BorderRadius.circular(12),
+                              color: const Color(0xFF155EEF).withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(8),
                             ),
                             child: Icon(
                               widget.category.icon,
-                              color: widget.category.color,
-                              size: 22,
+                              color: const Color(0xFF155EEF),
+                              size: 20,
                             ),
                           ),
                           const SizedBox(width: 12),
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                'Reporting in category:',
+                              const Text(
+                                'Selected Category',
                                 style: TextStyle(
-                                  fontSize: 13,
-                                  color: Colors.grey[600],
+                                  fontSize: 12,
+                                  color: Color(0xFF667085),
                                 ),
                               ),
                               Text(
                                 widget.category.name,
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: widget.category.color,
+                                style: const TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF172B4D),
                                 ),
                               ),
                             ],
@@ -1404,53 +1417,37 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> with TickerPr
                       ),
                     ),
                     
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 16),
                     
                     // Description Field
                     const Text(
-                      'Brief Description *',
+                      'Complaint Description *',
                       style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF1F2937),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF172B4D),
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 6),
                     Container(
                       decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.03),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFFE4E7EC)),
                       ),
                       child: TextFormField(
                         controller: _descriptionController,
                         maxLines: 4,
-                        decoration: InputDecoration(
-                          hintText: 'Describe the issue in detail. What exactly is the problem? When did you notice it? Any additional context that might help...',
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(16),
-                            borderSide: BorderSide(color: Colors.grey[300]!),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(16),
-                            borderSide: BorderSide(color: Colors.grey[300]!),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(16),
-                            borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 2),
-                          ),
-                          filled: true,
-                          fillColor: Colors.white,
-                          contentPadding: const EdgeInsets.all(16),
+                        style: const TextStyle(fontSize: 14, color: Color(0xFF172B4D)),
+                        decoration: const InputDecoration(
+                          hintText: 'Describe the civic problem clearly with details like severity, location landmarks, and duration...',
+                          hintStyle: TextStyle(color: Color(0xFF98A2B3), fontSize: 13),
+                          border: InputBorder.none,
+                          contentPadding: EdgeInsets.all(14),
                         ),
                         validator: (value) {
                           if (value == null || value.trim().isEmpty) {
-                            return 'Please provide a description of the issue';
+                            return 'Please describe the problem';
                           }
                           if (value.trim().length < 10) {
                             return 'Please provide a more detailed description (at least 10 characters)';
@@ -1460,81 +1457,72 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> with TickerPr
                       ),
                     ),
                     
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 16),
                     
                     // Image Upload Section
                     const Text(
-                      'Image/Video Proof * (Required)',
+                      'Photo Evidence *',
                       style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF1F2937),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF172B4D),
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 6),
                     
                     // Image Upload Container
                     Container(
                       width: double.infinity,
                       decoration: BoxDecoration(
                         color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: Colors.grey[200]!),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.04),
-                            spreadRadius: 1,
-                            blurRadius: 8,
-                            offset: const Offset(0, 3),
-                          ),
-                        ],
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFFE4E7EC)),
                       ),
                       child: Padding(
-                        padding: const EdgeInsets.all(16),
+                        padding: const EdgeInsets.all(14),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // Header Row
                             Row(
                               children: [
                                 const Icon(
-                                  Icons.photo_camera_rounded,
-                                  color: Color(0xFF3B82F6),
-                                  size: 20,
+                                  Icons.photo_camera_outlined,
+                                  color: Color(0xFF155EEF),
+                                  size: 18,
                                 ),
                                 const SizedBox(width: 8),
-                                Text(
-                                  'Upload Evidence',
+                                const Text(
+                                  'Upload Photos (Max 5)',
                                   style: TextStyle(
-                                    fontSize: 14,
+                                    fontSize: 13,
                                     fontWeight: FontWeight.w600,
-                                    color: Colors.grey[800],
+                                    color: Color(0xFF172B4D),
                                   ),
                                 ),
                                 const Spacer(),
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                                   decoration: BoxDecoration(
                                     color: selectedImages.length >= 5 
-                                        ? Colors.red[50] 
-                                        : Colors.blue[50],
-                                    borderRadius: BorderRadius.circular(12),
+                                        ? const Color(0xFFFEF3F2) 
+                                        : const Color(0xFFF0F9FF),
+                                    borderRadius: BorderRadius.circular(6),
                                   ),
                                   child: Text(
                                     '${selectedImages.length}/5',
                                     style: TextStyle(
-                                      fontSize: 12,
+                                      fontSize: 11,
                                       fontWeight: FontWeight.w600,
                                       color: selectedImages.length >= 5 
-                                          ? Colors.red[700] 
-                                          : Colors.blue[700],
+                                          ? const Color(0xFFD92D20) 
+                                          : const Color(0xFF155EEF),
                                     ),
                                   ),
                                 ),
                               ],
                             ),
                             
-                            const SizedBox(height: 16),
+                            const SizedBox(height: 12),
                             
                             // Image Grid with Scanning Overlay
                             if (selectedImages.isNotEmpty) ...[
@@ -1560,272 +1548,181 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> with TickerPr
                                     ),
                                 ],
                               ),
-                              const SizedBox(height: 16),
+                              const SizedBox(height: 12),
                             ],
                             
                             // Add Image Buttons
                             Row(
                               children: [
                                 Expanded(
-                                  child: _buildAddImageButton(
-                                    icon: Icons.camera_alt_rounded,
-                                    label: 'Camera',
-                                    color: const Color(0xFF3B82F6),
-                                    onTap: selectedImages.length < 5 
+                                  child: OutlinedButton.icon(
+                                    icon: const Icon(Icons.camera_alt_outlined, size: 16),
+                                    label: const Text('Camera', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                                    onPressed: selectedImages.length < 5 
                                         ? () => _pickImage(ImageSource.camera)
                                         : null,
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor: const Color(0xFF155EEF),
+                                      side: const BorderSide(color: Color(0xFFE4E7EC)),
+                                      padding: const EdgeInsets.symmetric(vertical: 10),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                    ),
                                   ),
                                 ),
-                                const SizedBox(width: 12),
+                                const SizedBox(width: 10),
                                 Expanded(
-                                  child: _buildAddImageButton(
-                                    icon: Icons.photo_library_rounded,
-                                    label: 'Gallery',
-                                    color: const Color(0xFF10B981),
-                                    onTap: selectedImages.length < 5 
+                                  child: OutlinedButton.icon(
+                                    icon: const Icon(Icons.photo_library_outlined, size: 16),
+                                    label: const Text('Gallery', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                                    onPressed: selectedImages.length < 5 
                                         ? () => _pickImage(ImageSource.gallery)
                                         : null,
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor: const Color(0xFF155EEF),
+                                      side: const BorderSide(color: Color(0xFFE4E7EC)),
+                                      padding: const EdgeInsets.symmetric(vertical: 10),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                    ),
                                   ),
                                 ),
                               ],
                             ),
-                            
-                            // Upload Instructions
-                            if (selectedImages.isEmpty) ...[
-                              const SizedBox(height: 16),
-                              Container(
-                                width: double.infinity,
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  color: Colors.blue[50],
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: Colors.blue[200]!),
-                                ),
-                                child: Row(
-                                  children: [
-                                    Icon(Icons.info_outline, color: Colors.blue[700], size: 20),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: Text(
-                                        'Add clear photos showing the problem. Multiple angles help us understand the issue better.',
-                                        style: TextStyle(
-                                          fontSize: 13,
-                                          color: Colors.blue[800],
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
                           ],
                         ),
                       ),
                     ),
                     
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 16),
                     
-                    // Priority Section with AI Integration
+                    // Priority Section
                     const Text(
-                      'Priority Level',
+                      'Priority',
                       style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF1F2937),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF172B4D),
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 6),
                     
                     Container(
                       width: double.infinity,
                       decoration: BoxDecoration(
                         color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: Colors.grey[200]!),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.04),
-                            spreadRadius: 1,
-                            blurRadius: 8,
-                            offset: const Offset(0, 3),
-                          ),
-                        ],
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFFE4E7EC)),
                       ),
                       child: Padding(
-                        padding: const EdgeInsets.all(16),
+                        padding: const EdgeInsets.all(14),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // AI Analysis Status
-                            if (isAnalyzingImage) ...[
-                              Row(
-                                children: [
-                                  const SizedBox(
-                                    width: 16,
-                                    height: 16,
-                                    child: CircularProgressIndicator(strokeWidth: 2),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'AI analyzing uploaded image...',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      color: Colors.blue[700],
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 16),
-                            ],
-                            
-                            // AI Analysis Result
+                            // Smart Assistance Note if available
                             if (aiAnalysisResult != null && !isAnalyzingImage) ...[
                               Container(
                                 width: double.infinity,
-                                padding: const EdgeInsets.all(12),
+                                padding: const EdgeInsets.all(10),
                                 decoration: BoxDecoration(
-                                  color: ImageAnalysisService.getPriorityColor(selectedPriority).withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(
-                                    color: ImageAnalysisService.getPriorityColor(selectedPriority).withValues(alpha: 0.3),
-                                  ),
+                                  color: const Color(0xFFF0F9FF),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: const Color(0xFFB2DDFF)),
                                 ),
                                 child: Row(
                                   children: [
-                                    Icon(
-                                      Icons.smart_toy_rounded,
-                                      color: ImageAnalysisService.getPriorityColor(selectedPriority),
-                                      size: 20,
+                                    const Icon(
+                                      Icons.info_outline_rounded,
+                                      color: Color(0xFF155EEF),
+                                      size: 16,
                                     ),
                                     const SizedBox(width: 8),
                                     Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            'AI Priority Detection: $selectedPriority',
-                                            style: TextStyle(
-                                              fontSize: 13,
-                                              fontWeight: FontWeight.w600,
-                                              color: ImageAnalysisService.getPriorityColor(selectedPriority),
-                                            ),
-                                          ),
-                                          const SizedBox(height: 2),
-                                          Text(
-                                            aiAnalysisResult!,
-                                            style: TextStyle(
-                                              fontSize: 12,
-                                              color: Colors.grey[700],
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    IconButton(
-                                      onPressed: () => _showAIAnalysisDialog(),
-                                      icon: Icon(
-                                        Icons.info_outline,
-                                        color: ImageAnalysisService.getPriorityColor(selectedPriority),
-                                        size: 18,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-                            ],
-                            
-                            // Manual Priority Selection
-                            const Text(
-                              'Select Priority:',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: Color(0xFF475569),
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: _buildPriorityOption('High', 'Immediate attention required', Icons.priority_high, const Color(0xFFEF4444)),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: _buildPriorityOption('Medium', 'Needs timely action', Icons.remove, const Color(0xFFF59E0B)),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: _buildPriorityOption('Low', 'Can be addressed later', Icons.low_priority, const Color(0xFF10B981)),
-                                ),
-                              ],
-                            ),
-                            
-                            if (selectedImages.isEmpty) ...[
-                              const SizedBox(height: 12),
-                              Container(
-                                width: double.infinity,
-                                padding: const EdgeInsets.all(8),
-                                decoration: BoxDecoration(
-                                  color: Colors.blue[50],
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: Row(
-                                  children: [
-                                    Icon(Icons.lightbulb_outline, color: Colors.blue[700], size: 16),
-                                    const SizedBox(width: 6),
-                                    Expanded(
                                       child: Text(
-                                        'Upload an image for AI-powered priority detection',
-                                        style: TextStyle(
+                                        'Suggested priority: $selectedPriority based on problem description and image.',
+                                        style: const TextStyle(
                                           fontSize: 12,
-                                          color: Colors.blue[800],
+                                          color: Color(0xFF175CD3),
+                                          fontWeight: FontWeight.w500,
                                         ),
                                       ),
                                     ),
                                   ],
                                 ),
                               ),
+                              const SizedBox(height: 10),
                             ],
+                            
+                            // Manual Priority Selection
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: _buildPriorityOption('High', 'Immediate hazard / urgent', Icons.priority_high_rounded, const Color(0xFFD92D20)),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: _buildPriorityOption('Medium', 'Standard service request', Icons.remove_rounded, const Color(0xFFF79009)),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: _buildPriorityOption('Low', 'Routine maintenance', Icons.arrow_downward_rounded, const Color(0xFF12B76A)),
+                                ),
+                              ],
+                            ),
+                            
+                            const SizedBox(height: 8),
+                            const Text(
+                              'AI-assisted suggestions may be reviewed by municipal staff.',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Color(0xFF667085),
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
                           ],
                         ),
                       ),
                     ),
                     
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 16),
                     
                     // Location Section
-                    const Text(
-                      'Location *',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF1F2937),
-                      ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Problem Location *',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF172B4D),
+                          ),
+                        ),
+                        TextButton.icon(
+                          onPressed: _handleLocationRequest,
+                          icon: const Icon(Icons.my_location_rounded, size: 14, color: Color(0xFF155EEF)),
+                          label: const Text(
+                            'Use Current Location',
+                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF155EEF)),
+                          ),
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            visualDensity: VisualDensity.compact,
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 6),
                     
                     // Interactive Map Section
                     Container(
                       width: double.infinity,
-                      height: 250,
+                      height: 220,
                       decoration: BoxDecoration(
                         color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: Colors.grey[200]!),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.04),
-                            spreadRadius: 1,
-                            blurRadius: 8,
-                            offset: const Offset(0, 3),
-                          ),
-                        ],
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFFE4E7EC)),
                       ),
                       child: ClipRRect(
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(12),
                         child: Stack(
                           children: [
                             // Map Interface
@@ -1833,42 +1730,22 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> with TickerPr
                             
                             // Map Controls Overlay
                             Positioned(
-                              top: 12,
-                              right: 12,
+                              top: 8,
+                              right: 8,
                               child: Container(
                                 decoration: BoxDecoration(
                                   color: Colors.white,
-                                  borderRadius: BorderRadius.circular(10),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withValues(alpha: 0.1),
-                                      spreadRadius: 1,
-                                      blurRadius: 4,
-                                    ),
-                                  ],
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: const Color(0xFFE4E7EC)),
                                 ),
                                 child: IconButton(
                                   onPressed: _openLocationSearch,
-                                  icon: const Icon(Icons.search, size: 20),
-                                  color: const Color(0xFF3B82F6),
+                                  icon: const Icon(Icons.search_rounded, size: 18),
+                                  color: const Color(0xFF155EEF),
                                   tooltip: 'Search Location',
+                                  constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                                  padding: EdgeInsets.zero,
                                 ),
-                              ),
-                            ),
-                            
-                            // Center Location Pin
-                            const Center(
-                              child: Icon(
-                                Icons.location_pin,
-                                color: Color(0xFF3B82F6),
-                                size: 36,
-                                shadows: [
-                                  Shadow(
-                                    color: Colors.black26,
-                                    offset: Offset(1, 1),
-                                    blurRadius: 3,
-                                  ),
-                                ],
                               ),
                             ),
                             
@@ -1879,24 +1756,18 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> with TickerPr
                                 left: 0,
                                 right: 0,
                                 child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                  decoration: BoxDecoration(
-                                    color: Colors.green[600]!.withValues(alpha: 0.9),
-                                    borderRadius: const BorderRadius.only(
-                                      bottomLeft: Radius.circular(16),
-                                      bottomRight: Radius.circular(16),
-                                    ),
-                                  ),
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                  color: const Color(0xFF123B63).withValues(alpha: 0.9),
                                   child: Row(
                                     children: [
-                                      const Icon(Icons.check_circle, color: Colors.white, size: 16),
-                                      const SizedBox(width: 8),
+                                      const Icon(Icons.location_on_rounded, color: Color(0xFF12B76A), size: 14),
+                                      const SizedBox(width: 6),
                                       Expanded(
                                         child: Text(
-                                          'Location: ${currentLatitude!.toStringAsFixed(4)}, ${currentLongitude!.toStringAsFixed(4)}',
+                                          'Selected GPS: ${currentLatitude!.toStringAsFixed(5)}, ${currentLongitude!.toStringAsFixed(5)}',
                                           style: const TextStyle(
                                             color: Colors.white,
-                                            fontSize: 12,
+                                            fontSize: 11,
                                             fontWeight: FontWeight.w500,
                                           ),
                                         ),
@@ -1910,100 +1781,59 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> with TickerPr
                       ),
                     ),
                     
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 12),
                     
                     // Address Section
                     const Text(
-                      'Problem Address *',
+                      'Specific Address or Landmark *',
                       style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF1F2937),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF172B4D),
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 6),
                     
                     Container(
                       width: double.infinity,
                       decoration: BoxDecoration(
                         color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: Colors.grey[200]!),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.03),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFFE4E7EC)),
                       ),
                       child: TextFormField(
                         controller: _addressController,
                         maxLines: 2,
+                        style: const TextStyle(fontSize: 13.5, color: Color(0xFF172B4D)),
                         decoration: const InputDecoration(
-                          hintText: 'Enter the specific address where the problem is located...\nExample: 123 Main Street, Near City Mall, Cityville',
-                          prefixIcon: Icon(Icons.home_rounded, color: Color(0xFF3B82F6)),
+                          hintText: 'Enter address or nearby landmarks (e.g., Near City Hospital Gate 2, Station Road)...',
+                          hintStyle: TextStyle(color: Color(0xFF98A2B3), fontSize: 13),
+                          prefixIcon: Icon(Icons.pin_drop_outlined, color: Color(0xFF155EEF), size: 20),
                           border: InputBorder.none,
-                          contentPadding: EdgeInsets.all(16),
+                          contentPadding: EdgeInsets.all(12),
                         ),
                         validator: (value) {
                           if (value == null || value.trim().isEmpty) {
-                            return 'Please provide the address where the problem is located';
+                            return 'Please provide the problem address';
                           }
-                          if (value.trim().length < 10) {
-                            return 'Please provide a more detailed address';
+                          if (value.trim().length < 5) {
+                            return 'Please provide a more specific address';
                           }
                           return null;
                         },
                       ),
                     ),
-                    
-                    // Address Helper Info
-                    if (currentLatitude == null || currentLongitude == null) ...[
-                      const SizedBox(height: 12),
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.amber[50],
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.amber[200]!),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(Icons.info_outline, color: Colors.amber[700], size: 20),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                'Tap on the map to pinpoint the exact location, then provide the detailed address.',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.amber[800],
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
                   ],
                 ),
               ),
             ),
             
-            // Submit Button
+            // Continue Button (Bottom Action Bar)
             Container(
               padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 color: Colors.white,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.grey.withValues(alpha: 0.1),
-                    spreadRadius: 1,
-                    blurRadius: 4,
-                    offset: const Offset(0, -2),
-                  ),
-                ],
+                border: Border(top: BorderSide(color: Color(0xFFE4E7EC))),
               ),
               child: SizedBox(
                 width: double.infinity,
@@ -2011,18 +1841,18 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> with TickerPr
                 child: ElevatedButton(
                   onPressed: _handleSubmitReport,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF3B82F6),
+                    backgroundColor: const Color(0xFF155EEF),
                     foregroundColor: Colors.white,
                     elevation: 0,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(10),
                     ),
                   ),
                   child: const Text(
-                    'Submit Report',
+                    'Continue to Review',
                     style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),

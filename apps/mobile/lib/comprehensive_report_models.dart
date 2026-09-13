@@ -106,6 +106,8 @@ class ComprehensiveReportModel {
   final int consolidatedReports;
   final String? citizenFeedback;
   final int? rating;
+  final bool isPotentialDuplicate;
+  final String? parentReportId;
 
   // Display fields (from view)
   final String? userName;
@@ -146,6 +148,8 @@ class ComprehensiveReportModel {
     required this.consolidatedReports,
     this.citizenFeedback,
     this.rating,
+    this.isPotentialDuplicate = false,
+    this.parentReportId,
     this.userName,
     this.userEmail,
     this.userPhone,
@@ -177,15 +181,39 @@ class ComprehensiveReportModel {
       }
     }
 
+    // Parse latitude and longitude robustly
+    double? latitude;
+    double? longitude;
+    if (json['latitude'] != null) {
+      latitude = double.tryParse(json['latitude'].toString());
+    }
+    if (json['longitude'] != null) {
+      longitude = double.tryParse(json['longitude'].toString());
+    }
+    if (latitude == null || longitude == null) {
+      if (json['coordinates'] is Map) {
+        latitude ??= double.tryParse(json['coordinates']['lat']?.toString() ?? '');
+        longitude ??= double.tryParse(json['coordinates']['lng']?.toString() ?? '');
+      } else if (json['coordinates'] is String) {
+        try {
+          final parsed = jsonDecode(json['coordinates']);
+          if (parsed is Map) {
+            latitude ??= double.tryParse(parsed['lat']?.toString() ?? '');
+            longitude ??= double.tryParse(parsed['lng']?.toString() ?? '');
+          }
+        } catch (_) {}
+      }
+    }
+
     return ComprehensiveReportModel(
       id: json['id'].toString(),
-      userId: json['user_id'].toString(),
+      userId: json['user_id']?.toString() ?? '',
       title: json['title'] ?? '',
       description: json['description'] ?? '',
       category: json['category'] ?? '',
       location: json['location'] ?? '',
-      latitude: json['latitude'] != null ? double.tryParse(json['latitude'].toString()) : null,
-      longitude: json['longitude'] != null ? double.tryParse(json['longitude'].toString()) : null,
+      latitude: latitude,
+      longitude: longitude,
       imageUrls: imageUrls,
       status: ReportStatusExtension.fromString(json['status'] ?? 'submitted'),
       priority: ReportPriorityExtension.fromString(json['priority'] ?? 'medium'),
@@ -205,6 +233,8 @@ class ComprehensiveReportModel {
       consolidatedReports: json['consolidated_reports'] ?? 1,
       citizenFeedback: json['citizen_feedback'],
       rating: json['rating'],
+      isPotentialDuplicate: json['potential_duplicate'] == true,
+      parentReportId: json['parent_report_id']?.toString(),
       // Display fields from view
       userName: json['user_name'],
       userEmail: json['user_email'],
@@ -215,7 +245,7 @@ class ComprehensiveReportModel {
       statusDisplay: json['status_display'] ?? _mapStatusToDisplay(json['status'] ?? 'submitted'),
       submittedTime: json['submitted_time'] ?? _formatDateTime(DateTime.parse(json['created_at'])),
       lastUpdatedTime: json['last_updated_time'] ?? _formatDateTime(DateTime.parse(json['updated_at'])),
-      gpsDisplay: json['gps_display'] ?? 'GPS coordinates not available',
+      gpsDisplay: json['gps_display'] ?? (latitude != null && longitude != null ? '${latitude.toStringAsFixed(5)}, ${longitude.toStringAsFixed(5)}' : 'GPS coordinates not available'),
       adminNotesCount: json['admin_notes_count'] ?? 0,
     );
   }

@@ -249,6 +249,7 @@
     </div>
 
     <!-- Scripts -->
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <script src="js/config.js"></script>
     <script src="js/database.js"></script>
     <script src="js/auth-simple.js"></script>
@@ -271,6 +272,34 @@
                 this.initMap();
                 this.bindEvents();
                 await this.loadReports();
+                this.initRealtime();
+            }
+
+            initRealtime() {
+                if (window.supabaseService) {
+                    window.supabaseService.initRealtimeSubscription(
+                        (newReport) => {
+                            console.log('🔴 Realtime new report on map:', newReport);
+                            const existingIndex = this.reports.findIndex(r => String(r.id) === String(newReport.id));
+                            if (existingIndex === -1) {
+                                this.reports.unshift(newReport);
+                            } else {
+                                this.reports[existingIndex] = newReport;
+                            }
+                            this.renderMarkers();
+                        },
+                        (updatedReport) => {
+                            console.log('🔵 Realtime updated report on map:', updatedReport);
+                            const existingIndex = this.reports.findIndex(r => String(r.id) === String(updatedReport.id));
+                            if (existingIndex !== -1) {
+                                this.reports[existingIndex] = updatedReport;
+                            } else {
+                                this.reports.unshift(updatedReport);
+                            }
+                            this.renderMarkers();
+                        }
+                    );
+                }
             }
 
             initMap() {
@@ -286,9 +315,9 @@
             }
 
             bindEvents() {
-                document.getElementById('category-filter').addEventListener('change', () => this.renderMarkers());
-                document.getElementById('priority-filter').addEventListener('change', () => this.renderMarkers());
-                document.getElementById('recenter-btn').addEventListener('click', () => {
+                document.getElementById('category-filter')?.addEventListener('change', () => this.renderMarkers());
+                document.getElementById('priority-filter')?.addEventListener('change', () => this.renderMarkers());
+                document.getElementById('recenter-btn')?.addEventListener('click', () => {
                     if (this.markersLayer.getLayers().length > 0) {
                         const bounds = L.featureGroup(this.markersLayer.getLayers()).getBounds();
                         this.map.fitBounds(bounds, { padding: [50, 50] });
@@ -301,7 +330,7 @@
             async loadReports() {
                 try {
                     const countEl = document.getElementById('report-count-badge');
-                    countEl.textContent = 'Loading live reports...';
+                    if (countEl) countEl.textContent = 'Loading live reports...';
 
                     if (window.supabaseService) {
                         this.reports = await window.supabaseService.getAllReports({ limit: 200 });
@@ -310,6 +339,8 @@
                     this.renderMarkers();
                 } catch (e) {
                     console.error('Failed to load reports for map:', e);
+                    const countEl = document.getElementById('report-count-badge');
+                    if (countEl) countEl.textContent = '0 complaints loaded (live database error)';
                 }
             }
 

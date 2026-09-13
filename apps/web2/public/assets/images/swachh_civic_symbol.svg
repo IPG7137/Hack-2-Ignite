@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="greenLeafGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#22C55E"/>
+      <stop offset="100%" stop-color="#15803D"/>
+    </linearGradient>
+  </defs>
+  <!-- Circular background badge -->
+  <circle cx="32" cy="32" r="30" fill="#F0FDF4" stroke="#BBF7D0" stroke-width="2"/>
+  <!-- Central Twin Leaves of sustainability & clean environment -->
+  <path d="M 32 46 C 32 46 20 40 18 26 C 28 24 38 32 32 46 Z" fill="url(#greenLeafGrad)"/>
+  <path d="M 32 46 C 32 46 44 40 46 24 C 34 22 26 30 32 46 Z" fill="#16A34A" opacity="0.9"/>
+  <!-- Leaf veins -->
+  <path d="M 32 46 Q 30 34 26 26" stroke="#DCFCE7" stroke-width="1.2" fill="none"/>
+  <path d="M 32 46 Q 34 32 38 24" stroke="#DCFCE7" stroke-width="1.2" fill="none"/>
+</svg>

@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 32" width="48" height="32">
+  <defs>
+    <clipPath id="flagBorder">
+      <rect width="48" height="32" rx="4"/>
+    </clipPath>
+  </defs>
+
+  <g clip-path="url(#flagBorder)" stroke="#D9E2EC" stroke-width="1">
+    <!-- Saffron top band -->
+    <rect x="0" y="0" width="48" height="10.67" fill="#FF9933"/>
+    <!-- White middle band -->
+    <rect x="0" y="10.67" width="48" height="10.67" fill="#FFFFFF"/>
+    <!-- Green bottom band -->
+    <rect x="0" y="21.33" width="48" height="10.67" fill="#138808"/>
+
+    <!-- Ashoka Chakra (Navy Blue 24 spokes in center) -->
+    <circle cx="24" cy="16" r="4.2" fill="none" stroke="#000080" stroke-width="0.8"/>
+    <circle cx="24" cy="16" r="0.9" fill="#000080"/>
+    <!-- Spokes simplified for crisp small rendering -->
+    <g stroke="#000080" stroke-width="0.4">
+      <line x1="24" y1="11.8" x2="24" y2="20.2"/>
+      <line x1="19.8" y1="16" x2="28.2" y2="16"/>
+      <line x1="21" y1="13" x2="27" y2="19"/>
+      <line x1="21" y1="19" x2="27" y2="13"/>
+      <line x1="22.5" y1="12" x2="25.5" y2="20"/>
+      <line x1="25.5" y1="12" x2="22.5" y2="20"/>
+      <line x1="20" y1="14.5" x2="28" y2="17.5"/>
+      <line x1="20" y1="17.5" x2="28" y2="14.5"/>
+    </g>
+  </g>
+</svg>

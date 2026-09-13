@@ -1,9 +1,18 @@
-import 'package:flutter/material.dart';
+import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:webview_flutter/webview_flutter.dart';
-import 'language_service.dart';
+import 'comprehensive_database_service.dart';
+import 'comprehensive_report_models.dart';
+import 'comprehensive_track_reports_screen.dart';
 import 'leaflet_map_service.dart';
+import 'language_service.dart';
+import 'dashboard_screen.dart';
+import 'emerging_problem_engine.dart';
+import 'geospatial_geojson_service.dart';
 
 class MapViewScreen extends StatefulWidget {
   const MapViewScreen({super.key});
@@ -14,195 +23,66 @@ class MapViewScreen extends StatefulWidget {
 
 class _MapViewScreenState extends State<MapViewScreen> with TickerProviderStateMixin {
   final LanguageService _languageService = LanguageService();
-  late AnimationController _animationController;
-  late Animation<double> _fadeAnimation;
-  late AnimationController _pulseController;
-  late Animation<double> _pulseAnimation;
+  final ComprehensiveDatabaseService _databaseService = ComprehensiveDatabaseService();
   
+  // Default coordinates for Solapur Municipal Corporation, Maharashtra
+  static const double _defaultLatitude = 17.6599;
+  static const double _defaultLongitude = 75.9064;
+
   Position? _currentPosition;
   bool _isLoading = true;
-  String _selectedFilter = 'All';
-  String _selectedView = 'Map';
-  bool _showSatellite = false;
+  bool _isLoadingReports = false;
+  bool _isLocationDenied = false;
+  
+  String _selectedCategory = 'All';
+  String _selectedStatus = 'Active';
+  String _selectedView = 'Map'; // 'Map' or 'List'
+  double _searchRadiusKm = 10.0;
+  
+  List<ComprehensiveReportModel> _allStreamReports = [];
+  List<ComprehensiveReportModel> _nearbyReports = [];
+  List<EmergingHotspotResult> _detectedHotspots = [];
+  StreamSubscription<List<ComprehensiveReportModel>>? _realtimeSubscription;
   
   WebViewController? _webViewController;
-  
-  // Enhanced nearby reports data with more realistic information
-  final List<Map<String, dynamic>> _nearbyReports = [
-    {
-      'id': '1',
-      'title': '🚨 Flood Emergency - Solapur Highway',
-      'description': 'Heavy flooding blocking main highway, multiple vehicles stranded. Emergency services needed urgently.',
-      'category': 'Emergency',
-      'status': 'Active',
-      'distance': 0.8,
-      'latitude': 17.6869,
-      'longitude': 75.9228,
-      'priority': 'High',
-      'reportedTime': '15 mins ago',
-      'icon': Icons.flood,
-      'color': Colors.red,
-      'severity': 'Critical',
-      'affected': '200+ people',
-    },
-    {
-      'id': '2',
-      'title': '🔥 Building Fire - Commercial Complex',
-      'description': 'Fire reported in 3-story commercial building. Fire department on scene, evacuation in progress.',
-      'category': 'Emergency',
-      'status': 'In Progress',
-      'distance': 1.2,
-      'latitude': 17.6850,
-      'longitude': 75.9250,
-      'priority': 'High',
-      'reportedTime': '32 mins ago',
-      'icon': Icons.local_fire_department,
-      'color': Colors.red,
-      'severity': 'Critical',
-      'affected': '50+ people',
-    },
-    {
-      'id': '3',
-      'title': '🚧 Major Road Damage - Pune Road',
-      'description': 'Large section of road collapsed after heavy rains. Traffic diverted, repairs ongoing.',
-      'category': 'Infrastructure',
-      'status': 'Reported',
-      'distance': 2.1,
-      'latitude': 17.6889,
-      'longitude': 75.9200,
-      'priority': 'High',
-      'reportedTime': '1 hour ago',
-      'icon': Icons.construction,
-      'color': Colors.orange,
-      'severity': 'Major',
-      'affected': 'Main traffic route',
-    },
-    {
-      'id': '4',
-      'title': '💡 Street Lighting Outage - Siddheshwar Area',
-      'description': 'Multiple street lights not working in residential area causing safety concerns.',
-      'category': 'Infrastructure',
-      'status': 'In Progress',
-      'distance': 0.5,
-      'latitude': 17.6859,
-      'longitude': 75.9270,
-      'priority': 'Medium',
-      'reportedTime': '2 hours ago',
-      'icon': Icons.lightbulb_outline,
-      'color': Colors.orange,
-      'severity': 'Moderate',
-      'affected': '500+ residents',
-    },
-    {
-      'id': '5',
-      'title': '🗑️ Waste Management Crisis - Hotgi Road',
-      'description': 'Garbage trucks unable to access area due to flooding. Waste accumulating rapidly.',
-      'category': 'Sanitation',
-      'status': 'Reported',
-      'distance': 1.8,
-      'latitude': 17.6840,
-      'longitude': 75.9280,
-      'priority': 'Medium',
-      'reportedTime': '3 hours ago',
-      'icon': Icons.delete_outline,
-      'color': Colors.brown,
-      'severity': 'Moderate',
-      'affected': '1000+ residents',
-    },
-    {
-      'id': '6',
-      'title': '⚡ Power Outage - Industrial Zone',
-      'description': 'Complete power failure in industrial area affecting factories and businesses.',
-      'category': 'Utilities',
-      'status': 'In Progress',
-      'distance': 3.2,
-      'latitude': 17.6830,
-      'longitude': 75.9180,
-      'priority': 'High',
-      'reportedTime': '45 mins ago',
-      'icon': Icons.power_off,
-      'color': Colors.red,
-      'severity': 'Major',
-      'affected': '20+ businesses',
-    },
-    {
-      'id': '7',
-      'title': '🏥 Medical Emergency - Accident Site',
-      'description': 'Multi-vehicle accident on bypass road. Ambulances dispatched, medical aid required.',
-      'category': 'Emergency',
-      'status': 'Active',
-      'distance': 2.5,
-      'latitude': 17.6820,
-      'longitude': 75.9320,
-      'priority': 'High',
-      'reportedTime': '8 mins ago',
-      'icon': Icons.local_hospital,
-      'color': Colors.red,
-      'severity': 'Critical',
-      'affected': '8+ people',
-    },
-    {
-      'id': '8',
-      'title': '🌊 Water Pipeline Burst - Railway Station Area',
-      'description': 'Major water main burst flooding railway underpass. Water supply disrupted.',
-      'category': 'Utilities',
-      'status': 'Reported',
-      'distance': 1.5,
-      'latitude': 17.6870,
-      'longitude': 75.9240,
-      'priority': 'High',
-      'reportedTime': '1.5 hours ago',
-      'icon': Icons.water_drop,
-      'color': Colors.blue,
-      'severity': 'Major',
-      'affected': '5000+ residents',
-    },
+  late AnimationController _pulseController;
+  late Animation<double> _pulseAnimation;
+
+  final List<String> _categoryFilters = [
+    'All',
+    'Roads',
+    'Water',
+    'Electricity',
+    'Sanitation',
+    'Safety',
   ];
 
-  final List<String> _filterOptions = [
-    'All', 'Emergency', 'Infrastructure', 'Utilities', 'Sanitation'
+  final List<String> _statusFilters = [
+    'Active',
+    'All',
+    'Resolved',
   ];
-  
-  final List<String> _viewOptions = ['Map', 'List', 'Analytics'];
 
   @override
   void initState() {
     super.initState();
     _languageService.addListener(_onLanguageChanged);
-    
-    _animationController = AnimationController(
-      duration: const Duration(milliseconds: 800),
-      vsync: this,
-    );
-    
+
     _pulseController = AnimationController(
       duration: const Duration(seconds: 2),
       vsync: this,
-    )..repeat();
-    
-    _fadeAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeOut,
-    ));
-    
-    _pulseAnimation = Tween<double>(
-      begin: 0.8,
-      end: 1.2,
-    ).animate(CurvedAnimation(
-      parent: _pulseController,
-      curve: Curves.easeInOut,
-    ));
-    
-    _getCurrentLocation();
-    _animationController.forward();
+    )..repeat(reverse: true);
+
+    _pulseAnimation = Tween<double>(begin: 0.9, end: 1.15).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
+
+    _initLocationAndFetchReports();
   }
 
   @override
   void dispose() {
-    _animationController.dispose();
+    _realtimeSubscription?.cancel();
     _pulseController.dispose();
     _languageService.removeListener(_onLanguageChanged);
     super.dispose();
@@ -212,11 +92,101 @@ class _MapViewScreenState extends State<MapViewScreen> with TickerProviderStateM
     setState(() {});
   }
 
-  Future<void> _getCurrentLocation() async {
+  Future<void> _initLocationAndFetchReports() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    await _obtainUserLocation();
+    await _fetchNearbyReports();
+    _setupRealtimeSubscription();
+
+    if (mounted) {
+      _initializeMapController();
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  void _setupRealtimeSubscription() {
+    _realtimeSubscription?.cancel();
+    _realtimeSubscription = _databaseService.getAllReportsStream().listen(
+      (allReports) {
+        _allStreamReports = allReports;
+        _applyFiltersAndRefreshMap(updateWebview: true);
+      },
+      onError: (error) {
+        print('⚠️ Realtime map stream error: $error');
+      },
+    );
+  }
+
+  void _applyFiltersAndRefreshMap({bool updateWebview = true}) {
+    List<ComprehensiveReportModel> filtered = List.from(_allStreamReports);
+
+    // 1. Filter by radius from effective citizen GPS location
+    filtered = GeospatialGeoJsonService.filterReportsNearCitizen(
+      reports: filtered,
+      citizenLatitude: _effectiveLat,
+      citizenLongitude: _effectiveLng,
+      radiusKm: _searchRadiusKm,
+    );
+
+    // 2. Filter by Category
+    if (_selectedCategory != 'All') {
+      final query = _selectedCategory.toLowerCase();
+      filtered = filtered.where((r) {
+        final cat = r.category.toLowerCase();
+        final catDisplay = (r.categoryDisplayName ?? '').toLowerCase();
+        return cat.contains(query) || catDisplay.contains(query);
+      }).toList();
+    }
+
+    // 3. Filter by Status
+    if (_selectedStatus == 'Active') {
+      filtered = filtered.where((r) => r.status != ReportStatus.resolved).toList();
+    } else if (_selectedStatus == 'Resolved') {
+      filtered = filtered.where((r) => r.status == ReportStatus.resolved).toList();
+    }
+
+    // 4. Calculate Phase 3C Emerging Hotspots
+    final hotspots = EmergingProblemEngine.detectHotspots(reports: filtered);
+
+    if (mounted) {
+      setState(() {
+        _nearbyReports = filtered;
+        _detectedHotspots = hotspots;
+        _isLoadingReports = false;
+      });
+
+      if (updateWebview && _webViewController != null) {
+        _pushGeoJsonToWebview();
+      }
+    }
+  }
+
+  void _pushGeoJsonToWebview() {
+    try {
+      final reportsGeoJson = GeospatialGeoJsonService.reportsToFeatureCollection(_nearbyReports);
+      final hotspotsGeoJson = GeospatialGeoJsonService.hotspotsToFeatureCollection(_detectedHotspots);
+
+      final reportsJsonStr = jsonEncode(reportsGeoJson.toJson());
+      final hotspotsJsonStr = jsonEncode(hotspotsGeoJson.toJson());
+
+      _webViewController?.runJavaScript(
+        'if (window.updateMapLayers) { window.updateMapLayers($reportsJsonStr, $hotspotsJsonStr); }',
+      );
+    } catch (e) {
+      print('⚠️ Error pushing GeoJSON to webview: $e');
+    }
+  }
+
+  Future<void> _obtainUserLocation() async {
     try {
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
-        _showLocationError('Location services are disabled');
+        _isLocationDenied = true;
         return;
       }
 
@@ -224,234 +194,740 @@ class _MapViewScreenState extends State<MapViewScreen> with TickerProviderStateM
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
-          _showLocationError('Location permissions are denied');
+          _isLocationDenied = true;
           return;
         }
       }
 
       if (permission == LocationPermission.deniedForever) {
-        _showLocationError('Location permissions are permanently denied');
+        _isLocationDenied = true;
         return;
       }
 
-      Position position = await Geolocator.getCurrentPosition(
+      final position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
+        timeLimit: const Duration(seconds: 8),
       );
 
-      setState(() {
-        _currentPosition = position;
-        _isLoading = false;
-      });
-      
-      // Initialize web map if on web
-      if (kIsWeb && _currentPosition != null) {
-        _initializeWebMap();
-      }
+      _currentPosition = position;
+      _isLocationDenied = false;
     } catch (e) {
-      _showLocationError('Failed to get location: $e');
+      print('⚠️ GPS obtain error: $e, using municipal center fallback');
+      _isLocationDenied = true;
     }
   }
-  
-  Future<void> _initializeWebMap() async {
-    if (_currentPosition == null) return;
-    
+
+  double get _effectiveLat => _currentPosition?.latitude ?? _defaultLatitude;
+  double get _effectiveLng => _currentPosition?.longitude ?? _defaultLongitude;
+
+  Future<void> _fetchNearbyReports() async {
+    setState(() {
+      _isLoadingReports = true;
+    });
+
+    try {
+      String? categoryParam = _selectedCategory == 'All' ? null : _selectedCategory;
+      final reports = await _databaseService.getNearbyMapReports(
+        latitude: _effectiveLat,
+        longitude: _effectiveLng,
+        radiusKm: _searchRadiusKm,
+        category: categoryParam,
+        statusFilter: _selectedStatus,
+      );
+
+      _allStreamReports = reports;
+
+      // Phase 3C: Compute emerging problem hotspots across nearby reports
+      final hotspots = EmergingProblemEngine.detectHotspots(
+        reports: reports,
+      );
+
+      if (mounted) {
+        setState(() {
+          _nearbyReports = reports;
+          _detectedHotspots = hotspots;
+          _isLoadingReports = false;
+        });
+      }
+    } catch (e) {
+      print('❌ Error fetching nearby map reports: $e');
+      if (mounted) {
+        setState(() {
+          _isLoadingReports = false;
+        });
+      }
+    }
+  }
+
+  void _initializeMapController() {
+    if (kIsWeb) return;
+
+    final reportsGeoJson = GeospatialGeoJsonService.reportsToFeatureCollection(_nearbyReports);
+    final hotspotsGeoJson = GeospatialGeoJsonService.hotspotsToFeatureCollection(_detectedHotspots);
+
     _webViewController = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setNavigationDelegate(
-        NavigationDelegate(
-          onPageFinished: (String url) {
-            // Map is ready, can add additional setup here
-          },
-        ),
+      ..addJavaScriptChannel(
+        'onReportSelected',
+        onMessageReceived: (JavaScriptMessage message) {
+          final reportId = message.message.trim();
+          _handleMarkerTapped(reportId);
+        },
+      )
+      ..addJavaScriptChannel(
+        'requestLocation',
+        onMessageReceived: (JavaScriptMessage message) {
+          _recenterOnUserLocation();
+        },
       )
       ..loadHtmlString(
         LeafletMapService.getEnhancedMapHTML(
-          latitude: _currentPosition!.latitude,
-          longitude: _currentPosition!.longitude,
+          latitude: _effectiveLat,
+          longitude: _effectiveLng,
           zoom: 14.0,
-          reports: _getFilteredReports(),
+          reportsGeoJson: jsonEncode(reportsGeoJson.toJson()),
+          hotspotsGeoJson: jsonEncode(hotspotsGeoJson.toJson()),
         ),
       );
   }
 
-  void _showLocationError(String message) {
-    setState(() {
-      _isLoading = false;
-    });
-    
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.error_outline, color: Colors.white),
-            const SizedBox(width: 8),
-            Expanded(child: Text(message)),
-          ],
-        ),
-        backgroundColor: Colors.red,
-        behavior: SnackBarBehavior.floating,
-        action: SnackBarAction(
-          label: 'Retry',
-          textColor: Colors.white,
-          onPressed: () {
-            setState(() {
-              _isLoading = true;
-            });
-            _getCurrentLocation();
+  void _handleMarkerTapped(String reportId) {
+    final match = _nearbyReports.where((r) => r.id == reportId).firstOrNull;
+    if (match != null) {
+      HapticFeedback.lightImpact();
+      _showReportSummarySheet(match);
+    }
+  }
+
+  void _showReportSummarySheet(ComprehensiveReportModel report) {
+    double? distanceMeters;
+    if (report.latitude != null && report.longitude != null) {
+      distanceMeters = ComprehensiveDatabaseService.calculateDistanceMeters(
+        _effectiveLat,
+        _effectiveLng,
+        report.latitude!,
+        report.longitude!,
+      );
+    }
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return _NearbyReportSummarySheet(
+          report: report,
+          distanceMeters: distanceMeters,
+          onViewDetails: () {
+            Navigator.pop(context);
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const ComprehensiveTrackReportsScreen(),
+              ),
+            );
           },
-        ),
-      ),
+        );
+      },
     );
   }
 
-  List<Map<String, dynamic>> _getFilteredReports() {
-    if (_selectedFilter == 'All') {
-      return _nearbyReports;
+  Future<void> _recenterOnUserLocation() async {
+    HapticFeedback.selectionClick();
+    setState(() {
+      _isLoading = true;
+    });
+
+    await _obtainUserLocation();
+    await _fetchNearbyReports();
+
+    if (_webViewController != null) {
+      _initializeMapController();
     }
-    return _nearbyReports.where((report) => report['category'] == _selectedFilter).toList();
+
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.my_location, color: Colors.white, size: 16),
+              const SizedBox(width: 8),
+              Text(
+                _isLocationDenied
+                    ? 'GPS unavailable. Showing municipal center.'
+                    : 'Map centered at your current GPS location.',
+              ),
+            ],
+          ),
+          backgroundColor: const Color(0xFF1E3A8A),
+          duration: const Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 
-  Color _getStatusColor(String status) {
-    switch (status.toLowerCase()) {
-      case 'resolved':
-        return Colors.green;
-      case 'in progress':
-        return Colors.orange;
-      case 'active':
-        return Colors.red;
-      default:
-        return Colors.grey;
-    }
+  void _onCategoryFilterChanged(String category) {
+    HapticFeedback.selectionClick();
+    setState(() {
+      _selectedCategory = category;
+    });
+    _applyFiltersAndRefreshMap(updateWebview: true);
   }
 
-  Color _getPriorityColor(String priority) {
-    switch (priority.toLowerCase()) {
-      case 'high':
-        return Colors.red;
-      case 'medium':
-        return Colors.orange;
-      case 'low':
-        return Colors.green;
-      default:
-        return Colors.grey;
-    }
+  void _onStatusFilterChanged(String status) {
+    HapticFeedback.selectionClick();
+    setState(() {
+      _selectedStatus = status;
+    });
+    _applyFiltersAndRefreshMap(updateWebview: true);
   }
 
-  IconData _getCategoryIcon(String category) {
-    switch (category.toLowerCase()) {
-      case 'emergency':
-        return Icons.emergency;
-      case 'infrastructure':
-        return Icons.construction;
-      case 'utilities':
-        return Icons.power;
-      case 'sanitation':
-        return Icons.cleaning_services;
-      default:
-        return Icons.report_problem;
-    }
+  void _expandSearchRadius() {
+    HapticFeedback.selectionClick();
+    setState(() {
+      _searchRadiusKm = _searchRadiusKm == 10.0 ? 25.0 : (_searchRadiusKm == 25.0 ? 50.0 : 10.0);
+    });
+    _applyFiltersAndRefreshMap(updateWebview: true);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
-      appBar: AppBar(
-        elevation: 0,
-        backgroundColor: Colors.transparent,
-        foregroundColor: const Color(0xFF1E293B),
-        title: Text(
-          _selectedView == 'Map' ? '🗺️ Enhanced Map' : 
-          _selectedView == 'List' ? '📋 Reports List' : '📊 Analytics',
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 20,
+      appBar: _buildAppBar(),
+      body: Column(
+        children: [
+          // GPS Notice (if permission denied)
+          if (_isLocationDenied) _buildLocationNotice(),
+
+          // Category & Status Filters
+          _buildFilterBar(),
+
+          // Map or List View Content
+          Expanded(
+            child: _isLoading ? _buildLoadingState() : _buildContent(),
           ),
-        ),
-        actions: [
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.view_module),
-            onSelected: (value) {
-              setState(() {
-                _selectedView = value;
-              });
-            },
-            itemBuilder: (context) => _viewOptions.map((view) {
-              return PopupMenuItem<String>(
-                value: view,
-                child: Row(
-                  children: [
-                    Icon(
-                      view == 'Map' ? Icons.map :
-                      view == 'List' ? Icons.list :
-                      Icons.analytics,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(view),
-                  ],
-                ),
-              );
-            }).toList(),
+
+          // Mini Legend / Stats Bar
+          _buildBottomStatsBar(),
+        ],
+      ),
+      floatingActionButton: _buildFloatingActionButtons(),
+    );
+  }
+
+  PreferredSizeWidget _buildAppBar() {
+    return AppBar(
+      title: const Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Live Nearby Civic Issues',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
           ),
-          IconButton(
-            onPressed: () {
-              setState(() {
-                _isLoading = true;
-              });
-              _getCurrentLocation();
-            },
-            icon: AnimatedBuilder(
-              animation: _pulseAnimation,
-              builder: (context, child) {
-                return Transform.scale(
-                  scale: _pulseAnimation.value,
-                  child: const Icon(Icons.my_location),
-                );
-              },
-            ),
-            tooltip: 'Get Current Location',
+          Text(
+            'Real-time municipal GIS reports near you',
+            style: TextStyle(fontSize: 11, color: Color(0xFFCBD5E1)),
           ),
         ],
       ),
-      body: AnimatedBuilder(
-        animation: _fadeAnimation,
-        builder: (context, child) {
-          return Opacity(
-            opacity: _fadeAnimation.value,
-            child: Column(
+      backgroundColor: const Color(0xFF1E3A8A), // Government Navy
+      foregroundColor: Colors.white,
+      elevation: 1,
+      actions: [
+        // View Toggle (Map vs List)
+        IconButton(
+          icon: Icon(_selectedView == 'Map' ? Icons.format_list_bulleted : Icons.map_outlined),
+          tooltip: _selectedView == 'Map' ? 'Switch to List view' : 'Switch to Map view',
+          onPressed: () {
+            setState(() {
+              _selectedView = _selectedView == 'Map' ? 'List' : 'Map';
+            });
+          },
+        ),
+        // Refresh
+        IconButton(
+          icon: const Icon(Icons.refresh),
+          tooltip: 'Refresh nearby reports',
+          onPressed: () {
+            _fetchNearbyReports().then((_) => _initializeMapController());
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLocationNotice() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      color: const Color(0xFFFEF3C7),
+      child: Row(
+        children: [
+          const Icon(Icons.location_off_outlined, color: Color(0xFFD97706), size: 18),
+          const SizedBox(width: 8),
+          const Expanded(
+            child: Text(
+              'Showing municipal center. Tap "Near Me" to enable GPS.',
+              style: TextStyle(fontSize: 12, color: Color(0xFF92400E), fontWeight: FontWeight.w500),
+            ),
+          ),
+          TextButton(
+            onPressed: _recenterOnUserLocation,
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              visualDensity: VisualDensity.compact,
+            ),
+            child: const Text('Enable', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFFB45309))),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFilterBar() {
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Column(
+        children: [
+          // Category Horizontal Scroll Chips
+          SizedBox(
+            height: 36,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              itemCount: _categoryFilters.length,
+              itemBuilder: (context, index) {
+                final cat = _categoryFilters[index];
+                final isSelected = _selectedCategory == cat;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: FilterChip(
+                    label: Text(
+                      cat,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                        color: isSelected ? Colors.white : const Color(0xFF334155),
+                      ),
+                    ),
+                    selected: isSelected,
+                    selectedColor: const Color(0xFF1E3A8A),
+                    backgroundColor: const Color(0xFFF1F5F9),
+                    showCheckmark: false,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      side: BorderSide(
+                        color: isSelected ? const Color(0xFF1E3A8A) : const Color(0xFFE2E8F0),
+                      ),
+                    ),
+                    onSelected: (_) => _onCategoryFilterChanged(cat),
+                  ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 6),
+
+          // Secondary filter row: Status & Search Radius
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            child: Row(
               children: [
-                // Enhanced Filter Bar
-                _buildEnhancedFilterBar(),
-                
-                // Content based on selected view
-                Expanded(
-                  child: _buildContent(),
+                // Status Filter Chips
+                ..._statusFilters.map((s) {
+                  final isSelected = _selectedStatus == s;
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 6),
+                    child: InkWell(
+                      onTap: () => _onStatusFilterChanged(s),
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: isSelected ? const Color(0xFFE2E8F0) : Colors.transparent,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          s,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                            color: isSelected ? const Color(0xFF0F172A) : const Color(0xFF64748B),
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+                const Spacer(),
+
+                // Radius Button
+                InkWell(
+                  onTap: _expandSearchRadius,
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF1F5F9),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFFCBD5E1)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.radar, size: 12, color: Color(0xFF1E3A8A)),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${_searchRadiusKm.toInt()} km',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF1E3A8A),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ],
             ),
-          );
-        },
+          ),
+
+          // Phase 3C: Citizen-Safe Emerging Activity Indicator
+          if (_detectedHotspots.any((h) => h.classification == EmergingClassification.emergingProblem || h.classification == EmergingClassification.criticalEmergingProblem)) ...[
+            const SizedBox(height: 6),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF7ED),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFFFFEDD5)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.trending_up_rounded, size: 14, color: Color(0xFFEA580C)),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        'High activity area: ${_detectedHotspots.first.complaintCount} nearby ${_detectedHotspots.first.category.toLowerCase()} issues reported',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF9A3412),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ],
       ),
-      floatingActionButton: _buildFloatingActionButton(),
     );
   }
 
   Widget _buildContent() {
-    if (_isLoading) {
-      return _buildLoadingState();
+    if (_nearbyReports.isEmpty && !_isLoadingReports) {
+      return _buildEmptyReportsView();
     }
 
-    switch (_selectedView) {
-      case 'Map':
-        return _buildMapView();
-      case 'List':
-        return _buildListView();
-      case 'Analytics':
-        return _buildAnalyticsView();
-      default:
-        return _buildMapView();
+    if (_selectedView == 'List') {
+      return _buildReportsListView();
     }
+
+    return _buildInteractiveMapView();
+  }
+
+  Widget _buildInteractiveMapView() {
+    if (kIsWeb) {
+      return Center(
+        child: Container(
+          margin: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFE4E7EC)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.map_outlined, size: 48, color: Color(0xFF155EEF)),
+              const SizedBox(height: 12),
+              const Text(
+                'Municipal Geospatial Map',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF172B4D)),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Active nearby complaints: ${_nearbyReports.length}',
+                style: const TextStyle(fontSize: 13, color: Color(0xFF667085)),
+              ),
+              const SizedBox(height: 16),
+              OutlinedButton.icon(
+                onPressed: () {
+                  setState(() {
+                    _selectedView = 'List';
+                  });
+                },
+                icon: const Icon(Icons.list_alt_rounded, size: 16),
+                label: const Text('View Complaints List'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFF155EEF),
+                  side: const BorderSide(color: Color(0xFF155EEF)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Stack(
+      children: [
+        if (_webViewController != null)
+          WebViewWidget(controller: _webViewController!)
+        else
+          const Center(child: CircularProgressIndicator()),
+
+        // Loading overlay if background updating
+        if (_isLoadingReports)
+          Positioned(
+            top: 10,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 6,
+                    ),
+                  ],
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SizedBox(
+                      width: 12,
+                      height: 12,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF1E3A8A)),
+                    ),
+                    SizedBox(width: 8),
+                    Text(
+                      'Updating nearby issues...',
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF1E3A8A)),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildReportsListView() {
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 80),
+      itemCount: _nearbyReports.length,
+      itemBuilder: (context, index) {
+        final report = _nearbyReports[index];
+        double? distanceMeters;
+        if (report.latitude != null && report.longitude != null) {
+          distanceMeters = ComprehensiveDatabaseService.calculateDistanceMeters(
+            _effectiveLat,
+            _effectiveLng,
+            report.latitude!,
+            report.longitude!,
+          );
+        }
+
+        return _buildNearbyReportCard(report, distanceMeters);
+      },
+    );
+  }
+
+  Widget _buildNearbyReportCard(ComprehensiveReportModel report, double? distanceMeters) {
+    final priorityColor = _getPriorityColor(report.priority);
+    final statusColor = _getStatusColor(report.status);
+
+    String distanceStr = '';
+    if (distanceMeters != null) {
+      distanceStr = distanceMeters > 1000
+          ? '${(distanceMeters / 1000).toStringAsFixed(1)} km away'
+          : '${distanceMeters.toStringAsFixed(0)} m away';
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.02),
+            blurRadius: 4,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(12),
+        child: InkWell(
+          onTap: () => _showReportSummarySheet(report),
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF1F5F9),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        '#CR-${report.id.padLeft(4, '0')}',
+                        style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: priorityColor.withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        report.priority.displayName.toUpperCase(),
+                        style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: priorityColor),
+                      ),
+                    ),
+                    const Spacer(),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: statusColor,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        report.statusDisplay,
+                        style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+
+                Text(
+                  report.title,
+                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                ),
+                const SizedBox(height: 4),
+
+                Text(
+                  report.description,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                ),
+                const SizedBox(height: 8),
+
+                Row(
+                  children: [
+                    const Icon(Icons.location_on_outlined, size: 14, color: Color(0xFF64748B)),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        report.location,
+                        style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (distanceStr.isNotEmpty)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFEFF6FF),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          distanceStr,
+                          style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF1E3A8A)),
+                        ),
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyReportsView() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(18),
+              decoration: const BoxDecoration(
+                color: Color(0xFFEFF6FF),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.location_city_outlined, size: 44, color: Color(0xFF1E3A8A)),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'No issues reported within ${_searchRadiusKm.toInt()} km',
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'No complaints found matching "$_selectedCategory" with status "$_selectedStatus".',
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+            ),
+            const SizedBox(height: 18),
+            ElevatedButton.icon(
+              onPressed: _expandSearchRadius,
+              icon: const Icon(Icons.radar, size: 16),
+              label: Text('Expand to ${_searchRadiusKm == 10.0 ? '25' : '50'} km'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF1E3A8A),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildLoadingState() {
@@ -465,587 +941,371 @@ class _MapViewScreenState extends State<MapViewScreen> with TickerProviderStateM
               return Transform.scale(
                 scale: _pulseAnimation.value,
                 child: Container(
-                  width: 80,
-                  height: 80,
+                  width: 70,
+                  height: 70,
                   decoration: BoxDecoration(
-                    color: Colors.blue.withOpacity(0.1),
+                    color: const Color(0xFF1E3A8A).withOpacity(0.1),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(
-                    Icons.location_searching,
-                    size: 40,
-                    color: Colors.blue,
-                  ),
+                  child: const Icon(Icons.location_searching, size: 36, color: Color(0xFF1E3A8A)),
                 ),
               );
             },
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
           const Text(
-            'Getting your location...',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w500,
-              color: Color(0xFF64748B),
-            ),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Please ensure location permissions are enabled',
-            style: TextStyle(
-              fontSize: 14,
-              color: Color(0xFF94A3B8),
-            ),
-            textAlign: TextAlign.center,
+            'Locating citizen & loading live GIS map...',
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF1E293B)),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildMapView() {
-    if (_currentPosition == null) {
-      return const Center(
-        child: Text(
-          'Location not available',
-          style: TextStyle(fontSize: 16, color: Color(0xFF64748B)),
-        ),
-      );
-    }
-
-    if (kIsWeb) {
-      return Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 20,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        margin: const EdgeInsets.all(16),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(16),
-          child: _webViewController != null
-              ? WebViewWidget(controller: _webViewController!)
-              : const Center(child: CircularProgressIndicator()),
-        ),
-      );
-    } else {
-      // For mobile, show a placeholder or native map implementation
-      return _buildMobileMapPlaceholder();
-    }
-  }
-
-  Widget _buildMobileMapPlaceholder() {
+  Widget _buildBottomStatsBar() {
     return Container(
-      margin: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Colors.blue.withOpacity(0.1),
-            Colors.green.withOpacity(0.1),
-          ],
-        ),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(top: BorderSide(color: Color(0xFFE2E8F0))),
       ),
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.map,
-              size: 80,
-              color: Colors.blue.withOpacity(0.5),
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'Enhanced Map View',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF1E293B),
-              ),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Interactive map with reports and real-time data',
-              style: TextStyle(
-                fontSize: 16,
-                color: Color(0xFF64748B),
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 24),
-            if (_currentPosition != null)
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
-                      blurRadius: 8,
-                    ),
-                  ],
-                ),
-                child: Column(
-                  children: [
-                    const Text(
-                      '📍 Your Location',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF1E293B),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      '${_currentPosition!.latitude.toStringAsFixed(6)}, ${_currentPosition!.longitude.toStringAsFixed(6)}',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontFamily: 'monospace',
-                        color: Color(0xFF64748B),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildListView() {
-    final filteredReports = _getFilteredReports();
-    
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: filteredReports.length,
-      itemBuilder: (context, index) {
-        final report = filteredReports[index];
-        return _buildEnhancedReportCard(report);
-      },
-    );
-  }
-
-  Widget _buildAnalyticsView() {
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          const Text(
-            '📊 Reports Analytics',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF1E293B),
-            ),
+          Text(
+            '${_nearbyReports.length} ${_nearbyReports.length == 1 ? 'issue' : 'issues'} near you',
+            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
           ),
-          const SizedBox(height: 24),
-          _buildStatsGrid(),
-          const SizedBox(height: 24),
-          _buildTrendChart(),
+          const Spacer(),
+          // Visual Map Legend
+          _buildLegendItem(const Color(0xFFEF4444), 'Urgent/High'),
+          const SizedBox(width: 8),
+          _buildLegendItem(const Color(0xFFF59E0B), 'Medium'),
+          const SizedBox(width: 8),
+          _buildLegendItem(const Color(0xFF059669), 'Resolved'),
         ],
       ),
     );
   }
 
-  Widget _buildStatsGrid() {
-    final highPriorityCount = _nearbyReports.where((r) => r['priority'] == 'High').length;
-    final emergencyCount = _nearbyReports.where((r) => r['category'] == 'Emergency').length;
-    final activeCount = _nearbyReports.where((r) => r['status'] == 'Active').length;
-
-    return GridView.count(
-      shrinkWrap: true,
-      crossAxisCount: 2,
-      crossAxisSpacing: 16,
-      mainAxisSpacing: 16,
-      childAspectRatio: 1.5,
+  Widget _buildLegendItem(Color color, String label) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        _buildStatCard('🚨 High Priority', highPriorityCount.toString(), Colors.red),
-        _buildStatCard('⚡ Emergencies', emergencyCount.toString(), Colors.orange),
-        _buildStatCard('🔥 Active Reports', activeCount.toString(), Colors.blue),
-        _buildStatCard('📍 Total Reports', _nearbyReports.length.toString(), Colors.green),
+        Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 3),
+        Text(
+          label,
+          style: const TextStyle(fontSize: 10, color: Color(0xFF64748B)),
+        ),
       ],
     );
   }
 
-  Widget _buildStatCard(String title, String value, Color color) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withOpacity(0.3)),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 32,
-              fontWeight: FontWeight.bold,
-              color: color,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-              color: Color(0xFF64748B),
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
+  Widget _buildFloatingActionButtons() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // "Near Me" GPS Recenter FAB
+        FloatingActionButton.small(
+          heroTag: 'near_me_fab',
+          onPressed: _recenterOnUserLocation,
+          backgroundColor: Colors.white,
+          foregroundColor: const Color(0xFF1E3A8A),
+          tooltip: 'Center on my GPS position',
+          child: const Icon(Icons.my_location, size: 20),
+        ),
+        const SizedBox(height: 8),
+
+        // "Report Issue" FAB
+        FloatingActionButton.extended(
+          heroTag: 'report_new_fab',
+          onPressed: () {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => const DashboardScreen()),
+            );
+          },
+          backgroundColor: const Color(0xFF1E3A8A),
+          foregroundColor: Colors.white,
+          icon: const Icon(Icons.add_circle_outline, size: 18),
+          label: const Text('Report Issue', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+        ),
+      ],
     );
   }
 
-  Widget _buildTrendChart() {
+  Color _getPriorityColor(ReportPriority priority) {
+    switch (priority) {
+      case ReportPriority.high:
+        return const Color(0xFFDC2626);
+      case ReportPriority.medium:
+        return const Color(0xFFEA580C);
+      case ReportPriority.low:
+        return const Color(0xFF16A34A);
+    }
+  }
+
+  Color _getStatusColor(ReportStatus status) {
+    switch (status) {
+      case ReportStatus.submitted:
+        return const Color(0xFF1E40AF);
+      case ReportStatus.review:
+        return const Color(0xFF4F46E5);
+      case ReportStatus.assigned:
+        return const Color(0xFF7C3AED);
+      case ReportStatus.progress:
+        return const Color(0xFFD97706);
+      case ReportStatus.resolved:
+        return const Color(0xFF059669);
+    }
+  }
+}
+
+// ==============================================================================
+// COMPLAINT SUMMARY BOTTOM SHEET (SHOWN ON MARKER TAP)
+// ==============================================================================
+
+class _NearbyReportSummarySheet extends StatelessWidget {
+  final ComprehensiveReportModel report;
+  final double? distanceMeters;
+  final VoidCallback onViewDetails;
+
+  const _NearbyReportSummarySheet({
+    required this.report,
+    required this.distanceMeters,
+    required this.onViewDetails,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final priorityColor = _getPriorityColor(report.priority);
+    final statusColor = _getStatusColor(report.status);
+    final formattedId = '#CR-${report.id.padLeft(4, '0')}';
+
+    String distanceStr = '';
+    if (distanceMeters != null) {
+      distanceStr = distanceMeters! > 1000
+          ? '${(distanceMeters! / 1000).toStringAsFixed(1)} km away'
+          : '${distanceMeters!.toStringAsFixed(0)} m away';
+    }
+
     return Container(
-      height: 200,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      child: const Column(
-        children: [
-          Text(
-            '📈 Report Trends (Last 7 Days)',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF1E293B),
-            ),
-          ),
-          SizedBox(height: 20),
-          Expanded(
-            child: Center(
-              child: Text(
-                'Interactive chart would be displayed here\nshowing report trends over time',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Color(0xFF94A3B8),
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildEnhancedFilterBar() {
-    return Container(
-      height: 80,
-      margin: const EdgeInsets.all(16),
-      child: Row(
-        children: [
-          Expanded(
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: _filterOptions.length,
-              itemBuilder: (context, index) {
-                final filter = _filterOptions[index];
-                final isSelected = _selectedFilter == filter;
-                
-                return Container(
-                  margin: const EdgeInsets.only(right: 12),
-                  child: FilterChip(
-                    selected: isSelected,
-                    label: Text(
-                      filter,
-                      style: TextStyle(
-                        color: isSelected ? Colors.white : const Color(0xFF64748B),
-                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                      ),
-                    ),
-                    selectedColor: const Color(0xFF3B82F6),
-                    backgroundColor: Colors.white,
-                    elevation: isSelected ? 4 : 1,
-                    shadowColor: Colors.black26,
-                    onSelected: (selected) {
-                      setState(() {
-                        _selectedFilter = filter;
-                      });
-                      
-                      // Update map if in web view
-                      if (kIsWeb && _webViewController != null) {
-                        _initializeWebMap();
-                      }
-                    },
-                  ),
-                );
-              },
-            ),
-          ),
-          const SizedBox(width: 16),
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 8,
-                ),
-              ],
-            ),
-            child: IconButton(
-              onPressed: () {
-                setState(() {
-                  _showSatellite = !_showSatellite;
-                });
-              },
-              icon: Icon(
-                _showSatellite ? Icons.satellite_alt : Icons.map,
-                color: _showSatellite ? const Color(0xFF3B82F6) : const Color(0xFF64748B),
-              ),
-              tooltip: _showSatellite ? 'Street View' : 'Satellite View',
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildEnhancedReportCard(Map<String, dynamic> report) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.08),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
+      padding: const EdgeInsets.fromLTRB(18, 12, 18, 24),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header with priority and category
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  _getPriorityColor(report['priority']).withOpacity(0.1),
-                  _getPriorityColor(report['priority']).withOpacity(0.05),
+          // Drag handle
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // Header: ID, Distance & Status Chip
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: const Color(0xFFCBD5E1)),
+                ),
+                child: Text(
+                  formattedId,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1E293B),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              if (distanceStr.isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEFF6FF),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.near_me, size: 12, color: Color(0xFF1E3A8A)),
+                      const SizedBox(width: 4),
+                      Text(
+                        distanceStr,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF1E3A8A),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: statusColor,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  report.statusDisplay,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+
+          // Title & Category
+          Text(
+            report.title,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF0F172A),
+            ),
+          ),
+          const SizedBox(height: 4),
+
+          Row(
+            children: [
+              Icon(
+                _getCategoryIcon(report.category),
+                size: 14,
+                color: const Color(0xFF1E3A8A),
+              ),
+              const SizedBox(width: 4),
+              Text(
+                report.categoryDisplayName ?? report.category.replaceAll('_', ' ').toUpperCase(),
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF1E3A8A),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: priorityColor.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  report.priority.displayName.toUpperCase(),
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: priorityColor,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+
+          // Description
+          if (report.description.isNotEmpty) ...[
+            Text(
+              report.description,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 13,
+                color: Colors.grey.shade700,
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 10),
+          ],
+
+          // Potential Duplicate / Related Issue Banner
+          if (report.isPotentialDuplicate || report.parentReportId != null) ...[
+            Container(
+              padding: const EdgeInsets.all(8),
+              margin: const EdgeInsets.only(bottom: 10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFEF3C7),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFFFDE68A)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.link, size: 16, color: Color(0xFFB45309)),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'Linked to related cluster issue #${report.parentReportId ?? report.id}',
+                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF92400E)),
+                    ),
+                  ),
                 ],
               ),
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(16),
-                topRight: Radius.circular(16),
-              ),
+            ),
+          ],
+
+          // Location details
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(8),
             ),
             child: Row(
               children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: _getPriorityColor(report['priority']).withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(
-                    _getCategoryIcon(report['category']),
-                    color: _getPriorityColor(report['priority']),
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(width: 12),
+                const Icon(Icons.location_on, size: 16, color: Color(0xFF64748B)),
+                const SizedBox(width: 6),
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        report['title'],
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF1E293B),
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: _getPriorityColor(report['priority']),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              report['priority'],
-                              style: const TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: _getStatusColor(report['status']).withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              report['status'],
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w600,
-                                color: _getStatusColor(report['status']),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
+                  child: Text(
+                    report.location,
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Color(0xFF334155)),
                   ),
                 ),
                 Text(
-                  '${report['distance']} km',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF64748B),
-                  ),
+                  report.submittedTime,
+                  style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
                 ),
               ],
             ),
           ),
-          
-          // Description and details
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  report['description'],
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Color(0xFF64748B),
-                    height: 1.5,
-                  ),
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
+          const SizedBox(height: 16),
+
+          // Action Button
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: onViewDetails,
+              icon: const Icon(Icons.track_changes, size: 16),
+              label: const Text('Track Full Status & Progress'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF1E3A8A),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
                 ),
-                const SizedBox(height: 12),
-                
-                // Additional info for enhanced reports
-                if (report['severity'] != null || report['affected'] != null) ...[
-                  const Divider(color: Color(0xFFE2E8F0)),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      if (report['severity'] != null) ...[
-                        const Icon(Icons.warning_amber, size: 16, color: Color(0xFF64748B)),
-                        const SizedBox(width: 6),
-                        Text(
-                          'Severity: ${report['severity']}',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: Color(0xFF64748B),
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                      ],
-                      if (report['affected'] != null) ...[
-                        const Icon(Icons.people, size: 16, color: Color(0xFF64748B)),
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: Text(
-                            'Affected: ${report['affected']}',
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: Color(0xFF64748B),
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                ],
-                
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
-                      children: [
-                        const Icon(Icons.access_time, size: 14, color: Color(0xFF94A3B8)),
-                        const SizedBox(width: 4),
-                        Text(
-                          report['reportedTime'],
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: Color(0xFF94A3B8),
-                          ),
-                        ),
-                      ],
-                    ),
-                    Row(
-                      children: [
-                        IconButton(
-                          onPressed: () {
-                            // Navigate to report location on map
-                            if (_selectedView != 'Map') {
-                              setState(() {
-                                _selectedView = 'Map';
-                              });
-                            }
-                          },
-                          icon: const Icon(Icons.location_on, size: 18),
-                          tooltip: 'Show on Map',
-                          color: const Color(0xFF3B82F6),
-                        ),
-                        IconButton(
-                          onPressed: () {
-                            // Share report
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('Report "${report['title']}" shared'),
-                                behavior: SnackBarBehavior.floating,
-                              ),
-                            );
-                          },
-                          icon: const Icon(Icons.share, size: 18),
-                          tooltip: 'Share Report',
-                          color: const Color(0xFF64748B),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ],
+              ),
             ),
           ),
         ],
@@ -1053,37 +1313,39 @@ class _MapViewScreenState extends State<MapViewScreen> with TickerProviderStateM
     );
   }
 
-  Widget _buildFloatingActionButton() {
-    return FloatingActionButton.extended(
-      onPressed: () {
-        // Navigate to report creation with current location
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Row(
-              children: [
-                Icon(Icons.add_location_alt, color: Colors.white),
-                SizedBox(width: 8),
-                Text('Creating new report from current location...'),
-              ],
-            ),
-            backgroundColor: const Color(0xFF3B82F6),
-            behavior: SnackBarBehavior.floating,
-            action: SnackBarAction(
-              label: 'OK',
-              textColor: Colors.white,
-              onPressed: () {},
-            ),
-          ),
-        );
-      },
-      backgroundColor: const Color(0xFF3B82F6),
-      foregroundColor: Colors.white,
-      elevation: 8,
-      label: const Text(
-        'Report Issue',
-        style: TextStyle(fontWeight: FontWeight.w600),
-      ),
-      icon: const Icon(Icons.add_location_alt),
-    );
+  Color _getPriorityColor(ReportPriority priority) {
+    switch (priority) {
+      case ReportPriority.high:
+        return const Color(0xFFDC2626);
+      case ReportPriority.medium:
+        return const Color(0xFFEA580C);
+      case ReportPriority.low:
+        return const Color(0xFF16A34A);
+    }
+  }
+
+  Color _getStatusColor(ReportStatus status) {
+    switch (status) {
+      case ReportStatus.submitted:
+        return const Color(0xFF1E40AF);
+      case ReportStatus.review:
+        return const Color(0xFF4F46E5);
+      case ReportStatus.assigned:
+        return const Color(0xFF7C3AED);
+      case ReportStatus.progress:
+        return const Color(0xFFD97706);
+      case ReportStatus.resolved:
+        return const Color(0xFF059669);
+    }
+  }
+
+  IconData _getCategoryIcon(String category) {
+    final cat = category.toLowerCase();
+    if (cat.contains('road') || cat.contains('pothole')) return Icons.add_road;
+    if (cat.contains('water') || cat.contains('drain')) return Icons.water_drop;
+    if (cat.contains('electric') || cat.contains('light')) return Icons.lightbulb_outline;
+    if (cat.contains('garbage') || cat.contains('waste')) return Icons.delete_outline;
+    if (cat.contains('safety') || cat.contains('manhole')) return Icons.warning_amber_rounded;
+    return Icons.report_problem_outlined;
   }
 }
