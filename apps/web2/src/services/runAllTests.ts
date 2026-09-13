@@ -8,10 +8,11 @@ import { runCopilotTests } from './copilotService.test';
 import { runGroundingSecurityTests } from './groundingSecurity.test';
 import { runAuthServiceTests } from './authService.test';
 import { runProfileRoleTests } from './profileRole.test';
+import { runRLSSecurityTests } from './rlsSecurity.test';
 
 async function main() {
   console.log('===========================================================');
-  console.log('🚀 CIVICRESOLVE TEST SUITE: INTELLIGENCE + SECURITY + ROLES');
+  console.log('🚀 CIVICRESOLVE TEST SUITE: INTELLIGENCE + SECURITY + RLS');
   console.log('===========================================================\n');
 
   let totalPassed = 0;
@@ -78,6 +79,12 @@ async function main() {
   totalFailed += res9C.failed;
   allErrors.push(...res9C.errors);
 
+  // Phase 9D: Secure PostgreSQL RLS & Authorization
+  const res9D = await runRLSSecurityTests();
+  totalPassed += res9D.passed;
+  totalFailed += res9D.failed;
+  allErrors.push(...res9D.errors);
+
   console.log('\n===========================================================');
   console.log('📊 FINAL VERIFICATION SCORECARD:');
   console.log(`   3A Similarity:             ${res3A.passed}/${res3A.passed + res3A.failed}`);
@@ -90,6 +97,7 @@ async function main() {
   console.log(`   8C Grounding & Security:   ${res8C.passed}/${res8C.passed + res8C.failed}`);
   console.log(`   9B Supabase Auth:          ${res9B.passed}/${res9B.passed + res9B.failed}`);
   console.log(`   9C Profiles & Roles:       ${res9C.passed}/${res9C.passed + res9C.failed}`);
+  console.log(`   9D Secure RLS:             ${res9D.passed}/${res9D.passed + res9D.failed}`);
   console.log('-----------------------------------------------------------');
   console.log(`   TOTAL:                     ${totalPassed} PASSED / ${totalFailed} FAILED`);
   console.log('===========================================================');

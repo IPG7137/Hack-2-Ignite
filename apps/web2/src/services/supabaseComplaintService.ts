@@ -277,4 +277,53 @@ export class SupabaseComplaintService implements IComplaintService {
     }
     return fresh;
   }
+
+  /**
+   * Fetches lightweight public map markers containing ZERO citizen PII (safe for anon/unauthenticated views)
+   */
+  async getPublicMapMarkers(): Promise<Array<{
+    id: string;
+    category: string;
+    status: string;
+    priority: string;
+    latitude: number;
+    longitude: number;
+    createdAt: string;
+  }>> {
+    try {
+      const { data, error } = await supabase
+        .from('public_report_markers')
+        .select('*');
+
+      if (error || !data) {
+        // Fallback to RPC if view query is unavailable
+        const { data: rpcData } = await supabase.rpc('get_public_map_markers');
+        if (rpcData && Array.isArray(rpcData)) {
+          return rpcData.map((row: any) => ({
+            id: `CR-${row.id}`,
+            category: row.category,
+            status: row.status,
+            priority: row.priority,
+            latitude: Number(row.latitude),
+            longitude: Number(row.longitude),
+            createdAt: row.created_at,
+          }));
+        }
+        return [];
+      }
+
+      return data.map((row: any) => ({
+        id: `CR-${row.id}`,
+        category: row.category,
+        status: row.status,
+        priority: row.priority,
+        latitude: Number(row.latitude),
+        longitude: Number(row.longitude),
+        createdAt: row.created_at,
+      }));
+    } catch (err) {
+      console.warn('ℹ️ Notice: public map markers fetch error:', err);
+      return [];
+    }
+  }
 }
