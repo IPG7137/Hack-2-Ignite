@@ -3,6 +3,7 @@ import { PriorityEngine, CivicPriorityAnalysis } from './priorityEngine';
 import { EmergingProblemEngine, EmergingHotspotResult } from './emergingProblemEngine';
 import { IncidentGroupingEngine, PotentialIncidentResult } from './incidentGroupingEngine';
 import { ResolutionVerificationEngine, ResolutionVerificationResult } from './resolutionVerificationEngine';
+import { GroundingSecurityGuard } from './groundingSecurityGuard';
 
 export interface CriticalDispatchInsight {
   complaintId: string;
@@ -136,7 +137,9 @@ export class AIInsightsService {
       };
     }
 
-    const activeComplaints = complaints.filter(
+    const safeComplaints = complaints.map((c) => GroundingSecurityGuard.sanitizeComplaintForTelemetry(c));
+
+    const activeComplaints = safeComplaints.filter(
       (c) => c.status !== 'closed' && c.status !== 'rejected' && c.status !== 'verified'
     );
 
@@ -144,7 +147,7 @@ export class AIInsightsService {
     const priorityEvaluations = activeComplaints
       .map((c) => ({
         complaint: c,
-        analysis: PriorityEngine.evaluateComplaintPriority(c, complaints),
+        analysis: PriorityEngine.evaluateComplaintPriority(c, safeComplaints),
       }))
       .sort((a, b) => b.analysis.score - a.analysis.score);
 

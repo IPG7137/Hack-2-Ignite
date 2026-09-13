@@ -6,6 +6,7 @@ import { IncidentGroupingEngine, PotentialIncidentResult } from './incidentGroup
 import { ResolutionVerificationEngine, ResolutionVerificationResult } from './resolutionVerificationEngine';
 import { SimilarityEngine } from './similarityEngine';
 import { AIInsightsService } from './aiInsightsService';
+import { GroundingSecurityGuard } from './groundingSecurityGuard';
 
 export type CopilotIntent =
   | 'PRIORITY_ATTENTION'
@@ -135,6 +136,25 @@ export class CopilotService {
     query: string,
     complaints: Complaint[]
   ): Promise<CopilotMessage> {
+    // 1. Inspect and sanitize query for security & prompt injection
+    const sanitized = GroundingSecurityGuard.inspectAndSanitizeQuery(query);
+    if (!sanitized.isSafe) {
+      return {
+        id: `MSG-SEC-${Date.now()}`,
+        sender: 'assistant',
+        content: `### 🛡️ Municipal Security Policy Alert\n\n**Security Violation:** ${sanitized.securityViolation || 'Unauthorized prompt override pattern detected.'}\n\nThe CivicResolve AI Copilot operates strictly as an evidence-constrained decision-support system. All telemetry queries must relate to legitimate municipal operations and complaints.`,
+        timestamp: new Date().toISOString(),
+        referencedComplaintIds: [],
+        suggestedPrompts: [
+          'What are today\'s highest-priority complaints?',
+          'Where are the emerging hotspots?',
+          'Give me a briefing for the municipal commissioner',
+        ],
+      };
+    }
+
+    const cleanQuery = sanitized.cleanedQuery;
+
     if (!complaints || complaints.length === 0) {
       return {
         id: `MSG-${Date.now()}`,
@@ -151,44 +171,50 @@ export class CopilotService {
       };
     }
 
-    const intent = this.detectIntent(query);
+    // 2. Sanitize complaints to guard against malformed data
+    const safeComplaints = complaints.map((c) => GroundingSecurityGuard.sanitizeComplaintForTelemetry(c));
+
+    const intent = this.detectIntent(cleanQuery);
     let grounded: GroundedCopilotResponse;
 
     switch (intent) {
       case 'PRIORITY_ATTENTION':
-        grounded = this.handlePriorityQuery(query, complaints);
+        grounded = this.handlePriorityQuery(cleanQuery, safeComplaints);
         break;
       case 'HOTSPOTS_ANOMALIES':
-        grounded = this.handleHotspotsQuery(query, complaints);
+        grounded = this.handleHotspotsQuery(cleanQuery, safeComplaints);
         break;
       case 'SPECIFIC_COMPLAINT':
-        grounded = this.handleSpecificComplaintQuery(query, complaints);
+        grounded = this.handleSpecificComplaintQuery(cleanQuery, safeComplaints);
         break;
       case 'INCIDENTS_CLUSTERS':
-        grounded = this.handleIncidentsQuery(query, complaints);
+        grounded = this.handleIncidentsQuery(cleanQuery, safeComplaints);
         break;
       case 'RESOLUTION_AUDITS':
-        grounded = this.handleResolutionAuditsQuery(query, complaints);
+        grounded = this.handleResolutionAuditsQuery(cleanQuery, safeComplaints);
         break;
       case 'CATEGORY_DEPARTMENT':
-        grounded = this.handleDepartmentQuery(query, complaints);
+        grounded = this.handleDepartmentQuery(cleanQuery, safeComplaints);
         break;
       case 'COMMISSIONER_BRIEFING':
-        grounded = this.handleCommissionerBriefingQuery(query, complaints);
+        grounded = this.handleCommissionerBriefingQuery(cleanQuery, safeComplaints);
         break;
       case 'SLA_OVERDUE':
-        grounded = this.handleSlaOverdueQuery(query, complaints);
+        grounded = this.handleSlaOverdueQuery(cleanQuery, safeComplaints);
         break;
       case 'UNKNOWN':
       default:
-        grounded = this.handleGeneralOrFallbackQuery(query, complaints);
+        grounded = this.handleGeneralOrFallbackQuery(cleanQuery, safeComplaints);
         break;
     }
+
+    // 3. Mask any sensitive PII in the generated response
+    const safeContent = GroundingSecurityGuard.maskPII(grounded.content);
 
     return {
       id: `MSG-${Date.now()}`,
       sender: 'assistant',
-      content: grounded.content,
+      content: safeContent,
       timestamp: new Date().toISOString(),
       referencedComplaintIds: grounded.referencedComplaintIds,
       suggestedPrompts: grounded.suggestedPrompts,
