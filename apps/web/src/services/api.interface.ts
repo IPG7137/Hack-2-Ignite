@@ -30,10 +30,12 @@ export interface IAnalyticsService {
   getWardPerformances(): Promise<WardPerformance[]>;
 }
 
+import { CopilotSecurityContext } from './copilotService';
+
 export interface IAIService {
   getOperationalInsights(): Promise<AIOperationalInsight[]>;
   acknowledgeInsight(id: string): Promise<void>;
-  askCopilot(question: string, contextComplaints: Complaint[]): Promise<CopilotMessage>;
+  askCopilot(question: string, contextComplaints: Complaint[], securityContext?: CopilotSecurityContext): Promise<CopilotMessage>;
 }
 
 export interface IDepartmentService {

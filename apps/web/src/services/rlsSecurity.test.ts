@@ -39,6 +39,12 @@ export class PolicyEvaluator {
       priority?: string;
       assigned_officer_id?: string;
       admin_notes?: string;
+      title?: string;
+      description?: string;
+      category?: string;
+      location?: string;
+      latitude?: number;
+      longitude?: number;
       citizen_feedback?: string;
       rating?: number;
     }
@@ -58,6 +64,16 @@ export class PolicyEvaluator {
       }
       if (modifications.admin_notes !== undefined) {
         return { allowed: false, reason: 'Citizens cannot modify admin notes' };
+      }
+      if (
+        modifications.title !== undefined ||
+        modifications.description !== undefined ||
+        modifications.category !== undefined ||
+        modifications.location !== undefined ||
+        modifications.latitude !== undefined ||
+        modifications.longitude !== undefined
+      ) {
+        return { allowed: false, reason: 'Complaint content and coordinates are immutable after submission' };
       }
       // Citizen allowed to update feedback/rating
       return { allowed: true };

@@ -8,6 +8,8 @@ import { SimilarityEngine } from './similarityEngine';
 import { AIInsightsService } from './aiInsightsService';
 import { GroundingSecurityGuard } from './groundingSecurityGuard';
 
+import { UserRole } from './authService';
+
 export type CopilotIntent =
   | 'PRIORITY_ATTENTION'
   | 'HOTSPOTS_ANOMALIES'
@@ -18,6 +20,13 @@ export type CopilotIntent =
   | 'COMMISSIONER_BRIEFING'
   | 'SLA_OVERDUE'
   | 'UNKNOWN';
+
+export interface CopilotSecurityContext {
+  userId?: string;
+  role?: UserRole;
+  isStaff?: boolean;
+  departmentId?: string;
+}
 
 export interface GroundedCopilotResponse {
   intent: CopilotIntent;
@@ -130,11 +139,12 @@ export class CopilotService {
 
   /**
    * Main query execution: parses the officer's question, queries deterministic 3A-3E engines,
-   * and formats an evidence-grounded response.
+   * and formats an evidence-grounded response within the caller's authorization scope.
    */
   public static async answerOfficerQuery(
     query: string,
-    complaints: Complaint[]
+    complaints: Complaint[],
+    securityContext?: CopilotSecurityContext
   ): Promise<CopilotMessage> {
     // 1. Inspect and sanitize query for security & prompt injection
     const sanitized = GroundingSecurityGuard.inspectAndSanitizeQuery(query);
@@ -155,11 +165,29 @@ export class CopilotService {
 
     const cleanQuery = sanitized.cleanedQuery;
 
+    // Authorization Guard: Check if a citizen is requesting restricted city-wide administrative briefings
+    if (securityContext?.role === 'citizen') {
+      const intent = this.detectIntent(cleanQuery);
+      if (intent === 'COMMISSIONER_BRIEFING') {
+        return {
+          id: `MSG-AUTH-${Date.now()}`,
+          sender: 'assistant',
+          content: `### 🏛️ Municipal AI Copilot\n\nI don't have access to city-wide command operations for your citizen account. Please ask about your submitted grievances or local community reports.`,
+          timestamp: new Date().toISOString(),
+          referencedComplaintIds: [],
+          suggestedPrompts: [
+            'What is the status of my complaint?',
+            'How is my grievance prioritized?',
+          ],
+        };
+      }
+    }
+
     if (!complaints || complaints.length === 0) {
       return {
         id: `MSG-${Date.now()}`,
         sender: 'assistant',
-        content: `### 🏛️ Municipal AI Copilot Telemetry\n\nI don't have enough current data to determine that.\n\nThere are currently **0 complaint records** loaded in the operational telemetry queue. Once live reports are received via Supabase, I can evaluate priority (Phase 3B), emerging hotspots (Phase 3C), common incidents (Phase 3D), and resolution audits (Phase 3E).`,
+        content: `### 🏛️ Municipal AI Copilot Telemetry\n\nI don't have enough current data to determine that.\n\nI don't have access to that complaint or there are currently **0 authorized records** in your accessible queue. All telemetry queries operate strictly over RLS-authorized complaint records. Once live reports are received via Supabase, I can evaluate priority (Phase 3B), emerging hotspots (Phase 3C), common incidents (Phase 3D), and resolution audits (Phase 3E).`,
         timestamp: new Date().toISOString(),
         referencedComplaintIds: [],
         suggestedPrompts: [
@@ -364,7 +392,7 @@ export class CopilotService {
     if (!targetComplaint) {
       return {
         intent: 'SPECIFIC_COMPLAINT',
-        content: `### 🔍 Complaint Dossier Lookup\n\nI don't have enough current data to determine that.\n\nCould not locate a complaint record matching the identifier in your query among the **${complaints.length} live records** in the database. Please verify the complaint ID (e.g. \`#${complaints[0]?.id || '101'}\`).`,
+        content: `### 🔍 Complaint Dossier Lookup\n\nI don't have enough current data to determine that.\n\nI don't have access to that complaint or it does not exist in your authorized records. Please verify the complaint ID.`,
         referencedComplaintIds: [],
         suggestedPrompts: [
           'What are today\'s highest-priority complaints?',

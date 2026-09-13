@@ -2,7 +2,7 @@ import { IAIService } from './api.interface';
 import { AIOperationalInsight, CopilotMessage } from '../types/ai';
 import { Complaint } from '../types/complaint';
 import { MOCK_AI_INSIGHTS } from './mock/aiInsightsMock';
-import { CopilotService } from './copilotService';
+import { CopilotService, CopilotSecurityContext } from './copilotService';
 
 class LiveAIService implements IAIService {
   private insights: AIOperationalInsight[] = [...MOCK_AI_INSIGHTS];
@@ -17,8 +17,8 @@ class LiveAIService implements IAIService {
     if (found) found.acknowledged = true;
   }
 
-  async askCopilot(question: string, contextComplaints: Complaint[]): Promise<CopilotMessage> {
-    return CopilotService.answerOfficerQuery(question, contextComplaints);
+  async askCopilot(question: string, contextComplaints: Complaint[], securityContext?: CopilotSecurityContext): Promise<CopilotMessage> {
+    return CopilotService.answerOfficerQuery(question, contextComplaints, securityContext);
   }
 }
 

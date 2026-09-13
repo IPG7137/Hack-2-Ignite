@@ -171,7 +171,7 @@ SECURITY DEFINER
 SET search_path = public, auth, pg_temp
 AS $$
 BEGIN
-  -- If updater is a citizen (not municipal staff), prevent tampering with administrative columns
+  -- If updater is a citizen (not municipal staff), prevent tampering with administrative and core complaint columns
   IF NOT public.is_municipal_staff() THEN
     IF NEW.status IS DISTINCT FROM OLD.status THEN
       RAISE EXCEPTION 'Unauthorized: Citizens cannot modify complaint status.';
@@ -185,6 +185,14 @@ BEGIN
     END IF;
     IF NEW.admin_notes IS DISTINCT FROM OLD.admin_notes THEN
       RAISE EXCEPTION 'Unauthorized: Citizens cannot modify administrative notes.';
+    END IF;
+    IF NEW.title IS DISTINCT FROM OLD.title OR
+       NEW.description IS DISTINCT FROM OLD.description OR
+       NEW.category IS DISTINCT FROM OLD.category OR
+       NEW.location IS DISTINCT FROM OLD.location OR
+       NEW.latitude IS DISTINCT FROM OLD.latitude OR
+       NEW.longitude IS DISTINCT FROM OLD.longitude THEN
+      RAISE EXCEPTION 'Unauthorized: Complaint content and coordinates are immutable after submission.';
     END IF;
   END IF;
 

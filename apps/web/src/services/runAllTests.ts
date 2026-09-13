@@ -9,6 +9,7 @@ import { runGroundingSecurityTests } from './groundingSecurity.test';
 import { runAuthServiceTests } from './authService.test';
 import { runProfileRoleTests } from './profileRole.test';
 import { runRLSSecurityTests } from './rlsSecurity.test';
+import { runAIAuthorizationTests } from './aiAuthorization.test';
 
 async function main() {
   console.log('===========================================================');
@@ -85,6 +86,12 @@ async function main() {
   totalFailed += res9D.failed;
   allErrors.push(...res9D.errors);
 
+  // Phase 9E + 9F: AI Authorization & Security Hardening
+  const res9EF = await runAIAuthorizationTests();
+  totalPassed += res9EF.passed;
+  totalFailed += res9EF.failed;
+  allErrors.push(...res9EF.errors);
+
   console.log('\n===========================================================');
   console.log('📊 FINAL VERIFICATION SCORECARD:');
   console.log(`   3A Similarity:             ${res3A.passed}/${res3A.passed + res3A.failed}`);
@@ -98,6 +105,7 @@ async function main() {
   console.log(`   9B Supabase Auth:          ${res9B.passed}/${res9B.passed + res9B.failed}`);
   console.log(`   9C Profiles & Roles:       ${res9C.passed}/${res9C.passed + res9C.failed}`);
   console.log(`   9D Secure RLS:             ${res9D.passed}/${res9D.passed + res9D.failed}`);
+  console.log(`   9E/9F AI Auth & Security:  ${res9EF.passed}/${res9EF.passed + res9EF.failed}`);
   console.log('-----------------------------------------------------------');
   console.log(`   TOTAL:                     ${totalPassed} PASSED / ${totalFailed} FAILED`);
   console.log('===========================================================');

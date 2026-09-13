@@ -90,7 +90,7 @@ export const Settings: React.FC = () => {
           <span>Strict Enterprise Safety Boundary Active</span>
         </div>
         <p className="text-[#526581] text-[11px] leading-relaxed">
-          This <code className="text-[#1769D2] bg-white px-1 py-0.5 rounded border border-blue-200 font-mono">apps/web2/</code> instance operates as an isolated, modern frontend architecture. Zero changes have been made to existing legacy web assets (<code className="text-[#526581] font-mono">apps/web/</code>), Flutter citizen client (<code className="text-[#526581] font-mono">apps/mobile/</code>), or Supabase PostgreSQL migrations.
+          This <code className="text-[#1769D2] bg-white px-1 py-0.5 rounded border border-blue-200 font-mono">apps/web/</code> instance operates as the canonical modern frontend architecture, powered by Supabase Auth, PostgreSQL RLS, and deterministic 3A–3E intelligence engines.
         </p>
       </Card>
     </div>

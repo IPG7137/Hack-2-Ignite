@@ -104,7 +104,7 @@ class AuthService {
   Future<AuthResult> login(String emailOrId, String password, {String role = 'citizen'}) async {
     try {
       final normalizedRole = role.toLowerCase().trim() == 'contractor' ? 'contractor' : 'citizen';
-      final isContractor = normalizedRole == 'contractor' || (emailOrId.toLowerCase() == 'admin' && password == 'admin');
+      final isContractor = normalizedRole == 'contractor';
 
       String email = emailOrId.contains('@')
           ? emailOrId
