@@ -108,6 +108,8 @@ class ComprehensiveReportModel {
   final int? rating;
   final bool isPotentialDuplicate;
   final String? parentReportId;
+  final String? resolutionNotes;
+  final String? resolutionImageUrl;
 
   // Display fields (from view)
   final String? userName;
@@ -150,6 +152,8 @@ class ComprehensiveReportModel {
     this.rating,
     this.isPotentialDuplicate = false,
     this.parentReportId,
+    this.resolutionNotes,
+    this.resolutionImageUrl,
     this.userName,
     this.userEmail,
     this.userPhone,
@@ -235,6 +239,8 @@ class ComprehensiveReportModel {
       rating: json['rating'],
       isPotentialDuplicate: json['potential_duplicate'] == true,
       parentReportId: json['parent_report_id']?.toString(),
+      resolutionNotes: json['resolution_notes'],
+      resolutionImageUrl: json['resolution_image_url'],
       // Display fields from view
       userName: json['user_name'],
       userEmail: json['user_email'],
@@ -270,6 +276,8 @@ class ComprehensiveReportModel {
       'updated_at': updatedAt.toIso8601String(),
       'last_status_change': lastStatusChange.toIso8601String(),
       'assigned_officer_id': assignedOfficerId,
+      'resolution_notes': resolutionNotes,
+      'resolution_image_url': resolutionImageUrl,
       'assigned_officer_name': assignedOfficerName,
       'admin_notes': adminNotes,
       'estimated_completion_date': estimatedCompletionDate?.toIso8601String(),

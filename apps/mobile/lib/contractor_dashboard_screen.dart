@@ -1,6 +1,12 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+import 'dart:typed_data';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'permission_service.dart';
 import 'language_service.dart';
 import 'auth_service.dart';
 import 'comprehensive_database_service.dart';
@@ -151,7 +157,11 @@ class _ContractorDashboardScreenState extends State<ContractorDashboardScreen> w
 
   Future<void> _showResolutionSubmissionDialog(ComprehensiveReportModel report) async {
     final notesController = TextEditingController();
-    bool isAttachingEvidence = true;
+    XFile? selectedResolutionImage;
+    Uint8List? resolutionImageBytes;
+    String? resolutionImageName;
+    int? resolutionImageSize;
+    bool isSubmitting = false;
 
     await showModalBottomSheet(
       context: context,
@@ -161,7 +171,132 @@ class _ContractorDashboardScreenState extends State<ContractorDashboardScreen> w
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (ctx) => StatefulBuilder(
-        builder: (context, setSheetState) {
+        builder: (sheetCtx, setSheetState) {
+          Future<void> pickEvidenceImage(ImageSource source) async {
+            try {
+              if (!kIsWeb) {
+                if (source == ImageSource.camera) {
+                  final hasCamera = await PermissionService.requestCameraPermission();
+                  if (!hasCamera) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Camera permission is required to capture after-fix evidence.'),
+                          backgroundColor: Color(0xFFDC2626),
+                        ),
+                      );
+                    }
+                    return;
+                  }
+                } else {
+                  final hasMedia = await PermissionService.requestMediaPermission();
+                  if (!hasMedia) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Media/Gallery permission is required to select photos.'),
+                          backgroundColor: Color(0xFFDC2626),
+                        ),
+                      );
+                    }
+                    return;
+                  }
+                }
+              }
+
+              final picker = ImagePicker();
+              final picked = await picker.pickImage(
+                source: source,
+                maxWidth: 1600,
+                maxHeight: 1600,
+                imageQuality: 85,
+              );
+
+              if (picked != null) {
+                final bytes = await picked.readAsBytes();
+                setSheetState(() {
+                  selectedResolutionImage = picked;
+                  resolutionImageBytes = bytes;
+                  resolutionImageName = picked.name;
+                  resolutionImageSize = bytes.length;
+                });
+              }
+            } catch (e) {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Error selecting photo: $e'),
+                    backgroundColor: const Color(0xFFDC2626),
+                  ),
+                );
+              }
+            }
+          }
+
+          void showImageSourcePicker() {
+            showModalBottomSheet(
+              context: context,
+              backgroundColor: Colors.white,
+              shape: const RoundedRectangleBorder(
+                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+              ),
+              builder: (pickerCtx) => SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Select After-Fix Photographic Evidence',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        'Provide visual proof that the physical remediation has been completed.',
+                        style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                      ),
+                      const SizedBox(height: 16),
+                      ListTile(
+                        leading: Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFEFF6FF),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(Icons.camera_alt, color: Color(0xFF2563EB)),
+                        ),
+                        title: const Text('Take Photo with Camera', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                        subtitle: const Text('Capture live on-site remediation proof', style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+                        onTap: () {
+                          Navigator.pop(pickerCtx);
+                          pickEvidenceImage(ImageSource.camera);
+                        },
+                      ),
+                      const SizedBox(height: 8),
+                      ListTile(
+                        leading: Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF0FDF4),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(Icons.photo_library, color: Color(0xFF16A34A)),
+                        ),
+                        title: const Text('Choose from Gallery', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                        subtitle: const Text('Select an existing photo from your device', style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+                        onTap: () {
+                          Navigator.pop(pickerCtx);
+                          pickEvidenceImage(ImageSource.gallery);
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }
+
           return Padding(
             padding: EdgeInsets.only(
               left: 20,
@@ -239,49 +374,131 @@ class _ContractorDashboardScreenState extends State<ContractorDashboardScreen> w
                   style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF334155)),
                 ),
                 const SizedBox(height: 6),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF8FAFC),
+
+                if (selectedResolutionImage == null) ...[
+                  // Not yet selected: Clickable prompt to open camera/gallery
+                  InkWell(
+                    onTap: showImageSourcePicker,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFFCBD5E1)),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFEFF6FF),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: const Color(0xFFBFDBFE)),
+                            ),
+                            child: const Icon(Icons.add_a_photo_outlined, color: Color(0xFF2563EB), size: 22),
+                          ),
+                          const SizedBox(width: 12),
+                          const Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Attach After-Fix Photo',
+                                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
+                                ),
+                                Text(
+                                  'Tap to take a photo or choose from gallery',
+                                  style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF2563EB),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Text(
+                              'Select',
+                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFEFF6FF),
+                ] else ...[
+                  // Selected image preview container with change/delete options
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF0FDF4),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFBBF7D0)),
+                    ),
+                    child: Row(
+                      children: [
+                        ClipRRect(
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: const Color(0xFFBFDBFE)),
+                          child: SizedBox(
+                            width: 52,
+                            height: 52,
+                            child: resolutionImageBytes != null
+                                ? Image.memory(
+                                    resolutionImageBytes!,
+                                    fit: BoxFit.cover,
+                                  )
+                                : (kIsWeb
+                                    ? Image.network(selectedResolutionImage!.path, fit: BoxFit.cover)
+                                    : Image.file(File(selectedResolutionImage!.path), fit: BoxFit.cover)),
+                          ),
                         ),
-                        child: const Icon(Icons.camera_alt, color: Color(0xFF2563EB), size: 22),
-                      ),
-                      const SizedBox(width: 12),
-                      const Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'resolution_evidence_photo.jpg',
-                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
-                            ),
-                            Text(
-                              'Geo-tagged field resolution proof',
-                              style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
-                            ),
-                          ],
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                resolutionImageName ?? 'resolution_evidence.jpg',
+                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF166534)),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                resolutionImageSize != null
+                                    ? '${(resolutionImageSize! / 1024).toStringAsFixed(1)} KB · After-fix photographic evidence'
+                                    : 'After-fix photographic evidence',
+                                style: const TextStyle(fontSize: 11, color: Color(0xFF15803D)),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                      Switch(
-                        value: isAttachingEvidence,
-                        activeColor: const Color(0xFF2563EB),
-                        onChanged: (val) => setSheetState(() => isAttachingEvidence = val),
-                      ),
-                    ],
+                        IconButton(
+                          icon: const Icon(Icons.edit_outlined, size: 20, color: Color(0xFF2563EB)),
+                          tooltip: 'Change photo',
+                          onPressed: showImageSourcePicker,
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.delete_outline, size: 20, color: Color(0xFFDC2626)),
+                          tooltip: 'Remove photo',
+                          onPressed: () {
+                            setSheetState(() {
+                              selectedResolutionImage = null;
+                              resolutionImageBytes = null;
+                              resolutionImageName = null;
+                              resolutionImageSize = null;
+                            });
+                          },
+                        ),
+                      ],
+                    ),
                   ),
-                ),
+                ],
                 const SizedBox(height: 20),
 
                 // Submit Button
@@ -289,69 +506,132 @@ class _ContractorDashboardScreenState extends State<ContractorDashboardScreen> w
                   width: double.infinity,
                   height: 48,
                   child: ElevatedButton(
-                    onPressed: () async {
-                      if (notesController.text.trim().isEmpty) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Please enter resolution notes.')),
-                        );
-                        return;
-                      }
+                    onPressed: isSubmitting
+                        ? null
+                        : () async {
+                            if (notesController.text.trim().isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Please enter official field resolution notes before submitting.'),
+                                  backgroundColor: Color(0xFFDC2626),
+                                ),
+                              );
+                              return;
+                            }
 
-                      final officerId = _authService.userId ?? Supabase.instance.client.auth.currentUser?.id ?? '';
-                      final note = notesController.text.trim();
+                            setSheetState(() => isSubmitting = true);
 
-                      try {
-                        final updatePayload = <String, dynamic>{
-                          'status': 'resolution_submitted',
-                          'resolution_notes': note,
-                          'completion_date': DateTime.now().toIso8601String(),
-                          'updated_at': DateTime.now().toIso8601String(),
-                        };
+                            final officerId = _authService.userId ?? Supabase.instance.client.auth.currentUser?.id ?? '';
+                            final note = notesController.text.trim();
 
-                        await Supabase.instance.client
-                            .from('reports')
-                            .update(updatePayload)
-                            .eq('id', report.id);
+                            final messenger = ScaffoldMessenger.of(context);
+                            String? uploadedImageUrl;
+                            if (selectedResolutionImage != null && resolutionImageBytes != null) {
+                              try {
+                                final supabase = Supabase.instance.client;
+                                final fileName = 'resolution_${report.id}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+                                final storagePath = 'resolutions/$fileName';
 
-                        try {
-                          await Supabase.instance.client.from('report_status_history').insert({
-                            'report_id': int.tryParse(report.id) ?? report.id,
-                            'old_status': 'in_progress',
-                            'new_status': 'resolution_submitted',
-                            'changed_by': officerId,
-                            'change_reason': note,
-                            'created_at': DateTime.now().toIso8601String(),
-                          });
-                        } catch (_) {}
+                                // Try uploading to Supabase Storage 'complaints' bucket
+                                try {
+                                  await supabase.storage.from('complaints').uploadBinary(
+                                    storagePath,
+                                    resolutionImageBytes!,
+                                    fileOptions: const FileOptions(contentType: 'image/jpeg', upsert: true),
+                                  );
+                                  uploadedImageUrl = supabase.storage.from('complaints').getPublicUrl(storagePath);
+                                } catch (bucketErr) {
+                                  // Fallback to 'reports' bucket
+                                  try {
+                                    await supabase.storage.from('reports').uploadBinary(
+                                      storagePath,
+                                      resolutionImageBytes!,
+                                      fileOptions: const FileOptions(contentType: 'image/jpeg', upsert: true),
+                                    );
+                                    uploadedImageUrl = supabase.storage.from('reports').getPublicUrl(storagePath);
+                                  } catch (_) {
+                                    // Safe fallback: encode as dataUrl so image is never lost
+                                    final base64Str = base64Encode(resolutionImageBytes!);
+                                    uploadedImageUrl = 'data:image/jpeg;base64,$base64Str';
+                                  }
+                                }
+                              } catch (uploadErr) {
+                                final base64Str = base64Encode(resolutionImageBytes!);
+                                uploadedImageUrl = 'data:image/jpeg;base64,$base64Str';
+                              }
+                            }
 
-                        if (mounted) {
-                          Navigator.pop(ctx);
-                          await _handleRefresh();
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('✅ Resolution submitted for Complaint #${report.id}. Awaiting verification.'),
-                              backgroundColor: const Color(0xFF16803C),
-                              behavior: SnackBarBehavior.floating,
-                            ),
-                          );
-                        }
-                      } catch (e) {
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-                          );
-                        }
-                      }
-                    },
+                            try {
+                              final updatePayload = <String, dynamic>{
+                                'status': 'resolution_submitted',
+                                'resolution_notes': note,
+                                'completion_date': DateTime.now().toIso8601String(),
+                                'updated_at': DateTime.now().toIso8601String(),
+                              };
+
+                              if (uploadedImageUrl != null) {
+                                updatePayload['resolution_image_url'] = uploadedImageUrl;
+                              }
+
+                              await Supabase.instance.client
+                                  .from('reports')
+                                  .update(updatePayload)
+                                  .eq('id', report.id);
+
+                              try {
+                                await Supabase.instance.client.from('report_status_history').insert({
+                                  'report_id': int.tryParse(report.id) ?? report.id,
+                                  'old_status': 'in_progress',
+                                  'new_status': 'resolution_submitted',
+                                  'changed_by': officerId,
+                                  'change_reason': note,
+                                  'created_at': DateTime.now().toIso8601String(),
+                                });
+                              } catch (_) {}
+
+                              if (mounted) {
+                                if (ctx.mounted) {
+                                  Navigator.pop(ctx);
+                                }
+                                await _handleRefresh();
+                                messenger.showSnackBar(
+                                  SnackBar(
+                                    content: Text('✅ Resolution and photo evidence submitted for Complaint #${report.id}. Awaiting municipal verification.'),
+                                    backgroundColor: const Color(0xFF16803C),
+                                    behavior: SnackBarBehavior.floating,
+                                  ),
+                                );
+                              }
+                            } catch (e) {
+                              setSheetState(() => isSubmitting = false);
+                              if (mounted) {
+                                messenger.showSnackBar(
+                                  SnackBar(
+                                    content: Text('Submission failed: $e'),
+                                    backgroundColor: const Color(0xFFDC2626),
+                                  ),
+                                );
+                              }
+                            }
+                          },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF2563EB),
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
-                    child: const Text(
-                      'Submit Official Resolution',
-                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-                    ),
+                    child: isSubmitting
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                          )
+                        : const Text(
+                            'Submit Official Resolution',
+                            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                          ),
                   ),
                 ),
               ],
@@ -481,7 +761,7 @@ class _ContractorDashboardScreenState extends State<ContractorDashboardScreen> w
               ),
               const SizedBox(height: 16),
 
-              // Photos / Evidence if available
+              // Citizen Photos / Evidence if available
               if (report.imageUrls.isNotEmpty) ...[
                 const Text(
                   'Citizen Attached Evidence',
@@ -511,6 +791,46 @@ class _ContractorDashboardScreenState extends State<ContractorDashboardScreen> w
                     ),
                   ),
                 ),
+                const SizedBox(height: 16),
+              ],
+
+              // After-Fix Photographic Evidence if submitted
+              if (report.resolutionImageUrl != null && report.resolutionImageUrl!.isNotEmpty) ...[
+                const Text(
+                  'After-Fix Photographic Evidence',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF166534)),
+                ),
+                const SizedBox(height: 8),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.network(
+                    report.resolutionImageUrl!,
+                    height: 140,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Container(
+                      height: 80,
+                      color: const Color(0xFFF0FDF4),
+                      alignment: Alignment.center,
+                      child: const Text('Resolution proof image attached', style: TextStyle(color: Color(0xFF166534), fontSize: 12)),
+                    ),
+                  ),
+                ),
+                if (report.resolutionNotes != null && report.resolutionNotes!.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF0FDF4),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFFBBF7D0)),
+                    ),
+                    child: Text(
+                      'Resolution Notes: ${report.resolutionNotes}',
+                      style: const TextStyle(fontSize: 12, color: Color(0xFF166534)),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 16),
               ],
 
