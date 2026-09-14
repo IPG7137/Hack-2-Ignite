@@ -302,20 +302,36 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
     try {
       await Future.delayed(const Duration(seconds: 1));
       
-      // Explicitly set contractor role and authenticate
-      await AppPreferences.setUserRole('contractor');
-      final result = await _authService.login(_publicServantIdController.text, _passwordController.text, role: 'contractor');
-      
+      final result = await _authService.login(
+        _publicServantIdController.text.trim(),
+        _passwordController.text.trim(),
+        role: 'officer',
+      );
+
+      setState(() {
+        _isLoading = false;
+      });
+
       if (result.success) {
+        await AppPreferences.setUserRole('contractor');
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Login successful! Welcome Contractor'),
+            content: Text('Login successful! Welcome Duty Officer / Field Contractor'),
             backgroundColor: Colors.green,
             behavior: SnackBarBehavior.floating,
           ),
         );
         
         _navigateToDashboard(selectedRole: 'contractor', isAdmin: true);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result.message),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          ),
+        );
       }
     } catch (e) {
       setState(() {

@@ -27,8 +27,8 @@ class AuthService {
 
   Map<String, dynamic>? get currentUser => _isLoggedIn
       ? {
-          'id': _userId ?? 'usr-local',
-          'email': _userEmail ?? 'citizen@civicresolve.gov',
+          'id': _userId ?? supabaseUser?.id ?? '',
+          'email': _userEmail ?? supabaseUser?.email ?? '',
           'full_name': userName,
           'role': _userRole,
           'is_admin': _isAdmin,
@@ -100,37 +100,38 @@ class AuthService {
     }
   }
 
-  /// Login with Supabase Auth or graceful local fallback
+  /// Login strictly with real Supabase Auth
   Future<AuthResult> login(String emailOrId, String password, {String role = 'citizen'}) async {
     try {
-      final normalizedRole = role.toLowerCase().trim() == 'contractor' ? 'contractor' : 'citizen';
-      final isContractor = normalizedRole == 'contractor';
+      final isOfficerRequest = role.toLowerCase().trim() == 'contractor' || role.toLowerCase().trim() == 'officer';
+      final canonicalRole = isOfficerRequest ? 'officer' : 'citizen';
 
       String email = emailOrId.contains('@')
           ? emailOrId
-          : (isContractor ? 'contractor@civicresolve.gov' : '$emailOrId@civicresolve.citizen');
+          : (isOfficerRequest ? 'officer@civicresolve.gov' : '$emailOrId@civicresolve.citizen');
 
-      // 1. Attempt real Supabase Auth authentication if available
-      try {
-        final authResponse = await Supabase.instance.client.auth.signInWithPassword(
-          email: email,
-          password: password,
-        );
-        if (authResponse.session != null) {
-          _userId = authResponse.user?.id;
-          _userEmail = authResponse.user?.email ?? email;
-          _userFullName = authResponse.user?.userMetadata?['full_name']?.toString();
-        }
-      } catch (supabaseErr) {
-        // Fall back gracefully for dev accounts or offline simulation
-        print('ℹ️ Supabase Auth notice: $supabaseErr. Proceeding with verified app session.');
+      // 1. Authenticate with real Supabase Auth
+      final authResponse = await Supabase.instance.client.auth.signInWithPassword(
+        email: email,
+        password: password,
+      );
+
+      final user = authResponse.user;
+      final session = authResponse.session;
+
+      if (user == null || session == null) {
+        return AuthResult.error('Authentication failed: No valid session returned from Supabase.');
       }
 
       _isLoggedIn = true;
-      _isAdmin = isContractor;
-      _userRole = isContractor ? 'contractor' : 'citizen';
-      _userEmail = email;
-      _userId ??= 'usr-${email.hashCode.abs()}';
+      _userId = user.id;
+      _userEmail = user.email ?? email;
+      _userFullName = user.userMetadata?['full_name']?.toString();
+      _userRole = canonicalRole;
+      _isAdmin = isOfficerRequest;
+
+      // Sync database profile and user_roles table
+      await _syncDatabaseProfileAndRole(_userId!);
 
       await AppPreferences.setUserRole(_userRole);
       await _saveLoginState();
@@ -143,14 +144,17 @@ class AuthService {
           'is_admin': _isAdmin,
           'full_name': userName,
         },
-        message: '$normalizedRole login successful',
+        message: '${isOfficerRequest ? 'Officer' : 'Citizen'} login successful',
       );
     } catch (e) {
+      _isLoggedIn = false;
+      _userId = null;
+      _userEmail = null;
       return AuthResult.error('Login failed: ${e.toString()}');
     }
   }
 
-  /// Register new user with Supabase Auth
+  /// Register new user strictly with Supabase Auth
   Future<AuthResult> register({
     required String email,
     required String password,
@@ -160,30 +164,30 @@ class AuthService {
     String role = 'citizen',
   }) async {
     try {
-      try {
-        final res = await Supabase.instance.client.auth.signUp(
-          email: email,
-          password: password,
-          data: {
-            'full_name': fullName,
-            'phone_number': phoneNumber,
-            'aadhar_number': aadharNumber,
-            'role': role,
-          },
-        );
-        if (res.user != null) {
-          _userId = res.user!.id;
-        }
-      } catch (err) {
-        print('ℹ️ Supabase signUp notice: $err. Proceeding with app registration state.');
+      final isOfficerRequest = role.toLowerCase().trim() == 'contractor' || role.toLowerCase().trim() == 'officer';
+      final canonicalRole = isOfficerRequest ? 'officer' : 'citizen';
+
+      final res = await Supabase.instance.client.auth.signUp(
+        email: email,
+        password: password,
+        data: {
+          'full_name': fullName,
+          'phone_number': phoneNumber,
+          'aadhar_number': aadharNumber,
+          'role': canonicalRole,
+        },
+      );
+
+      if (res.user == null) {
+        return AuthResult.error('Registration failed: Supabase returned empty user.');
       }
 
       _isLoggedIn = true;
+      _userId = res.user!.id;
       _userEmail = email;
       _userFullName = fullName;
-      _userRole = role;
-      _isAdmin = role == 'admin' || role == 'contractor';
-      _userId ??= 'usr-${email.hashCode.abs()}';
+      _userRole = canonicalRole;
+      _isAdmin = isOfficerRequest;
 
       await AppPreferences.setUserRole(_userRole);
       await _saveLoginState();
@@ -199,6 +203,8 @@ class AuthService {
         message: 'Account registered successfully',
       );
     } catch (e) {
+      _isLoggedIn = false;
+      _userId = null;
       return AuthResult.error('Registration failed: ${e.toString()}');
     }
   }

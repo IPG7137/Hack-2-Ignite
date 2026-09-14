@@ -112,7 +112,7 @@ class _ComprehensiveTrackReportsScreenState extends State<ComprehensiveTrackRepo
 
   void _initializeReportsStream() {
     final authService = AuthService.instance;
-    final userId = authService.userEmail ?? 'guest_user';
+    final userId = authService.userId ?? authService.supabaseUser?.id ?? '';
     
     print('⚡ Initializing citizen reports stream for user: $userId (Admin: $_isAdmin)');
     
@@ -304,6 +304,7 @@ class _ComprehensiveTrackReportsScreenState extends State<ComprehensiveTrackRepo
           statusMessage = 'Your complaint #${newReport.id} is registered in the civic system.';
           break;
         case ReportStatus.review:
+        case ReportStatus.under_review:
           statusHeadline = 'Under Review';
           statusMessage = 'Grievance cell is reviewing complaint #${newReport.id}.';
           break;
@@ -312,12 +313,23 @@ class _ComprehensiveTrackReportsScreenState extends State<ComprehensiveTrackRepo
           statusMessage = 'Complaint #${newReport.id} has been assigned for field action.';
           break;
         case ReportStatus.progress:
+        case ReportStatus.in_progress:
           statusHeadline = 'Field Work In Progress';
           statusMessage = 'Municipal maintenance crew is working on complaint #${newReport.id}.';
           break;
+        case ReportStatus.resolution_submitted:
+          statusHeadline = 'Resolution Submitted';
+          statusMessage = 'Field officer submitted proof of resolution for complaint #${newReport.id}.';
+          break;
         case ReportStatus.resolved:
+        case ReportStatus.verified:
+        case ReportStatus.closed:
           statusHeadline = 'Complaint Resolved';
-          statusMessage = 'Your complaint #${newReport.id} has been marked as resolved!';
+          statusMessage = 'Your complaint #${newReport.id} has been resolved and verified!';
+          break;
+        case ReportStatus.rejected:
+          statusHeadline = 'Complaint Closed/Rejected';
+          statusMessage = 'Your complaint #${newReport.id} was reviewed and closed.';
           break;
       }
 
@@ -384,13 +396,21 @@ class _ComprehensiveTrackReportsScreenState extends State<ComprehensiveTrackRepo
       case ReportStatus.submitted:
         return Icons.check_circle_outline;
       case ReportStatus.review:
+      case ReportStatus.under_review:
         return Icons.rate_review_outlined;
       case ReportStatus.assigned:
         return Icons.engineering_outlined;
       case ReportStatus.progress:
+      case ReportStatus.in_progress:
         return Icons.hourglass_bottom_outlined;
+      case ReportStatus.resolution_submitted:
+        return Icons.task_alt_outlined;
       case ReportStatus.resolved:
+      case ReportStatus.verified:
+      case ReportStatus.closed:
         return Icons.verified_outlined;
+      case ReportStatus.rejected:
+        return Icons.cancel_outlined;
     }
   }
 
@@ -1317,13 +1337,22 @@ class _ComprehensiveTrackReportsScreenState extends State<ComprehensiveTrackRepo
       case ReportStatus.submitted:
         return 'Submitted';
       case ReportStatus.review:
+      case ReportStatus.under_review:
         return 'Under Review';
       case ReportStatus.assigned:
         return 'Assigned';
       case ReportStatus.progress:
+      case ReportStatus.in_progress:
         return 'In Progress';
+      case ReportStatus.resolution_submitted:
+        return 'Resolution Submitted';
       case ReportStatus.resolved:
-        return 'Resolved';
+      case ReportStatus.verified:
+        return 'Verified';
+      case ReportStatus.closed:
+        return 'Closed';
+      case ReportStatus.rejected:
+        return 'Rejected';
     }
   }
 
@@ -1332,13 +1361,22 @@ class _ComprehensiveTrackReportsScreenState extends State<ComprehensiveTrackRepo
       case ReportStatus.submitted:
         return const Color(0xFF1E40AF); // Blue
       case ReportStatus.review:
+      case ReportStatus.under_review:
         return const Color(0xFF4F46E5); // Indigo
       case ReportStatus.assigned:
         return const Color(0xFF7C3AED); // Purple
       case ReportStatus.progress:
+      case ReportStatus.in_progress:
         return const Color(0xFFD97706); // Amber / Orange
+      case ReportStatus.resolution_submitted:
+        return const Color(0xFF0284C7); // Sky Blue
       case ReportStatus.resolved:
+      case ReportStatus.verified:
         return const Color(0xFF059669); // Emerald Green
+      case ReportStatus.closed:
+        return const Color(0xFF475569); // Slate
+      case ReportStatus.rejected:
+        return const Color(0xFFDC2626); // Red
     }
   }
 
@@ -1841,15 +1879,21 @@ class _ReportDetailsBottomSheetState extends State<_ReportDetailsBottomSheet> {
         currentStageIndex = 0;
         break;
       case ReportStatus.review:
+      case ReportStatus.under_review:
         currentStageIndex = 1;
         break;
       case ReportStatus.assigned:
         currentStageIndex = 2;
         break;
       case ReportStatus.progress:
+      case ReportStatus.in_progress:
+      case ReportStatus.resolution_submitted:
         currentStageIndex = 3;
         break;
       case ReportStatus.resolved:
+      case ReportStatus.verified:
+      case ReportStatus.closed:
+      case ReportStatus.rejected:
         currentStageIndex = 4;
         break;
     }

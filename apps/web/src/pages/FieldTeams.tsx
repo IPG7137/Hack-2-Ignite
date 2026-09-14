@@ -1,14 +1,16 @@
-import React, { useEffect, useState } from 'react';
-import { Users, Truck, Phone, CheckCircle, Navigation, Wrench } from 'lucide-react';
+import React, { useEffect, useState, useMemo } from 'react';
+import { Users, Truck, Phone, CheckCircle, Navigation, Wrench, ShieldCheck } from 'lucide-react';
 import { Card } from '../components/ui/Card';
 import { FieldTeam } from '../types/officer';
+import { Complaint } from '../types/complaint';
 import { departmentService } from '../services/departmentService';
 
 interface FieldTeamsProps {
+  complaints?: Complaint[];
   onSelectComplaint?: (id: string) => void;
 }
 
-export const FieldTeams: React.FC<FieldTeamsProps> = ({ onSelectComplaint }) => {
+export const FieldTeams: React.FC<FieldTeamsProps> = ({ complaints = [], onSelectComplaint }) => {
   const [teams, setTeams] = useState<FieldTeam[]>([]);
 
   useEffect(() => {
@@ -36,14 +38,20 @@ export const FieldTeams: React.FC<FieldTeamsProps> = ({ onSelectComplaint }) => 
 
   return (
     <div className="space-y-4">
-      <div className="pb-2 border-b border-[#D9E2EC]">
-        <h2 className="text-sm font-bold uppercase tracking-wider text-[#172B4D] flex items-center gap-2">
-          <Truck className="w-4 h-4 text-[#1769D2]" />
-          <span>Field Response Squads & Telemetry Roster</span>
-        </h2>
-        <p className="text-xs text-[#526581]">
-          Real-time unit deployment tracking, vehicle allocation, and active work orders.
-        </p>
+      <div className="pb-2 border-b border-[#D9E2EC] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+        <div>
+          <h2 className="text-sm font-bold uppercase tracking-wider text-[#172B4D] flex items-center gap-2">
+            <Truck className="w-4 h-4 text-[#1769D2]" />
+            <span>Field Response Squads & Telemetry Roster</span>
+          </h2>
+          <p className="text-xs text-[#526581]">
+            Real-time unit deployment tracking, vehicle allocation, and active work orders.
+          </p>
+        </div>
+        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-blue-50 border border-blue-200 text-[#123B6D] text-[11px] font-semibold">
+          <ShieldCheck className="w-3.5 h-3.5 text-[#1769D2]" />
+          <span>Operational Telemetry: {complaints.length} Live Reports</span>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

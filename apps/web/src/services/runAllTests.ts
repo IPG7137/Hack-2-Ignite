@@ -10,6 +10,7 @@ import { runAuthServiceTests } from './authService.test';
 import { runProfileRoleTests } from './profileRole.test';
 import { runRLSSecurityTests } from './rlsSecurity.test';
 import { runAIAuthorizationTests } from './aiAuthorization.test';
+import { runIntegrationContractTests } from './integrationContract.test';
 
 async function main() {
   console.log('===========================================================');
@@ -92,6 +93,12 @@ async function main() {
   totalFailed += res9EF.failed;
   allErrors.push(...res9EF.errors);
 
+  // Phase 13: Live Integration Contracts
+  const res13 = await runIntegrationContractTests();
+  totalPassed += res13.passed;
+  totalFailed += res13.failed;
+  allErrors.push(...res13.errors);
+
   console.log('\n===========================================================');
   console.log('📊 FINAL VERIFICATION SCORECARD:');
   console.log(`   3A Similarity:             ${res3A.passed}/${res3A.passed + res3A.failed}`);
@@ -106,6 +113,7 @@ async function main() {
   console.log(`   9C Profiles & Roles:       ${res9C.passed}/${res9C.passed + res9C.failed}`);
   console.log(`   9D Secure RLS:             ${res9D.passed}/${res9D.passed + res9D.failed}`);
   console.log(`   9E/9F AI Auth & Security:  ${res9EF.passed}/${res9EF.passed + res9EF.failed}`);
+  console.log(`   13 Live Integration:       ${res13.passed}/${res13.passed + res13.failed}`);
   console.log('-----------------------------------------------------------');
   console.log(`   TOTAL:                     ${totalPassed} PASSED / ${totalFailed} FAILED`);
   console.log('===========================================================');

@@ -9,6 +9,18 @@ export type ComplaintStatus =
   | 'closed'
   | 'rejected';
 
+export const CANONICAL_STATUS_LIST: readonly ComplaintStatus[] = [
+  'submitted',
+  'under_review',
+  'assigned',
+  'in_progress',
+  'resolution_submitted',
+  'resolved',
+  'verified',
+  'closed',
+  'rejected',
+];
+
 export type ComplaintPriority = 'low' | 'medium' | 'high' | 'urgent';
 
 export type IncidentCategory =

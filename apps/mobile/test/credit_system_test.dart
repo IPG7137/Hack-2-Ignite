@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_application_1/credit_service.dart';
+import 'package:civic_resolve/credit_service.dart';
 
 void main() {
   group('Credit System Tests', () {

@@ -297,14 +297,21 @@ class ComprehensiveReportModel {
 }
 
 // ========================================
-// REPORT STATUS ENUM
+// ========================================
+// CANONICAL REPORT STATUS ENUM (Phase 13 Integration)
 // ========================================
 enum ReportStatus {
   submitted,
   review,
+  under_review,
   assigned,
   progress,
+  in_progress,
+  resolution_submitted,
   resolved,
+  verified,
+  closed,
+  rejected,
 }
 
 extension ReportStatusExtension on ReportStatus {
@@ -314,12 +321,48 @@ extension ReportStatusExtension on ReportStatus {
         return 'submitted';
       case ReportStatus.review:
         return 'review';
+      case ReportStatus.under_review:
+        return 'under_review';
       case ReportStatus.assigned:
         return 'assigned';
       case ReportStatus.progress:
         return 'progress';
+      case ReportStatus.in_progress:
+        return 'in_progress';
+      case ReportStatus.resolution_submitted:
+        return 'resolution_submitted';
       case ReportStatus.resolved:
         return 'resolved';
+      case ReportStatus.verified:
+        return 'verified';
+      case ReportStatus.closed:
+        return 'closed';
+      case ReportStatus.rejected:
+        return 'rejected';
+    }
+  }
+
+  String get canonicalDbValue {
+    switch (this) {
+      case ReportStatus.submitted:
+        return 'submitted';
+      case ReportStatus.review:
+      case ReportStatus.under_review:
+        return 'under_review';
+      case ReportStatus.assigned:
+        return 'assigned';
+      case ReportStatus.progress:
+      case ReportStatus.in_progress:
+        return 'in_progress';
+      case ReportStatus.resolution_submitted:
+        return 'resolution_submitted';
+      case ReportStatus.resolved:
+      case ReportStatus.verified:
+        return 'verified';
+      case ReportStatus.closed:
+        return 'closed';
+      case ReportStatus.rejected:
+        return 'rejected';
     }
   }
 
@@ -328,28 +371,52 @@ extension ReportStatusExtension on ReportStatus {
       case ReportStatus.submitted:
         return 'Submitted';
       case ReportStatus.review:
-        return 'Review';
+      case ReportStatus.under_review:
+        return 'Under Review';
       case ReportStatus.assigned:
         return 'Assigned';
       case ReportStatus.progress:
-        return 'Progress';
+      case ReportStatus.in_progress:
+        return 'In Progress';
+      case ReportStatus.resolution_submitted:
+        return 'Resolution Submitted';
       case ReportStatus.resolved:
         return 'Resolved';
+      case ReportStatus.verified:
+        return 'Verified';
+      case ReportStatus.closed:
+        return 'Closed';
+      case ReportStatus.rejected:
+        return 'Rejected';
     }
   }
 
   static ReportStatus fromString(String status) {
-    switch (status.toLowerCase()) {
+    final s = status.toLowerCase().trim().replaceAll(' ', '_').replaceAll('-', '_');
+    switch (s) {
       case 'submitted':
         return ReportStatus.submitted;
       case 'review':
         return ReportStatus.review;
+      case 'under_review':
+      case 'in_review':
+        return ReportStatus.under_review;
       case 'assigned':
         return ReportStatus.assigned;
       case 'progress':
         return ReportStatus.progress;
+      case 'in_progress':
+        return ReportStatus.in_progress;
+      case 'resolution_submitted':
+        return ReportStatus.resolution_submitted;
       case 'resolved':
         return ReportStatus.resolved;
+      case 'verified':
+        return ReportStatus.verified;
+      case 'closed':
+        return ReportStatus.closed;
+      case 'rejected':
+        return ReportStatus.rejected;
       default:
         return ReportStatus.submitted;
     }

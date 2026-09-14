@@ -13,6 +13,8 @@ import { AIOperationalInsight } from '../types/ai';
 import { Department } from '../types/department';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
+import { useAuth } from '../hooks/useAuth';
+import { LoginModal } from '../components/auth/LoginModal';
 import {
   ArrowUpRight,
   Sparkles,
@@ -23,6 +25,8 @@ import {
   RefreshCw,
   Layers,
   ShieldAlert,
+  ShieldCheck,
+  LogIn,
   Inbox,
 } from 'lucide-react';
 
@@ -53,6 +57,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
   onRefresh,
 }) => {
   const [radarTab, setRadarTab] = React.useState<'hotspots' | 'incidents'>('hotspots');
+  const [isLoginOpen, setIsLoginOpen] = React.useState(false);
+  const { isAuthenticated, user } = useAuth();
 
   // Compute live active hotspot and incident counts for tab badges
   const intelligenceCounts = useMemo(() => {
@@ -247,6 +253,34 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Guest Authentication Banner (When not signed in under Supabase RLS) */}
+      {!isAuthenticated && (
+        <div className="p-4 rounded-lg bg-amber-50 border border-amber-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded bg-amber-100 border border-amber-300 flex items-center justify-center text-amber-800 shrink-0">
+              <ShieldAlert className="w-5 h-5 text-amber-700" />
+            </div>
+            <div>
+              <div className="text-xs font-bold text-amber-900">
+                Sign in to access the Municipal Command Center
+              </div>
+              <div className="text-[11px] text-amber-700">
+                PostgreSQL Row Level Security (RLS) is active. Sign in with municipal officer or administrator credentials to view confidential grievances and dispatch field actions.
+              </div>
+            </div>
+          </div>
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={() => setIsLoginOpen(true)}
+            className="h-8 text-xs bg-amber-700 hover:bg-amber-800 text-white font-semibold shrink-0 gap-1.5"
+          >
+            <LogIn className="w-3.5 h-3.5" />
+            <span>Sign In to Municipal Portal</span>
+          </Button>
+        </div>
+      )}
 
       {/* KPI Stats Grid (Real Database Metrics) */}
       <KPISummaryGrid kpis={liveKPIs} loading={loading} />
@@ -455,6 +489,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </div>
         </div>
       </div>
+
+      {isLoginOpen && (
+        <LoginModal
+          isOpen={isLoginOpen}
+          onClose={() => setIsLoginOpen(false)}
+        />
+      )}
     </div>
   );
 };

@@ -149,7 +149,7 @@ class _ConfirmationScreenState extends State<ConfirmationScreen>
         }
 
         final authService = AuthService.instance;
-        final userId = authService.userEmail ?? 'guest_user';
+        final userId = authService.userId ?? authService.supabaseUser?.id ?? '';
         final reportTitle = (widget.title != null && widget.title!.trim().isNotEmpty)
             ? widget.title!.trim()
             : widget.category.name;

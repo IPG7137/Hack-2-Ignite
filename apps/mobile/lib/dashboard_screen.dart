@@ -51,7 +51,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   void _initializeRecentReports() {
     final authService = AuthService.instance;
-    final userId = authService.userEmail ?? 'guest_user';
+    final userId = authService.userId ?? authService.supabaseUser?.id ?? '';
 
     _reportsSubscription?.cancel();
     try {
@@ -919,13 +919,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
       case ReportStatus.submitted:
         return const Color(0xFF155EEF);
       case ReportStatus.review:
+      case ReportStatus.under_review:
         return const Color(0xFF4F46E5);
       case ReportStatus.assigned:
         return const Color(0xFF7C3AED);
       case ReportStatus.progress:
+      case ReportStatus.in_progress:
         return const Color(0xFFD97706);
+      case ReportStatus.resolution_submitted:
+        return const Color(0xFF0284C7);
       case ReportStatus.resolved:
+      case ReportStatus.verified:
         return const Color(0xFF12B76A);
+      case ReportStatus.closed:
+        return const Color(0xFF475569);
+      case ReportStatus.rejected:
+        return const Color(0xFFDC2626);
     }
   }
 
@@ -934,13 +943,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
       case ReportStatus.submitted:
         return 'Submitted';
       case ReportStatus.review:
+      case ReportStatus.under_review:
         return 'Under Review';
       case ReportStatus.assigned:
         return 'Assigned';
       case ReportStatus.progress:
+      case ReportStatus.in_progress:
         return 'In Progress';
+      case ReportStatus.resolution_submitted:
+        return 'Resolution Submitted';
       case ReportStatus.resolved:
-        return 'Resolved';
+      case ReportStatus.verified:
+        return 'Verified';
+      case ReportStatus.closed:
+        return 'Closed';
+      case ReportStatus.rejected:
+        return 'Rejected';
     }
   }
 

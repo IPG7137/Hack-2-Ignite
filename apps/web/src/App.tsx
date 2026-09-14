@@ -158,10 +158,10 @@ export function App() {
         />
       )}
 
-      {activePage === 'departments' && <Departments />}
+      {activePage === 'departments' && <Departments complaints={complaints} />}
 
       {activePage === 'field_teams' && (
-        <FieldTeams onSelectComplaint={handleSelectComplaint} />
+        <FieldTeams complaints={complaints} onSelectComplaint={handleSelectComplaint} />
       )}
 
       {activePage === 'sla' && (

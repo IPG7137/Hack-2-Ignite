@@ -50,13 +50,23 @@ class ComprehensiveDatabaseService {
     try {
       print('🔍 Multi-Signal duplicate evaluation within ${radiusMeters}m for category: $category');
       
-      // Fetch candidate active reports (not closed or rejected)
-      final response = await _supabase
-          .from('reports')
-          .select('id, title, description, category, status, coordinates, latitude, longitude, created_at')
-          .not('status', 'in', '(closed,rejected)')
-          .order('created_at', ascending: false)
-          .limit(100);
+      // Fetch candidate active markers (from public_report_markers view under RLS, or reports table)
+      List<dynamic> response;
+      try {
+        response = await _supabase
+            .from('public_report_markers')
+            .select('id, category, status, priority, latitude, longitude, created_at')
+            .not('status', 'in', '(closed,rejected)')
+            .order('created_at', ascending: false)
+            .limit(100);
+      } catch (_) {
+        response = await _supabase
+            .from('reports')
+            .select('id, title, description, category, status, coordinates, latitude, longitude, created_at')
+            .not('status', 'in', '(closed,rejected)')
+            .order('created_at', ascending: false)
+            .limit(100);
+      }
 
       SimilarityAnalysisResult? bestMatch;
       double highestConfidence = 0.0;
@@ -364,13 +374,19 @@ class ComprehensiveDatabaseService {
         }
       }
       
+      // Ensure user_id is authenticated UUID
+      final authUserId = _supabase.auth.currentUser?.id;
+      final effectiveUserId = (authUserId != null && authUserId.isNotEmpty) ? authUserId : userId;
+
       // Prepare data for insertion
       final insertData = {
-        'user_id': userId,
+        'user_id': effectiveUserId,
         'title': title,
         'description': description,
         'category': category,
         'location': location,
+        'latitude': latitude,
+        'longitude': longitude,
         'image_urls': imageUrls ?? [],
         'coordinates': coordinates,
         'priority': priority,
@@ -652,37 +668,72 @@ class ComprehensiveDatabaseService {
 
   /// Stream user reports for real-time updates with enhanced responsiveness
   Stream<List<ComprehensiveReportModel>> getUserReportsStream(String userId) {
-    print('🔄 Setting up real-time stream for user: $userId');
+    // Resolve authenticated UUID if available
+    final authId = _supabase.auth.currentUser?.id;
+    final effectiveUserId = (authId != null && authId.isNotEmpty) ? authId : userId;
+
+    print('🔄 Setting up real-time stream for user: $effectiveUserId');
     return _supabase
         .from('reports')
         .stream(primaryKey: ['id'])
-        .eq('user_id', userId)
+        .eq('user_id', effectiveUserId)
         .order('created_at', ascending: false)
         .asyncMap((data) async {
-          // Log incoming data for debugging
-          print('� Real-time stream: ${data.length} reports received for user $userId');
+          print('📡 Real-time stream: ${data.length} reports received for user $effectiveUserId');
           
-          // Convert and validate data
           final reports = data.map((json) {
             try {
               return ComprehensiveReportModel.fromJson(json);
             } catch (e) {
               print('❌ Error parsing report: $e');
-              print('📄 Raw data: $json');
               rethrow;
             }
           }).toList();
           
-          // Log status distribution for debugging
-          final statusCounts = <String, int>{};
-          for (var report in reports) {
-            final status = report.status.displayName;
-            statusCounts[status] = (statusCounts[status] ?? 0) + 1;
-          }
-          print('📊 Status distribution: $statusCounts');
-          
           return reports;
         });
+  }
+
+  /// Stream assigned reports for officer in real-time
+  Stream<List<ComprehensiveReportModel>> getOfficerAssignedReportsStream(String officerId) {
+    print('🔄 Setting up officer real-time stream for assigned reports: $officerId');
+    return _supabase
+        .from('reports')
+        .stream(primaryKey: ['id'])
+        .order('created_at', ascending: false)
+        .asyncMap((data) async {
+          final reports = data
+              .where((json) =>
+                  json['assigned_officer_id']?.toString() == officerId ||
+                  json['status'] == 'assigned' ||
+                  json['status'] == 'in_progress' ||
+                  json['status'] == 'submitted')
+              .map((json) {
+            try {
+              return ComprehensiveReportModel.fromJson(json);
+            } catch (e) {
+              print('❌ Error parsing officer report: $e');
+              rethrow;
+            }
+          }).toList();
+          return reports;
+        });
+  }
+
+  /// Get officer assigned reports
+  Future<List<ComprehensiveReportModel>> getOfficerAssignedReports({String? officerId}) async {
+    try {
+      final currentId = officerId ?? _supabase.auth.currentUser?.id;
+      var query = _supabase.from('reports').select();
+      if (currentId != null && currentId.isNotEmpty) {
+        query = query.or('assigned_officer_id.eq.$currentId,status.in.(assigned,in_progress,submitted,under_review)');
+      }
+      final response = await query.order('created_at', ascending: false).limit(100);
+      return response.map((json) => ComprehensiveReportModel.fromJson(json)).toList();
+    } catch (e) {
+      print('⚠️ Error fetching officer assigned reports: $e');
+      return [];
+    }
   }
 
   /// Stream all reports for admin real-time updates with enhanced responsiveness  
@@ -693,10 +744,8 @@ class ComprehensiveDatabaseService {
         .stream(primaryKey: ['id'])
         .order('created_at', ascending: false)
         .asyncMap((data) async {
-          // Log incoming data for debugging
-          print('� Admin real-time stream: ${data.length} total reports received');
+          print('📡 Admin real-time stream: ${data.length} total reports received');
           
-          // Convert and validate data
           final reports = data.map((json) {
             try {
               return ComprehensiveReportModel.fromJson(json);
@@ -705,14 +754,6 @@ class ComprehensiveDatabaseService {
               rethrow;
             }
           }).toList();
-          
-          // Log status distribution for admin
-          final statusCounts = <String, int>{};
-          for (var report in reports) {
-            final status = report.status.displayName;
-            statusCounts[status] = (statusCounts[status] ?? 0) + 1;
-          }
-          print('📊 Admin status distribution: $statusCounts');
           
           return reports;
         });

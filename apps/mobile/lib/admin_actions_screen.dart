@@ -571,13 +571,22 @@ class _AdminActionsScreenState extends State<AdminActionsScreen> {
       case ReportStatus.submitted:
         return Colors.blue;
       case ReportStatus.review:
-        return Colors.orange;
+      case ReportStatus.under_review:
+        return Colors.indigo;
       case ReportStatus.assigned:
         return Colors.purple;
       case ReportStatus.progress:
+      case ReportStatus.in_progress:
         return Colors.amber;
+      case ReportStatus.resolution_submitted:
+        return Colors.cyan;
       case ReportStatus.resolved:
+      case ReportStatus.verified:
         return Colors.green;
+      case ReportStatus.closed:
+        return Colors.blueGrey;
+      case ReportStatus.rejected:
+        return Colors.red;
     }
   }
 

@@ -1,5 +1,6 @@
 import 'dart:typed_data';
-import 'lib/image_analysis_service.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:civic_resolve/image_analysis_service.dart';
 
 void main() async {
   print('🔥 FINAL GEMINI AI INTEGRATION TEST');

@@ -34,9 +34,15 @@ void main() {
     test('ReportStatus and ReportPriority enums map correctly', () {
       expect(ReportStatusExtension.fromString('submitted'), ReportStatus.submitted);
       expect(ReportStatusExtension.fromString('review'), ReportStatus.review);
+      expect(ReportStatusExtension.fromString('under_review'), ReportStatus.under_review);
       expect(ReportStatusExtension.fromString('assigned'), ReportStatus.assigned);
       expect(ReportStatusExtension.fromString('progress'), ReportStatus.progress);
+      expect(ReportStatusExtension.fromString('in_progress'), ReportStatus.in_progress);
+      expect(ReportStatusExtension.fromString('resolution_submitted'), ReportStatus.resolution_submitted);
       expect(ReportStatusExtension.fromString('resolved'), ReportStatus.resolved);
+      expect(ReportStatusExtension.fromString('verified'), ReportStatus.verified);
+      expect(ReportStatusExtension.fromString('closed'), ReportStatus.closed);
+      expect(ReportStatusExtension.fromString('rejected'), ReportStatus.rejected);
 
       expect(ReportPriorityExtension.fromString('high'), ReportPriority.high);
       expect(ReportPriorityExtension.fromString('medium'), ReportPriority.medium);

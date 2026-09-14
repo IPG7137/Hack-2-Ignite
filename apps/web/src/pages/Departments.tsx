@@ -1,10 +1,15 @@
-import React, { useEffect, useState } from 'react';
-import { Building2, Users, AlertCircle, Phone, Mail, CheckCircle2 } from 'lucide-react';
+import React, { useEffect, useState, useMemo } from 'react';
+import { Building2, Users, AlertCircle, Phone, Mail, CheckCircle2, ShieldCheck } from 'lucide-react';
 import { Card } from '../components/ui/Card';
 import { Department, WardInfo } from '../types/department';
+import { Complaint } from '../types/complaint';
 import { departmentService } from '../services/departmentService';
 
-export const Departments: React.FC = () => {
+interface DepartmentsProps {
+  complaints?: Complaint[];
+}
+
+export const Departments: React.FC<DepartmentsProps> = ({ complaints = [] }) => {
   const [departments, setDepartments] = useState<Department[]>([]);
   const [wards, setWards] = useState<WardInfo[]>([]);
 
@@ -20,21 +25,58 @@ export const Departments: React.FC = () => {
     load();
   }, []);
 
+  // Overlay live complaint counts onto department roster
+  const liveDepartments = useMemo(() => {
+    if (complaints.length === 0) return departments;
+
+    return departments.map((dept) => {
+      // Match complaints by category
+      let matchingComplaints = complaints.filter((c) => {
+        if (dept.code === 'R&B' && c.category === 'roads') return true;
+        if (dept.code === 'WSSB' && (c.category === 'water_sewage' || c.category === 'drainage')) return true;
+        if (dept.code === 'SWM' && c.category === 'waste_management') return true;
+        if (dept.code === 'ED' && c.category === 'streetlights') return true;
+        if (dept.code === 'TPD' && c.category === 'public_safety') return true;
+        if (dept.code === 'HD' && c.category === 'parks') return true;
+        return c.assignment?.departmentName === dept.name || c.assignment?.departmentId === dept.id;
+      });
+
+      const active = matchingComplaints.filter((c) => c.status !== 'closed' && c.status !== 'verified');
+      const overdue = active.filter((c) => c.sla.isOverdue);
+      const compliance = matchingComplaints.length > 0
+        ? Math.round(((matchingComplaints.length - overdue.length) / matchingComplaints.length) * 100)
+        : 100;
+
+      return {
+        ...dept,
+        openIncidentsCount: active.length,
+        overdueCount: overdue.length,
+        slaCompliancePercentage: compliance,
+      };
+    });
+  }, [departments, complaints]);
+
   return (
     <div className="space-y-4">
-      <div className="pb-2 border-b border-[#D9E2EC]">
-        <h2 className="text-sm font-bold uppercase tracking-wider text-[#172B4D] flex items-center gap-2">
-          <Building2 className="w-4 h-4 text-[#1769D2]" />
-          <span>Municipal Departments & Zonal Ward Allocation</span>
-        </h2>
-        <p className="text-xs text-[#526581]">
-          Supervisory roster, active incident allocations, and jurisdictional ward coverage.
-        </p>
+      <div className="pb-2 border-b border-[#D9E2EC] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+        <div>
+          <h2 className="text-sm font-bold uppercase tracking-wider text-[#172B4D] flex items-center gap-2">
+            <Building2 className="w-4 h-4 text-[#1769D2]" />
+            <span>Municipal Departments & Zonal Ward Allocation</span>
+          </h2>
+          <p className="text-xs text-[#526581]">
+            Supervisory roster, active incident allocations, and jurisdictional ward coverage.
+          </p>
+        </div>
+        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-blue-50 border border-blue-200 text-[#123B6D] text-[11px] font-semibold">
+          <ShieldCheck className="w-3.5 h-3.5 text-[#1769D2]" />
+          <span>Operational Telemetry: {complaints.length} Live Reports</span>
+        </div>
       </div>
 
       {/* Departments Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {departments.map((dept) => (
+        {liveDepartments.map((dept) => (
           <Card key={dept.id} className="p-4 space-y-3 border-[#D9E2EC] bg-white shadow-sm flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between">
