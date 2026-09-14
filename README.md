@@ -13,6 +13,42 @@
 
 ---
 
+## 📚 Table of Contents & Quick Navigation
+
+- [📌 Executive Overview](#-executive-overview)
+- [⚠️ The Problem](#️-the-problem)
+- [💡 The Solution](#-the-solution)
+- [📸 Interface & Visual Tour](#-interface--visual-tour)
+- [⚡ Core Feature Matrix](#-core-feature-matrix)
+- [🧠 Civic Intelligence Engines (Phases 3A–3E)](#-civic-intelligence-engines-phases-3a3e)
+- [🤖 Grounded Municipal AI](#-grounded-municipal-ai)
+- [🔐 Security & Authorization Architecture](#-security--authorization-architecture)
+- [🗺️ Municipal Command Center (React 18 Web)](#️-municipal-command-center-react-18-web)
+- [📱 Citizen & Field Officer Mobile Client (Flutter)](#-citizen--field-officer-mobile-client-flutter)
+- [🔄 7-Stage Complaint Lifecycle](#-7-stage-complaint-lifecycle)
+- [🧰 Technology Stack](#-technology-stack)
+- [📂 Monorepo Project Structure](#-monorepo-project-structure)
+- [⚙️ Setup & Installation](#️-setup--installation)
+- [🧪 Testing & Verification Scorecard](#-testing--verification-scorecard)
+- [🌟 Why CivicResolve is Different](#-why-civicresolve-is-different)
+- [🎯 Realistic Municipal Use Cases](#-realistic-municipal-use-cases)
+- [📖 Dedicated Documentation Guides](#-dedicated-documentation-guides)
+
+---
+
+## 📖 Dedicated Documentation Guides
+
+For in-depth architectural and operational guides, visit the documentation directory:
+
+| Document | Description |
+|:---------|:------------|
+| 🏗️ **[System Architecture](docs/ARCHITECTURE.md)** | Full monorepo layout, high-level data flow, role-based interfaces, and schema highlights. |
+| 🧠 **[AI & Intelligence Engine](docs/AI-INTELLIGENCE.md)** | Mathematical formulations for 3A–3E deterministic engines, duplicate suppression, and Copilot guardrails. |
+| 🚀 **[Deployment Guide](docs/DEPLOYMENT.md)** | Step-by-step instructions for Vercel Web deployment and Flutter standalone Release APK generation. |
+| 🛡️ **[Security & Authorization](docs/SECURITY.md)** | PostgreSQL Row Level Security (RLS) matrix, immutability triggers, and PII masking. |
+
+---
+
 ## 📌 Executive Overview
 
 **CivicResolve** bridges the structural communication gap between urban citizens and municipal governance. Rather than treating civic complaints as isolated, unstructured text tickets, CivicResolve operationalizes grievance redressal into a connected, closed-loop municipal ecosystem.
@@ -50,6 +86,26 @@ flowchart LR
     I --> J[Citizen Verification & Feedback]
     J --> K[Grounded AI Executive Insights]
 ```
+
+---
+
+## 📸 Interface & Visual Tour
+
+<div align="center">
+
+| Municipal Command Center (GIS & Analytics) | Citizen Mobile Experience (Intake & Tracking) |
+|:---:|:---:|
+| <img src="docs/images/1.jpg" width="420" alt="Municipal Command Center" /> | <img src="docs/images/2.jpg" width="230" alt="Citizen Mobile Interface" /> |
+
+| Tactical Triage & Dispatch Queue | Before / After Resolution Verification |
+|:---:|:---:|
+| <img src="docs/images/3.jpg" width="420" alt="Triage Queue" /> | <img src="docs/images/4.jpg" width="420" alt="Resolution Verification" /> |
+
+| Grounded AI Copilot & Shift Briefings | Field Officer Resolution Flow |
+|:---:|:---:|
+| <img src="docs/images/5.jpg" width="420" alt="AI Copilot" /> | <img src="docs/images/6.png" width="230" alt="Field Officer Mobile Flow" /> |
+
+</div>
 
 ---
 
@@ -105,7 +161,7 @@ CivicResolve implements five decoupled, deterministic intelligence algorithms th
 
 ---
 
-## 🤖 Grounded Municipal AI (Phases 8A–8C & 9E)
+## 🤖 Grounded Municipal AI
 
 CivicResolve enforces a strict separation between **generative AI capabilities** and **system authorization**:
 
@@ -174,11 +230,6 @@ CivicResolve implements defense-in-depth across database, API, and client tiers:
 | **`municipal_admin`** | City-Wide Operations | City-wide triage, cross-departmental dispatch, SLA escalation management, city-wide AI Insights. |
 | **`super_admin`** | System & Governance | Complete administrative authority, user role assignment (`public.user_roles`), commissioner executive briefings, system configuration. |
 
-### Database Integrity Highlights
-- **Immutable Complaint Content**: A PostgreSQL `BEFORE UPDATE` trigger rejects any citizen attempt to modify `title`, `description`, `category`, or GPS coordinates after submission.
-- **Zero Client-Side Service Keys**: `SUPABASE_SERVICE_ROLE_KEY` is strictly prohibited in web and mobile code.
-- **Secure Search Paths**: All `SECURITY DEFINER` functions lock `search_path = public, auth, pg_temp` to prevent search path hijacking.
-
 ---
 
 ## 🗺️ Municipal Command Center (React 18 Web)
@@ -193,7 +244,7 @@ Located in `apps/web/`, the Command Center is built with **React 18**, **TypeScr
 
 ---
 
-## 📱 Citizen & Contractor Mobile Client (Flutter)
+## 📱 Citizen & Field Officer Mobile Client (Flutter)
 
 Located in `apps/mobile/`, the cross-platform mobile application serves citizens and field contractors:
 
@@ -201,7 +252,7 @@ Located in `apps/mobile/`, the cross-platform mobile application serves citizens
 [ Citizen Workflow ]
 Submit Grievance (GPS + Photo) ➔ Real-Time Tracking ➔ Resolution Notification ➔ Visual Verification ➔ Star Rating & Feedback
 
-[ Contractor Workflow ]
+[ Field Officer Workflow ]
 View Assigned Work Orders ➔ Navigate to GPS Pin ➔ Execute Remediation ➔ Upload "After" Proof ➔ Submit for Audit
 ```
 
@@ -249,11 +300,10 @@ stateDiagram-v2
 ```text
 CivicResolve/
 ├── apps/
-│   ├── mobile/                    # Flutter Citizen & Contractor Mobile Client
+│   ├── mobile/                    # Flutter Citizen & Field Officer Mobile Client
 │   │   ├── lib/                   # Screen controllers, services, models & widgets
 │   │   ├── assets/                # App icons, SVG emblems & sample proofs
 │   │   ├── test/                  # Geospatial & widget test suites (98 tests)
-│   │   ├── .env                   # Local mobile environment (gitignored)
 │   │   └── pubspec.yaml           # Flutter dependencies & metadata
 │   │
 │   └── web/                       # React 18 + TypeScript Municipal Command Center
@@ -265,17 +315,20 @@ CivicResolve/
 │       │   ├── services/          # Deterministic engines (3A-3E), AI services, & tests
 │       │   └── types/             # Domain TypeScript definitions (Complaint, User, GIS)
 │       ├── public/                # Static assets, emblems, badges & favicons
-│       ├── .env                   # Local web environment (gitignored)
 │       ├── package.json           # Node.js dependencies & scripts
+│       ├── vercel.json            # Vercel SPA routing configuration
 │       └── vite.config.ts         # Vite bundler configuration
+│
+├── docs/                          # Comprehensive technical reference documentation
+│   ├── ARCHITECTURE.md            # System architecture & component maps
+│   ├── AI-INTELLIGENCE.md         # 3A–3E mathematical specifications & Copilot
+│   ├── DEPLOYMENT.md              # Vercel deployment & Flutter APK release guide
+│   ├── SECURITY.md                # PostgreSQL RLS & anti-injection guardrails
+│   └── images/                    # UI screenshots & workflow captures
 │
 ├── supabase/
 │   └── migrations/                # PostgreSQL PostGIS schema & RLS policies
-│       ├── phase_9c_profiles_and_roles.sql
-│       ├── phase_9d_secure_rls.sql
-│       └── ...
 │
-├── .env                           # Optional local root environment (gitignored)
 ├── .env.example                   # CANONICAL MASTER environment template
 └── README.md                      # Monorepo architecture & operations guide
 ```
@@ -307,7 +360,7 @@ npm install
 # 4. Start local development server
 npm run dev
 ```
-👉 Open browser at: **`http://localhost:3000`** (or displayed port).
+👉 Open browser at: **`http://localhost:5173`** (or displayed Vite port).
 
 ---
 
@@ -318,7 +371,7 @@ npm run dev
 cd apps/mobile
 
 # 2. Configure environment (reference root .env.example for variable values)
-# Create apps/mobile/.env with SUPABASE_URL, SUPABASE_ANON_KEY, and GEMINI_API_KEY
+# Create apps/mobile/.env with SUPABASE_URL and SUPABASE_ANON_KEY
 
 # 3. Fetch Flutter dependencies
 flutter pub get
@@ -341,10 +394,6 @@ CivicResolve maintains a clean, single-source-of-truth configuration architectur
 | **`/apps/web/.env`** | Active local Web development runtime (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`) | Web (`apps/web`) | ❌ No (`.gitignore`) |
 | **`/apps/mobile/.env`** | Active local Flutter mobile runtime (`SUPABASE_URL`, `SUPABASE_ANON_KEY`, `GEMINI_API_KEY`) | Mobile (`apps/mobile`) | ❌ No (`.gitignore`) |
 
-#### Configuration Loading Mechanisms
-- **Web (`apps/web`)**: Loaded via Vite bundler (`import.meta.env.VITE_*`). Public variables must use the `VITE_` prefix to be available to browser TypeScript code.
-- **Mobile (`apps/mobile`)**: Loaded dynamically via `flutter_dotenv` with compile-time `String.fromEnvironment` fallback in `AppConfig` (`lib/app_config.dart`). Uses canonical names (`SUPABASE_URL`, `SUPABASE_ANON_KEY`, `GEMINI_API_KEY`).
-
 #### 3-Tier Security Matrix
 
 ```text
@@ -352,12 +401,6 @@ Tier 1: Public / Client-Safe  --> VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY (Inj
 Tier 2: Client-Exposed (Dev)  --> GEMINI_API_KEY (Flutter mobile development prototype only)
 Tier 3: Server-Only Secrets   --> SUPABASE_SERVICE_ROLE_KEY, DATABASE_PASSWORD (STRICTLY FORBIDDEN IN CLIENTS)
 ```
-
-> ⚠️ **Production Security Notice regarding `GEMINI_API_KEY`**:  
-> In the current development prototype stage, the Flutter mobile client makes direct Gemini requests for rapid multimodal image triage. For enterprise production deployments, route all Gemini API calls through a secure server-side **Supabase Edge Function** to prevent embedding API credentials in client APK/IPA binaries:
-> ```text
-> Flutter / Web Client  ──(Authenticated JWT)──>  Supabase Edge Function  ──(Server Secret)──>  Gemini API
-> ```
 
 ---
 
@@ -382,9 +425,9 @@ CivicResolve includes rigorous, zero-dependency automated test suites covering a
    9D: PostgreSQL RLS & Authorization Policies -->  30 / 30 PASSED
    9E/9F: AI Auth Scope & Security Hardening   -->  37 / 37 PASSED
    13: Live Integration Contracts              -->  16 / 16 PASSED
-   14: Command Center Auth Gate & Queue Tests  -->  21 / 21 PASSED
+   14: Command Center Auth Gate & Queue Tests  -->  25 / 25 PASSED
 -----------------------------------------------------------
-   WEB TEST SUITE TOTAL:                       --> 356 / 356 PASSED (0 failed)
+   WEB TEST SUITE TOTAL:                       --> 360 / 360 PASSED (0 failed)
    FLUTTER TEST SUITE TOTAL:                   -->  98 /  98 PASSED (0 failed)
    VITE PRODUCTION BUILD:                      -->   0 ERRORS (Clean build)
 ===========================================================
@@ -393,7 +436,7 @@ CivicResolve includes rigorous, zero-dependency automated test suites covering a
 ### Running the Test Suites
 
 ```bash
-# Run the 356-test Web Intelligence, Security & Integration Suite
+# Run the 360-test Web Intelligence, Security & Integration Suite
 cd apps/web
 npx --yes tsx src/services/runAllTests.ts
 
@@ -432,16 +475,6 @@ npm run build
 
 ---
 
-## 🚀 Future Production Roadmap
-
-- [ ] **Server-Side AI Proxy**: Migrate mobile Gemini multimodal triage into a serverless Supabase Edge Function to fully isolate AI credentials.
-- [ ] **Advanced PostGIS Geo-Fencing**: Dynamic ward boundary polygons and automated jurisdictional routing for municipal zones.
-- [ ] **Automated Push Notifications**: Web Push / FCM integration for real-time status updates delivered to citizen handsets.
-- [ ] **Contractor Performance Index**: Longitudinal analytics tracking contractor SLA compliance, average repair duration, and rework penalty rates.
-- [ ] **Offline-First Field Mode**: Local SQLite caching in Flutter for contractors operating in low-connectivity underground or rural locations.
-
----
-
 ## 👥 Contributors & Acknowledgments
 
 Developed as a modern, production-grade civic technology initiative combining deterministic algorithms with responsible, grounded artificial intelligence for transparent municipal governance.
@@ -454,4 +487,4 @@ Developed as a modern, production-grade civic technology initiative combining de
 
 ## 📜 License
 
-License: Not yet specified.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
