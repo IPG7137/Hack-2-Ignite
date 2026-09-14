@@ -106,19 +106,31 @@ flowchart LR
 
 ## 📸 Interface & Visual Tour
 
+### 🏛️ Municipal Command Center (React 18 Web)
+
 <div align="center">
 
-| Municipal Command Center (GIS & Analytics) | Citizen Mobile Experience (Intake & Tracking) |
+| Executive Command Dashboard & Telemetry | Live Complaints Management & Triage Queue |
 |:---:|:---:|
-| <img src="docs/images/1.jpg" width="420" alt="Municipal Command Center" /> | <img src="docs/images/2.jpg" width="230" alt="Citizen Mobile Interface" /> |
+| <img src="docs/images/overview.png" width="440" alt="Municipal Command Center Overview" /> | <img src="docs/images/complaints.png" width="440" alt="Complaints Management Queue" /> |
 
-| Tactical Triage & Dispatch Queue | Before / After Resolution Verification |
+| Municipal Authentication & Role Gateway | Grounded AI Decision Support Copilot |
 |:---:|:---:|
-| <img src="docs/images/3.jpg" width="420" alt="Triage Queue" /> | <img src="docs/images/4.jpg" width="420" alt="Resolution Verification" /> |
+| <img src="docs/images/login.png" width="440" alt="Municipal Authentication Gateway" /> | <img src="docs/images/5.jpg" width="440" alt="Grounded AI Copilot" /> |
 
-| Grounded AI Copilot & Shift Briefings | Field Officer Resolution Flow |
+| GIS Geospatial Intelligence & Incident Clusters | Before / After Resolution Verification Audit |
 |:---:|:---:|
-| <img src="docs/images/5.jpg" width="420" alt="AI Copilot" /> | <img src="docs/images/6.png" width="230" alt="Field Officer Mobile Flow" /> |
+| <img src="docs/images/1.jpg" width="440" alt="GIS Command Map" /> | <img src="docs/images/4.jpg" width="440" alt="Resolution Verification Inspector" /> |
+
+</div>
+
+### 📱 Citizen & Field Officer Mobile Experience (Flutter)
+
+<div align="center">
+
+| Citizen Incident Reporting & GPS Capture | 200m Duplicate Suppression & Citizen Upvote | AI Multi-Hazard Detection & Triage |
+|:---:|:---:|:---:|
+| <img src="docs/images/2.jpg" width="240" alt="Citizen Grievance Reporting" /> | <img src="docs/images/upvote%20for%20duplicate.jpeg" width="240" alt="Duplicate Upvoting" /> | <img src="docs/images/multiple%20detection.jpeg" width="240" alt="AI Multi-Hazard Detection" /> |
 
 </div>
 
