@@ -33,13 +33,13 @@ pip install google-generativeai pillow
 ### 2. Set Environment Variable (Optional but Recommended)
 ```bash
 # Windows PowerShell
-$env:GOOGLE_API_KEY="YOUR_GEMINI_API_KEY"
+$env:GEMINI_API_KEY="YOUR_GEMINI_API_KEY"
 
 # Windows Command Prompt
-set GOOGLE_API_KEY=YOUR_GEMINI_API_KEY
+set GEMINI_API_KEY=YOUR_GEMINI_API_KEY
 
 # Linux/MacOS
-export GOOGLE_API_KEY="YOUR_GEMINI_API_KEY"
+export GEMINI_API_KEY="YOUR_GEMINI_API_KEY"
 ```
 
 ## 📱 How It Works

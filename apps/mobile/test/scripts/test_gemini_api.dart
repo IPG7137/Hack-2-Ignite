@@ -6,9 +6,9 @@ void main() async {
   print('🧪 Testing Gemini AI API Connection...');
   
   // API key from environment
-  final String apiKey = Platform.environment['GEMINI_API_KEY'] ?? Platform.environment['GOOGLE_API_KEY'] ?? '';
+  final String apiKey = Platform.environment['GEMINI_API_KEY'] ?? '';
   if (apiKey.isEmpty) {
-    print('❌ GEMINI_API_KEY or GOOGLE_API_KEY environment variable is required.');
+    print('❌ GEMINI_API_KEY environment variable is required.');
     return;
   }
   

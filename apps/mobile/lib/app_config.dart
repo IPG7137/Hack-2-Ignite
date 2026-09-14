@@ -36,7 +36,7 @@ class AppConfig {
     return _defaultSupabaseAnonKey;
   }
 
-  /// Google Gemini AI API Key
+  /// Google Gemini AI API Key (Dev / Prototype direct integration)
   static String get geminiApiKey {
     if (dotenv.isInitialized && (dotenv.env['GEMINI_API_KEY']?.isNotEmpty ?? false)) {
       return dotenv.env['GEMINI_API_KEY']!;

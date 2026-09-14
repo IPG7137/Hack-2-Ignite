@@ -252,8 +252,8 @@ CivicResolve/
 │   ├── mobile/                    # Flutter Citizen & Contractor Mobile Client
 │   │   ├── lib/                   # Screen controllers, services, models & widgets
 │   │   ├── assets/                # App icons, SVG emblems & sample proofs
-│   │   ├── test/                  # Geospatial & widget test suites (91 tests)
-│   │   ├── .env.example           # Mobile environment configuration template
+│   │   ├── test/                  # Geospatial & widget test suites (98 tests)
+│   │   ├── .env                   # Local mobile environment (gitignored)
 │   │   └── pubspec.yaml           # Flutter dependencies & metadata
 │   │
 │   └── web/                       # React 18 + TypeScript Municipal Command Center
@@ -265,7 +265,7 @@ CivicResolve/
 │       │   ├── services/          # Deterministic engines (3A-3E), AI services, & tests
 │       │   └── types/             # Domain TypeScript definitions (Complaint, User, GIS)
 │       ├── public/                # Static assets, emblems, badges & favicons
-│       ├── .env.example           # Web environment configuration template
+│       ├── .env                   # Local web environment (gitignored)
 │       ├── package.json           # Node.js dependencies & scripts
 │       └── vite.config.ts         # Vite bundler configuration
 │
@@ -275,7 +275,8 @@ CivicResolve/
 │       ├── phase_9d_secure_rls.sql
 │       └── ...
 │
-├── .env.example                   # Master monorepo environment template
+├── .env                           # Optional local root environment (gitignored)
+├── .env.example                   # CANONICAL MASTER environment template
 └── README.md                      # Monorepo architecture & operations guide
 ```
 
@@ -287,7 +288,7 @@ CivicResolve/
 - **Node.js**: v18.x or v20.x
 - **npm**: v9.x or higher
 - **Flutter SDK**: v3.19+ and Dart SDK
-- **Supabase Account**: (Or use the pre-configured project credentials in `.env.example`)
+- **Supabase Account**: (Or use the project credentials in `.env.example`)
 
 ---
 
@@ -297,8 +298,8 @@ CivicResolve/
 # 1. Navigate to the web application directory
 cd apps/web
 
-# 2. Configure environment
-cp .env.example .env
+# 2. Configure environment (reference root .env.example for variable values)
+# Create apps/web/.env with VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY
 
 # 3. Install dependencies
 npm install
@@ -316,8 +317,8 @@ npm run dev
 # 1. Navigate to the mobile application directory
 cd apps/mobile
 
-# 2. Configure environment
-cp .env.example .env
+# 2. Configure environment (reference root .env.example for variable values)
+# Create apps/mobile/.env with SUPABASE_URL, SUPABASE_ANON_KEY, and GEMINI_API_KEY
 
 # 3. Fetch Flutter dependencies
 flutter pub get
@@ -329,25 +330,40 @@ flutter run               # Connected Android/iOS device
 
 ---
 
-### 4. Environment Configuration Architecture
+### 4. Environment Configuration & Monorepo Architecture
 
-The project standardizes across a **4-Tier Security Matrix**:
+CivicResolve maintains a clean, single-source-of-truth configuration architecture across the monorepo:
+
+| File | Purpose | Scope | Tracked in Git? |
+| :--- | :--- | :--- | :---: |
+| **`/.env.example`** | **CANONICAL MASTER REFERENCE** documenting all variables, classifications, and security tiers across the entire project | Monorepo Root | ✅ Yes |
+| **`/.env`** | Optional local root-level configuration / tools | Local Dev | ❌ No (`.gitignore`) |
+| **`/apps/web/.env`** | Active local Web development runtime (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`) | Web (`apps/web`) | ❌ No (`.gitignore`) |
+| **`/apps/mobile/.env`** | Active local Flutter mobile runtime (`SUPABASE_URL`, `SUPABASE_ANON_KEY`, `GEMINI_API_KEY`) | Mobile (`apps/mobile`) | ❌ No (`.gitignore`) |
+
+#### Configuration Loading Mechanisms
+- **Web (`apps/web`)**: Loaded via Vite bundler (`import.meta.env.VITE_*`). Public variables must use the `VITE_` prefix to be available to browser TypeScript code.
+- **Mobile (`apps/mobile`)**: Loaded dynamically via `flutter_dotenv` with compile-time `String.fromEnvironment` fallback in `AppConfig` (`lib/app_config.dart`). Uses canonical names (`SUPABASE_URL`, `SUPABASE_ANON_KEY`, `GEMINI_API_KEY`).
+
+#### 3-Tier Security Matrix
 
 ```text
-Tier 1: Public / Client-Safe  --> VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY (Injected into client)
-Tier 2: Client-Exposed (Dev)  --> GEMINI_API_KEY (Flutter mobile prototype classification)
-Tier 3: Server-Side AI Secret --> GEMINI_API_KEY (Production Edge Function / Backend proxy)
-Tier 4: Server-Only Admin     --> SUPABASE_SERVICE_ROLE_KEY (STRICTLY FORBIDDEN IN CLIENTS)
+Tier 1: Public / Client-Safe  --> VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY (Injected into client, secured by RLS)
+Tier 2: Client-Exposed (Dev)  --> GEMINI_API_KEY (Flutter mobile development prototype only)
+Tier 3: Server-Only Secrets   --> SUPABASE_SERVICE_ROLE_KEY, DATABASE_PASSWORD (STRICTLY FORBIDDEN IN CLIENTS)
 ```
 
 > ⚠️ **Production Security Notice regarding `GEMINI_API_KEY`**:  
-> In the current prototype stage, the Flutter mobile client makes direct client-side Gemini requests for rapid multimodal image triage. For enterprise production deployments, route all Gemini API calls through a secure server-side **Supabase Edge Function** to prevent embedding API credentials in client APK/IPA binaries.
+> In the current development prototype stage, the Flutter mobile client makes direct Gemini requests for rapid multimodal image triage. For enterprise production deployments, route all Gemini API calls through a secure server-side **Supabase Edge Function** to prevent embedding API credentials in client APK/IPA binaries:
+> ```text
+> Flutter / Web Client  ──(Authenticated JWT)──>  Supabase Edge Function  ──(Server Secret)──>  Gemini API
+> ```
 
 ---
 
 ## 🧪 Testing & Verification Scorecard
 
-CivicResolve includes rigorous, zero-dependency automated test suites covering all intelligence algorithms, authentication flows, and security policies.
+CivicResolve includes rigorous, zero-dependency automated test suites covering all intelligence algorithms, authentication flows, PostgreSQL RLS policies, and integration contracts.
 
 ```
 ===========================================================
@@ -365,26 +381,27 @@ CivicResolve includes rigorous, zero-dependency automated test suites covering a
    9C: Profiles & Database User Roles          -->  36 / 36 PASSED
    9D: PostgreSQL RLS & Authorization Policies -->  30 / 30 PASSED
    9E/9F: AI Auth Scope & Security Hardening   -->  37 / 37 PASSED
+   13: Live Integration Contracts              -->  16 / 16 PASSED
 -----------------------------------------------------------
-   WEB TEST SUITE TOTAL:                       --> 319 / 319 PASSED (0 failed)
-   FLUTTER TEST SUITE TOTAL:                   -->  91 /  91 PASSED (0 failed)
-   VITE PRODUCTION BUILD:                      -->   0 ERRORS (Clean 10.5s build)
+   WEB TEST SUITE TOTAL:                       --> 335 / 335 PASSED (0 failed)
+   FLUTTER TEST SUITE TOTAL:                   -->  98 /  98 PASSED (0 failed)
+   VITE PRODUCTION BUILD:                      -->   0 ERRORS (Clean build)
 ===========================================================
 ```
 
 ### Running the Test Suites
 
 ```bash
-# Run the 319-test Web Intelligence & Security Suite
+# Run the 335-test Web Intelligence, Security & Integration Suite
 cd apps/web
 npx --yes tsx src/services/runAllTests.ts
 
-# Run the 91-test Flutter Mobile Suite
+# Run the 98-test Flutter Mobile Suite
 cd apps/mobile
-flutter test test/widget_test.dart
+flutter test
 
 # Validate Web Production Build
-cd apps/web
+cd ../web
 npm run build
 ```
 

@@ -25,9 +25,9 @@ class DisasterImageClassifier:
     
     def _load_api_key(self):
         """Load API key from environment variable."""
-        api_key = os.getenv('GOOGLE_API_KEY') or os.getenv('GEMINI_API_KEY')
+        api_key = os.getenv('GEMINI_API_KEY')
         if not api_key:
-            print("⚠️ GOOGLE_API_KEY or GEMINI_API_KEY environment variable not set.")
+            print("⚠️ GEMINI_API_KEY environment variable not set.")
         else:
             print("✅ Using API key from environment variable")
         return api_key

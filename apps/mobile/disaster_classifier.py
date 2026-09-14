@@ -12,14 +12,14 @@ import sys
 
 def load_api_key():
     """
-    Securely load the Google API key from environment variable.
+    Securely load the Gemini API key from environment variable.
     Returns the API key or exits if not found.
     """
-    api_key = os.getenv('GOOGLE_API_KEY')
+    api_key = os.getenv('GEMINI_API_KEY')
     if not api_key:
-        print("ERROR: GOOGLE_API_KEY environment variable is not set!")
+        print("ERROR: GEMINI_API_KEY environment variable is not set!")
         print("Please set the environment variable before running this script.")
-        print("Example: set GOOGLE_API_KEY=your_api_key_here")
+        print("Example: set GEMINI_API_KEY=your_api_key_here")
         sys.exit(1)
     return api_key
 
@@ -141,12 +141,12 @@ def set_environment_variable():
     """
     Helper function to set the environment variable.
     """
-    api_key = os.getenv('GOOGLE_API_KEY') or os.getenv('GEMINI_API_KEY')
+    api_key = os.getenv('GEMINI_API_KEY')
     if api_key:
-        os.environ['GOOGLE_API_KEY'] = api_key
-        print("✅ Environment variable GOOGLE_API_KEY is active")
+        os.environ['GEMINI_API_KEY'] = api_key
+        print("✅ Environment variable GEMINI_API_KEY is active")
     else:
-        print("⚠️ Please set GOOGLE_API_KEY or GEMINI_API_KEY environment variable")
+        print("⚠️ Please set GEMINI_API_KEY environment variable")
 
 
 if __name__ == "__main__":

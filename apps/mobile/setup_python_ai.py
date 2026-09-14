@@ -84,21 +84,21 @@ def setup_environment():
     """Help user set up environment variables."""
     print("\n🔐 Environment Variable Setup")
     print("=" * 50)
-    print("For better security, set your Google API key as an environment variable:")
+    print("Set your Gemini API key as an environment variable:")
     print("")
     
     if os.name == 'nt':  # Windows
         print("Windows PowerShell:")
-        print('$env:GOOGLE_API_KEY="<YOUR_GEMINI_API_KEY>"')
+        print('$env:GEMINI_API_KEY="<YOUR_GEMINI_API_KEY>"')
         print("")
         print("Windows Command Prompt:")
-        print('set GOOGLE_API_KEY=<YOUR_GEMINI_API_KEY>')
+        print('set GEMINI_API_KEY=<YOUR_GEMINI_API_KEY>')
     else:  # Unix-like
         print("Linux/MacOS Terminal:")
-        print('export GOOGLE_API_KEY="<YOUR_GEMINI_API_KEY>"')
+        print('export GEMINI_API_KEY="<YOUR_GEMINI_API_KEY>"')
     
     print("")
-    print("💡 Note: The classifier will work without this, but it's more secure.")
+    print("💡 Note: The classifier will work with GEMINI_API_KEY configured.")
 
 def main():
     """Main setup function."""
