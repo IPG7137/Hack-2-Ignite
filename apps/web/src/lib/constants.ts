@@ -141,9 +141,9 @@ export const CATEGORY_CONFIG: Record<
   parks: { label: 'Parks & Urban Greens', departmentName: 'Horticulture Dept', color: '#15803D' },
 };
 
-// Municipal Headquarters default coordinates (Pune Smart City Center)
+// Municipal Headquarters default coordinates (Solapur Municipal Corporation Center)
 export const DEFAULT_MAP_CENTER = {
-  lng: 73.8567,
-  lat: 18.5204,
+  lng: 75.9064,
+  lat: 17.6599,
   zoom: 12.5,
 };

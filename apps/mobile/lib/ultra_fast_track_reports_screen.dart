@@ -933,13 +933,21 @@ class _UltraFastTrackReportsScreenState extends State<UltraFastTrackReportsScree
       case ReportStatus.submitted:
         return Colors.blue;
       case ReportStatus.review:
+      case ReportStatus.under_review:
         return Colors.orange;
       case ReportStatus.assigned:
         return Colors.purple;
       case ReportStatus.progress:
+      case ReportStatus.in_progress:
         return Colors.indigo;
+      case ReportStatus.resolution_submitted:
+        return Colors.teal;
       case ReportStatus.resolved:
+      case ReportStatus.verified:
+      case ReportStatus.closed:
         return Colors.green;
+      case ReportStatus.rejected:
+        return Colors.red;
     }
   }
 

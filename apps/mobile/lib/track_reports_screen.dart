@@ -128,9 +128,12 @@ class _TrackReportsScreenState extends State<TrackReportsScreen>
     ));
     
     // Initialize status tracking
-    const userId = 'user_12345'; // This should be the actual logged-in user ID
-    _statusService.initializeStatusTracking(userId);
-    _statusService.startStatusMonitoring(userId);
+    final authService = AuthService.instance;
+    final userId = authService.userId ?? authService.supabaseUser?.id ?? '';
+    if (userId.isNotEmpty) {
+      _statusService.initializeStatusTracking(userId);
+      _statusService.startStatusMonitoring(userId);
+    }
     
     // Load reports after animations are initialized
     _loadStoredReports();
@@ -160,7 +163,17 @@ class _TrackReportsScreenState extends State<TrackReportsScreen>
     try {
       print('Setting up real-time reports stream...');
       final databaseService = DatabaseService();
-      const userId = 'user_12345'; // This should be the actual logged-in user ID
+      final authService = AuthService.instance;
+      final userId = authService.userId ?? authService.supabaseUser?.id ?? '';
+      
+      if (userId.isEmpty) {
+        setState(() {
+          _allReports = [];
+          _filteredReports = [];
+          _isLoading = false;
+        });
+        return;
+      }
       
       // Set up real-time stream for reports
       _reportsStream = databaseService.getUserReportsStream(userId).map((reportModels) {
@@ -245,7 +258,17 @@ class _TrackReportsScreenState extends State<TrackReportsScreen>
     try {
       print('Fallback: Loading reports once...');
       final databaseService = DatabaseService();
-      const userId = 'user_12345';
+      final authService = AuthService.instance;
+      final userId = authService.userId ?? authService.supabaseUser?.id ?? '';
+      
+      if (userId.isEmpty) {
+        setState(() {
+          _allReports = [];
+          _filteredReports = [];
+          _isLoading = false;
+        });
+        return;
+      }
       
       final storedReports = await databaseService.getUserReports(userId);
       print('Retrieved ${storedReports.length} reports from database');

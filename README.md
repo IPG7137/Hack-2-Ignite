@@ -382,8 +382,9 @@ CivicResolve includes rigorous, zero-dependency automated test suites covering a
    9D: PostgreSQL RLS & Authorization Policies -->  30 / 30 PASSED
    9E/9F: AI Auth Scope & Security Hardening   -->  37 / 37 PASSED
    13: Live Integration Contracts              -->  16 / 16 PASSED
+   14: Command Center Auth Gate & Queue Tests  -->  21 / 21 PASSED
 -----------------------------------------------------------
-   WEB TEST SUITE TOTAL:                       --> 335 / 335 PASSED (0 failed)
+   WEB TEST SUITE TOTAL:                       --> 356 / 356 PASSED (0 failed)
    FLUTTER TEST SUITE TOTAL:                   -->  98 /  98 PASSED (0 failed)
    VITE PRODUCTION BUILD:                      -->   0 ERRORS (Clean build)
 ===========================================================
@@ -392,7 +393,7 @@ CivicResolve includes rigorous, zero-dependency automated test suites covering a
 ### Running the Test Suites
 
 ```bash
-# Run the 335-test Web Intelligence, Security & Integration Suite
+# Run the 356-test Web Intelligence, Security & Integration Suite
 cd apps/web
 npx --yes tsx src/services/runAllTests.ts
 

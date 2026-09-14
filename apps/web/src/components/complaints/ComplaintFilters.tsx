@@ -130,15 +130,15 @@ export const ComplaintFilters: React.FC<ComplaintFiltersProps> = ({
             className="w-full h-8 rounded border border-[#D9E2EC] bg-white text-[#172B4D] px-2 text-xs focus:outline-none focus:border-[#1769D2]"
           >
             <option value="all">All Wards</option>
-            <option value="Ward 07">Ward 07 - Aundh</option>
-            <option value="Ward 08">Ward 08 - Deccan</option>
-            <option value="Ward 09">Ward 09 - Shivaji Nagar</option>
-            <option value="Ward 10">Ward 10 - Erandwane</option>
-            <option value="Ward 12">Ward 12 - Swargate</option>
-            <option value="Ward 14">Ward 14 - Koregaon Park</option>
-            <option value="Ward 18">Ward 18 - Kharadi</option>
-            <option value="Ward 22">Ward 22 - Kothrud</option>
-            <option value="Ward 31">Ward 31 - Katraj</option>
+            <option value="Ward 01">Ward 01 - Sadar Bazar</option>
+            <option value="Ward 02">Ward 02 - Saat Rasta</option>
+            <option value="Ward 03">Ward 03 - Navi Peth</option>
+            <option value="Ward 04">Ward 04 - Jule Solapur</option>
+            <option value="Ward 05">Ward 05 - Hotgi Road</option>
+            <option value="Ward 06">Ward 06 - Akkalkot Road</option>
+            <option value="Ward 07">Ward 07 - Vijapur Road</option>
+            <option value="Ward 08">Ward 08 - Railway Station</option>
+            <option value="Ward 09">Ward 09 - North Solapur</option>
           </select>
         </div>
       </div>

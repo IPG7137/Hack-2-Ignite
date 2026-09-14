@@ -1,4 +1,4 @@
-﻿import 'dart:convert';
+import 'dart:convert';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'credit_service.dart';
 // import 'package:shared_preferences/shared_preferences.dart'; // Unused import
@@ -299,6 +299,9 @@ class DatabaseService {
   }
 
   Stream<List<ReportModel>> getUserReportsStream(String userId) {
+    if (userId.isEmpty) {
+      return Stream.value(<ReportModel>[]);
+    }
     return _supabase
         .from('reports')
         .stream(primaryKey: ['id'])

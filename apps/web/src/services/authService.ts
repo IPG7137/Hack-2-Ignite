@@ -262,8 +262,12 @@ export class AuthService {
   ): { unsubscribe: () => void } {
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
-      const authUser = session?.user ? this.mapSupabaseUserToAuthUser(session.user) : null;
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      let authUser: AuthUser | null = null;
+      if (session?.user) {
+        const { profile, role } = await this.fetchUserProfileAndRole(session.user.id);
+        authUser = this.mapSupabaseUserToAuthUser(session.user, profile, role);
+      }
       callback(event, session, authUser);
     });
 

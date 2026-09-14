@@ -122,6 +122,19 @@ class _ComprehensiveTrackReportsScreenState extends State<ComprehensiveTrackRepo
       _errorMessage = '';
     });
     
+    if (!_isAdmin && userId.isEmpty) {
+      print('ℹ️ No authenticated user for citizen track reports stream, skipping subscription');
+      setState(() {
+        _allReports = [];
+        _filteredReports = [];
+        _isLoading = false;
+        _hasError = false;
+        _errorMessage = '';
+        _hasInitialLoad = true;
+      });
+      return;
+    }
+
     // Check cached data first
     if (_hasValidCachedData() && !_isRefreshing) {
       setState(() {

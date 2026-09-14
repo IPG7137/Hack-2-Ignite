@@ -11,6 +11,7 @@ import { runProfileRoleTests } from './profileRole.test';
 import { runRLSSecurityTests } from './rlsSecurity.test';
 import { runAIAuthorizationTests } from './aiAuthorization.test';
 import { runIntegrationContractTests } from './integrationContract.test';
+import { runCommandCenterAuthAndQueueTests } from './commandCenterAuthAndQueue.test';
 
 async function main() {
   console.log('===========================================================');
@@ -99,6 +100,12 @@ async function main() {
   totalFailed += res13.failed;
   allErrors.push(...res13.errors);
 
+  // Phase 14: Command Center Auth Gate & Complaints Queue
+  const res14 = await runCommandCenterAuthAndQueueTests();
+  totalPassed += res14.passed;
+  totalFailed += res14.failed;
+  allErrors.push(...res14.errors);
+
   console.log('\n===========================================================');
   console.log('📊 FINAL VERIFICATION SCORECARD:');
   console.log(`   3A Similarity:             ${res3A.passed}/${res3A.passed + res3A.failed}`);
@@ -114,6 +121,7 @@ async function main() {
   console.log(`   9D Secure RLS:             ${res9D.passed}/${res9D.passed + res9D.failed}`);
   console.log(`   9E/9F AI Auth & Security:  ${res9EF.passed}/${res9EF.passed + res9EF.failed}`);
   console.log(`   13 Live Integration:       ${res13.passed}/${res13.passed + res13.failed}`);
+  console.log(`   14 Auth Gate & Queue:      ${res14.passed}/${res14.passed + res14.failed}`);
   console.log('-----------------------------------------------------------');
   console.log(`   TOTAL:                     ${totalPassed} PASSED / ${totalFailed} FAILED`);
   console.log('===========================================================');

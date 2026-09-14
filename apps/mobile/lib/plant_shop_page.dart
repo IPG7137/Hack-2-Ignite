@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'credit_service.dart';
+import 'auth_service.dart';
 
 class PlantShopPage extends StatefulWidget {
   const PlantShopPage({super.key});
@@ -147,17 +148,31 @@ class _PlantShopPageState extends State<PlantShopPage> with TickerProviderStateM
 
   Future<void> _loadUserCredits() async {
     try {
-      const userId = 'user_12345';
+      final authService = AuthService.instance;
+      final userId = authService.userId ?? authService.supabaseUser?.id ?? '';
+      if (userId.isEmpty) {
+        if (mounted) {
+          setState(() {
+            _userCredits = 0;
+            _isLoading = false;
+          });
+        }
+        return;
+      }
       final credits = await CreditService.getUserTotalCredits(userId);
-      setState(() {
-        _userCredits = credits;
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _userCredits = credits;
+          _isLoading = false;
+        });
+      }
     } catch (e) {
-      setState(() {
-        _userCredits = 65; // fallback for active preview
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _userCredits = 0;
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -240,11 +255,18 @@ class _PlantShopPageState extends State<PlantShopPage> with TickerProviderStateM
     if (!confirmed) return;
 
     try {
-      const userId = 'user_12345';
+      final authService = AuthService.instance;
+      final userId = authService.userId ?? authService.supabaseUser?.id ?? '';
+      if (userId.isEmpty) {
+        _showErrorDialog();
+        return;
+      }
       await CreditService.spendCredits(userId, cost, 'Redeemed ${voucher['title']}');
-      setState(() {
-        _userCredits -= cost;
-      });
+      if (mounted) {
+        setState(() {
+          _userCredits -= cost;
+        });
+      }
 
       _showClaimSuccessDialog(voucher);
     } catch (e) {
@@ -326,7 +348,12 @@ class _PlantShopPageState extends State<PlantShopPage> with TickerProviderStateM
     if (!confirmed) return;
 
     try {
-      const userId = 'user_12345';
+      final authService = AuthService.instance;
+      final userId = authService.userId ?? authService.supabaseUser?.id ?? '';
+      if (userId.isEmpty) {
+        _showErrorDialog();
+        return;
+      }
       final success = await CreditService.spendCredits(
         userId,
         price,

@@ -201,7 +201,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
           <div>
             <div className="flex items-center gap-2 flex-wrap">
               <h1 className="text-sm font-bold text-[#123B6D] tracking-tight">
-                Good day, Municipal Duty Officer
+                {user?.role === 'municipal_admin' || user?.role === 'super_admin'
+                  ? 'Good day, Municipal Administrator (HQ)'
+                  : `Good day, ${user?.fullName || 'Zone 2 Duty Officer'}`}
               </h1>
               {urgentActiveCount > 0 ? (
                 <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-red-50 text-[#D92D20] border border-red-200 font-bold flex items-center gap-1.5">
@@ -216,7 +218,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
               )}
             </div>
             <p className="text-xs text-[#526581] mt-0.5">
-              Live municipal command portal connected to shared Supabase project ({complaints.length} grievances on record).
+              {user?.role === 'municipal_admin' || user?.role === 'super_admin'
+                ? `Live City-wide Municipal Command Center connected to Supabase (${complaints.length} city-wide grievances on record).`
+                : `Live Zone 2 Operations Desk connected to Supabase (${complaints.length} local grievances on record).`}
             </p>
           </div>
         </div>

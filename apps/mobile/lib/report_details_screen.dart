@@ -14,6 +14,7 @@ import 'python_disaster_classifier.dart';
 import 'comprehensive_database_service.dart';
 import 'comprehensive_report_models.dart';
 import 'credit_service.dart';
+import 'auth_service.dart';
 import 'leaflet_map_service.dart';
 import 'geospatial_geojson_service.dart';
 import 'similarity_engine.dart';
@@ -622,9 +623,11 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> with TickerPr
               Expanded(
                 child: ElevatedButton.icon(
                   onPressed: () async {
-                    try {
-                      await CreditService.awardCreditsForReport('user_12345', _duplicateParentId ?? '1');
-                    } catch (_) {}
+                    final authService = AuthService.instance;
+                    final currentUserId = authService.userId ?? authService.supabaseUser?.id;
+                    if (currentUserId != null && currentUserId.isNotEmpty) {
+                      await CreditService.awardCreditsForReport(currentUserId, _duplicateParentId ?? '1');
+                    }
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
@@ -1078,35 +1081,44 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> with TickerPr
       String detectedPriority = 'Medium';
       String explanation = 'Analysis in progress...';
       
-      // Try Python classifier first (enhanced analysis)
-      try {
-        final pythonResult = await PythonDisasterClassifier.enhancedClassification(imageFile.path);
-        
-        if (pythonResult['success'] == true) {
-          detectedPriority = pythonResult['final_priority'] ?? pythonResult['priority'] ?? 'Medium';
-          explanation = 'Python AI Analysis: ${pythonResult['priority']}';
+      if (!kIsWeb) {
+        // Try Python classifier first on native platforms (enhanced analysis)
+        try {
+          final pythonResult = await PythonDisasterClassifier.enhancedClassification(imageFile.path);
           
-          if (pythonResult['priority_override'] != null) {
-            explanation += '\n${pythonResult['priority_override']}';
+          if (pythonResult['success'] == true) {
+            detectedPriority = pythonResult['final_priority'] ?? pythonResult['priority'] ?? 'Medium';
+            explanation = 'Python AI Analysis: ${pythonResult['priority']}';
+            
+            if (pythonResult['priority_override'] != null) {
+              explanation += '\n${pythonResult['priority_override']}';
+            }
+            
+            if (pythonResult['error'] != null) {
+              explanation += '\nNote: ${pythonResult['error']}';
+            }
+            
+            print('🐍 Python Classification Success: $detectedPriority');
+          } else {
+            throw Exception('Python classifier failed: ${pythonResult['error']}');
           }
+        } catch (pythonError) {
+          print('⚠️ Python classifier unavailable, falling back to Flutter AI: $pythonError');
           
-          if (pythonResult['error'] != null) {
-            explanation += '\nNote: ${pythonResult['error']}';
-          }
-          
-          print('🐍 Python Classification Success: $detectedPriority');
-        } else {
-          throw Exception('Python classifier failed: ${pythonResult['error']}');
+          // Fallback to Flutter AI analysis
+          detectedPriority = await ImageAnalysisService.analyzeImageForPriority(
+            imageFile, 
+            description: currentDescription.isNotEmpty ? currentDescription : null
+          );
+          explanation = '${ImageAnalysisService.getPriorityExplanation(detectedPriority)}\n\nNote: Used Flutter AI';
         }
-      } catch (pythonError) {
-        print('⚠️ Python classifier failed, falling back to Flutter AI: $pythonError');
-        
-        // Fallback to original Flutter AI analysis
+      } else {
+        // Direct Flutter / Web AI analysis on Flutter Web
         detectedPriority = await ImageAnalysisService.analyzeImageForPriority(
           imageFile, 
           description: currentDescription.isNotEmpty ? currentDescription : null
         );
-        explanation = '${ImageAnalysisService.getPriorityExplanation(detectedPriority)}\n\nNote: Used Flutter AI (Python classifier unavailable)';
+        explanation = '${ImageAnalysisService.getPriorityExplanation(detectedPriority)}\n\nNote: Web AI Triage Engine';
       }
 
       if (mounted) {

@@ -89,16 +89,21 @@ class _MapViewScreenState extends State<MapViewScreen> with TickerProviderStateM
   }
 
   void _onLanguageChanged() {
-    setState(() {});
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   Future<void> _initLocationAndFetchReports() async {
+    if (!mounted) return;
     setState(() {
       _isLoading = true;
     });
 
     await _obtainUserLocation();
+    if (!mounted) return;
     await _fetchNearbyReports();
+    if (!mounted) return;
     _setupRealtimeSubscription();
 
     if (mounted) {
@@ -113,6 +118,7 @@ class _MapViewScreenState extends State<MapViewScreen> with TickerProviderStateM
     _realtimeSubscription?.cancel();
     _realtimeSubscription = _databaseService.getAllReportsStream().listen(
       (allReports) {
+        if (!mounted) return;
         _allStreamReports = allReports;
         _applyFiltersAndRefreshMap(updateWebview: true);
       },
@@ -221,6 +227,7 @@ class _MapViewScreenState extends State<MapViewScreen> with TickerProviderStateM
   double get _effectiveLng => _currentPosition?.longitude ?? _defaultLongitude;
 
   Future<void> _fetchNearbyReports() async {
+    if (!mounted) return;
     setState(() {
       _isLoadingReports = true;
     });
@@ -235,6 +242,7 @@ class _MapViewScreenState extends State<MapViewScreen> with TickerProviderStateM
         statusFilter: _selectedStatus,
       );
 
+      if (!mounted) return;
       _allStreamReports = reports;
 
       // Phase 3C: Compute emerging problem hotspots across nearby reports
@@ -334,12 +342,15 @@ class _MapViewScreenState extends State<MapViewScreen> with TickerProviderStateM
 
   Future<void> _recenterOnUserLocation() async {
     HapticFeedback.selectionClick();
+    if (!mounted) return;
     setState(() {
       _isLoading = true;
     });
 
     await _obtainUserLocation();
+    if (!mounted) return;
     await _fetchNearbyReports();
+    if (!mounted) return;
 
     if (_webViewController != null) {
       _initializeMapController();
@@ -455,7 +466,9 @@ class _MapViewScreenState extends State<MapViewScreen> with TickerProviderStateM
           icon: const Icon(Icons.refresh),
           tooltip: 'Refresh nearby reports',
           onPressed: () {
-            _fetchNearbyReports().then((_) => _initializeMapController());
+            _fetchNearbyReports().then((_) {
+              if (mounted) _initializeMapController();
+            });
           },
         ),
       ],

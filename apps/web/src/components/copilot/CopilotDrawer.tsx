@@ -50,7 +50,7 @@ You can click any prompt chip below or type an inquiry regarding road safety clu
     if (!query.trim() || isProcessing) return;
 
     const userMsg: CopilotMessage = {
-      id: `USR-${Date.now()}`,
+      id: `chat-msg-${Date.now()}`,
       sender: 'user',
       content: query,
       timestamp: new Date().toISOString(),

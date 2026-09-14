@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { RefreshCw, LogIn, LogOut, UserCircle, ShieldCheck } from 'lucide-react';
+import { RefreshCw, LogIn, LogOut, ShieldCheck, MapPin, Building } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { useAuth } from '../../hooks/useAuth';
 import { LoginModal } from '../auth/LoginModal';
@@ -17,6 +17,9 @@ export const CommandHeader: React.FC<CommandHeaderProps> = ({
   const [timeString, setTimeString] = useState<string>('');
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const { user, isAuthenticated, signOut } = useAuth();
+
+  const isMunicipalAdmin = user?.role === 'municipal_admin' || user?.role === 'super_admin';
+  const isZoneAdmin = user?.role === 'officer' || user?.role === 'dept_admin';
 
   useEffect(() => {
     const updateTime = () => {
@@ -49,18 +52,31 @@ export const CommandHeader: React.FC<CommandHeaderProps> = ({
   const getRoleLabel = (role?: string) => {
     switch (role) {
       case 'super_admin':
-        return 'Super Admin';
+        return 'Super Admin (HQ)';
       case 'municipal_admin':
-        return 'Municipal Admin';
+        return 'Municipal Admin (HQ)';
       case 'dept_admin':
-        return 'Dept Admin';
+        return 'Dept Admin (Zone 2)';
       case 'citizen':
         return 'Citizen Portal';
       case 'officer':
       default:
-        return 'Duty Officer';
+        return 'Zone 2 Duty Officer';
     }
   };
+
+  // Header Title and Subtitle dynamically formatted per Solapur municipal requirement
+  const headerTitle = isMunicipalAdmin
+    ? 'CivicResolve — Solapur Municipal Command Center'
+    : 'CivicResolve — Zone Operations';
+
+  const headerSubtitle = isMunicipalAdmin
+    ? 'Solapur Municipal Operations & Grievance Redressal System'
+    : 'Solapur Municipal Administration • Zone Operations Desk';
+
+  const scopeBadgeLabel = isMunicipalAdmin
+    ? 'City-wide HQ'
+    : user?.ward || 'Zone 2 Command';
 
   return (
     <>
@@ -71,42 +87,46 @@ export const CommandHeader: React.FC<CommandHeaderProps> = ({
         <div className="flex items-center gap-3 shrink-0">
           <img
             src="/assets/images/municipal_emblem.png"
-            alt="Municipal Corporation Emblem"
+            alt="Solapur Municipal Corporation Emblem"
             className="w-11 h-11 object-contain shrink-0 drop-shadow-xs"
           />
           <div className="flex flex-col justify-center shrink-0">
             <div className="text-[14px] font-bold text-[#123B6D] tracking-tight leading-snug whitespace-nowrap">
-              MUNICIPAL CORPORATION
+              SOLAPUR MUNICIPAL CORPORATION
             </div>
             <div className="text-[11px] font-semibold text-[#526581] leading-snug whitespace-nowrap">
-              महानगरपालिका तक्रार निवारण कक्ष
+              सोलापूर महानगरपालिका तक्रार निवारण कक्ष
             </div>
             <div className="text-[9px] text-[#718096] uppercase tracking-wider leading-snug hidden sm:block whitespace-nowrap">
-              Clean City • Safe City • Smart City
+              Clean Solapur • Safe Solapur • Smart Solapur
             </div>
           </div>
         </div>
 
         {/* ==================================================
-            ZONE 2 (CENTER): CIVICRESOLVE PORTAL BRANDING
+            ZONE 2 (CENTER): CIVICRESOLVE PORTAL BRANDING (ROLE SPECIFIC)
             ================================================== */}
         <div className="hidden lg:flex flex-1 min-w-0 flex-col items-center justify-center px-4 text-center">
           <div className="flex items-center gap-2 shrink-0">
             <span className="text-base font-bold text-[#123B6D] tracking-wide whitespace-nowrap">
-              CivicResolve
+              {headerTitle}
             </span>
-            <span className="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded bg-blue-50 text-[#1769D2] border border-blue-200 font-bold whitespace-nowrap">
-              Portal v2.0
+            <span className={`text-[10px] uppercase font-mono px-2 py-0.5 rounded font-bold whitespace-nowrap border ${
+              isMunicipalAdmin
+                ? 'bg-blue-50 text-[#1769D2] border-blue-200'
+                : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+            }`}>
+              {isMunicipalAdmin ? 'HQ Command' : 'Zone 2 Operations'}
             </span>
             {isAuthenticated && (
-              <span className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
+              <span className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded bg-slate-50 text-[#526581] border border-[#D9E2EC]">
                 <ShieldCheck className="w-3 h-3 text-emerald-600" />
                 <span>AUTH SESSION</span>
               </span>
             )}
           </div>
           <span className="text-[11px] text-[#526581] font-medium tracking-tight mt-0.5 truncate max-w-full">
-            Municipal Operations & Grievance Redressal System
+            {headerSubtitle} • Municipal Grievance Redressal System
           </span>
         </div>
 
@@ -116,11 +136,10 @@ export const CommandHeader: React.FC<CommandHeaderProps> = ({
         <div className="flex items-center gap-2 xl:gap-2.5 shrink-0">
           {/* Operational Telemetry & Time */}
           <div className="hidden md:flex items-center gap-2 text-xs font-mono shrink-0">
-            {/* Weather Widget */}
+            {/* Jurisdiction Badge */}
             <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-md bg-[#F8FAFC] border border-[#D9E2EC] text-[#526581] shadow-2xs shrink-0">
-              <span className="text-amber-500 text-xs">☀️</span>
-              <span className="text-[#172B4D] font-bold text-xs">28°C</span>
-              <span className="text-[10px] text-[#718096] hidden 2xl:inline">HQ Command</span>
+              <MapPin className="w-3.5 h-3.5 text-[#1769D2]" />
+              <span className="text-[#172B4D] font-bold text-xs">{scopeBadgeLabel}</span>
             </div>
 
             {/* System Operational Heartbeat */}

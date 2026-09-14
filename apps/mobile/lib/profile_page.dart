@@ -103,17 +103,29 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
 
   Future<void> _loadUserCredits() async {
     try {
-      const userId = 'user_12345'; // In real app, get from auth
+      final authService = AuthService.instance;
+      final userId = authService.userId ?? authService.supabaseUser?.id ?? '';
+      if (userId.isEmpty) {
+        setState(() {
+          _userCredits = 0;
+          _isLoadingCredits = false;
+        });
+        return;
+      }
       final credits = await CreditService.getUserTotalCredits(userId);
-      setState(() {
-        _userCredits = credits;
-        _isLoadingCredits = false;
-      });
+      if (mounted) {
+        setState(() {
+          _userCredits = credits;
+          _isLoadingCredits = false;
+        });
+      }
     } catch (e) {
-      setState(() {
-        _userCredits = 0;
-        _isLoadingCredits = false;
-      });
+      if (mounted) {
+        setState(() {
+          _userCredits = 0;
+          _isLoadingCredits = false;
+        });
+      }
     }
   }
 

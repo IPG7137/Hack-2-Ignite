@@ -101,6 +101,27 @@ class _ConfirmationScreenState extends State<ConfirmationScreen>
   }
 
   Future<void> _handleFinalSubmission() async {
+    final authService = AuthService.instance;
+    final currentSupabaseUser = authService.supabaseUser;
+    final currentUserId = authService.userId ?? currentSupabaseUser?.id;
+
+    if (currentUserId == null || currentUserId.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please sign in to submit a complaint.'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        setState(() {
+          _isSubmitting = false;
+          _errorMessage = 'Authentication required: Please sign in with a valid account to submit complaints.';
+        });
+      }
+      return;
+    }
+
     setState(() {
       _isSubmitting = true;
       _errorMessage = null;
@@ -148,14 +169,12 @@ class _ConfirmationScreenState extends State<ConfirmationScreen>
           }
         }
 
-        final authService = AuthService.instance;
-        final userId = authService.userId ?? authService.supabaseUser?.id ?? '';
         final reportTitle = (widget.title != null && widget.title!.trim().isNotEmpty)
             ? widget.title!.trim()
             : widget.category.name;
 
         final result = await databaseService.submitComprehensiveReport(
-          userId: userId,
+          userId: currentUserId,
           title: reportTitle,
           description: widget.description,
           category: widget.category.id,
@@ -195,6 +214,18 @@ class _ConfirmationScreenState extends State<ConfirmationScreen>
           throw Exception(result.message);
         }
       } catch (e) {
+        print('❌ Submission error: $e');
+        final errStr = e.toString();
+        if (errStr.contains('User ID') || errStr.contains('Authentication') || errStr.contains('JWT') || errStr.contains('sign in')) {
+          if (mounted) {
+            setState(() {
+              _isSubmitting = false;
+              _errorMessage = 'Please sign in to submit a complaint.';
+            });
+          }
+          return;
+        }
+
         retryCount++;
         print('❌ Submission attempt $retryCount failed: $e');
 
@@ -205,6 +236,7 @@ class _ConfirmationScreenState extends State<ConfirmationScreen>
               _errorMessage = 'Unable to submit your complaint right now. Please check your internet connection and try again.';
             });
           }
+          return;
         } else {
           await Future.delayed(Duration(seconds: retryCount));
         }
@@ -214,8 +246,11 @@ class _ConfirmationScreenState extends State<ConfirmationScreen>
 
   Future<void> _awardCreditsForReport(String reportId, String category) async {
     try {
-      const userId = 'user_12345';
-      await CreditService.awardCreditsForReport(userId, reportId);
+      final authService = AuthService.instance;
+      final currentUserId = authService.userId ?? authService.supabaseUser?.id;
+      if (currentUserId != null && currentUserId.isNotEmpty) {
+        await CreditService.awardCreditsForReport(currentUserId, reportId);
+      }
     } catch (_) {}
   }
 

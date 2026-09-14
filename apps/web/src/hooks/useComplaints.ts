@@ -3,8 +3,10 @@ import { Complaint, ComplaintStatus } from '../types/complaint';
 import { complaintService } from '../services/complaintService';
 import { ComplaintFilterParams } from '../services/api.interface';
 import { supabase } from '../services/supabaseClient';
+import { useAuthContext } from '../context/AuthContext';
 
 export function useComplaints(initialFilters: ComplaintFilterParams = {}) {
+  const { user, isAuthenticated } = useAuthContext();
   const [complaints, setComplaints] = useState<Complaint[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -22,7 +24,7 @@ export function useComplaints(initialFilters: ComplaintFilterParams = {}) {
     } finally {
       setLoading(false);
     }
-  }, [filters]);
+  }, [filters, isAuthenticated, user?.id]);
 
   useEffect(() => {
     fetchComplaints();

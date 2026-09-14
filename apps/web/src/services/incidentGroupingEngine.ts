@@ -83,7 +83,7 @@ export class IncidentGroupingEngine {
     'in', 'is', 'it', 'its', 'of', 'on', 'that', 'the', 'to', 'was', 'were',
     'will', 'with', 'there', 'this', 'near', 'area', 'please', 'complaint',
     'issue', 'problem', 'sir', 'madam', 'colony', 'nagar', 'ward', 'daily',
-    'urgent', 'kindly', 'help', 'report', 'reported', 'solapur', 'pune', 'street',
+    'urgent', 'kindly', 'help', 'report', 'reported', 'solapur', 'street',
     'road', 'roadside', 'side', 'lane', 'sector'
   ]);
 

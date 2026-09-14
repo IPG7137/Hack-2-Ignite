@@ -666,11 +666,15 @@ class ComprehensiveDatabaseService {
     }
   }
 
-  /// Stream user reports for real-time updates with enhanced responsiveness
   Stream<List<ComprehensiveReportModel>> getUserReportsStream(String userId) {
     // Resolve authenticated UUID if available
     final authId = _supabase.auth.currentUser?.id;
     final effectiveUserId = (authId != null && authId.isNotEmpty) ? authId : userId;
+
+    if (effectiveUserId.isEmpty) {
+      print('ℹ️ No authenticated user ID provided for user reports stream, returning empty stream');
+      return Stream.value(<ComprehensiveReportModel>[]);
+    }
 
     print('🔄 Setting up real-time stream for user: $effectiveUserId');
     return _supabase
@@ -763,7 +767,7 @@ class ComprehensiveDatabaseService {
   // ADMIN FUNCTIONS
   // ========================================
 
-  /// Update report status (admin only)
+  /// Update report status (admin / officer)
   Future<StatusUpdateResult> updateReportStatus({
     required String reportId,
     required ReportStatus newStatus,
@@ -771,19 +775,39 @@ class ComprehensiveDatabaseService {
     String? adminNote,
   }) async {
     try {
-      final response = await _supabase
-          .rpc('update_report_status', params: {
-            'report_id_input': int.parse(reportId),
-            'new_status': newStatus.value,
-            'admin_id_input': adminId,
-            'admin_note': adminNote,
-          });
+      final now = DateTime.now().toIso8601String();
+      final updateData = <String, dynamic>{
+        'status': newStatus.canonicalDbValue,
+        'updated_at': now,
+      };
 
-      if (response.isNotEmpty && response[0]['success'] == true) {
-        return StatusUpdateResult.success(response[0]['message']);
-      } else {
-        return StatusUpdateResult.error(response[0]['message'] ?? 'Status update failed');
+      if (adminNote != null && adminNote.isNotEmpty) {
+        updateData['admin_notes'] = adminNote;
       }
+      if (newStatus == ReportStatus.resolved ||
+          newStatus == ReportStatus.resolution_submitted ||
+          newStatus == ReportStatus.verified ||
+          newStatus == ReportStatus.closed) {
+        updateData['completion_date'] = now;
+      }
+
+      await _supabase
+          .from('reports')
+          .update(updateData)
+          .eq('id', reportId);
+
+      // Attempt to record in status history if table exists
+      try {
+        await _supabase.from('report_status_history').insert({
+          'report_id': int.tryParse(reportId) ?? reportId,
+          'new_status': newStatus.canonicalDbValue,
+          'changed_by': adminId,
+          'change_reason': adminNote ?? 'Status updated by authorized staff',
+          'created_at': now,
+        });
+      } catch (_) {}
+
+      return StatusUpdateResult.success('Status updated to ${newStatus.displayName}');
     } catch (e) {
       print('Status update error: $e');
       return StatusUpdateResult.error('Status update error: ${e.toString()}');
@@ -798,19 +822,26 @@ class ComprehensiveDatabaseService {
     AdminNoteType noteType = AdminNoteType.internal,
   }) async {
     try {
-      final response = await _supabase
-          .rpc('add_admin_note', params: {
-            'report_id_input': int.parse(reportId),
-            'admin_id_input': adminId,
-            'note_text_input': noteText,
-            'note_type_input': noteType.value,
-          });
+      final now = DateTime.now().toIso8601String();
+      await _supabase
+          .from('reports')
+          .update({
+            'admin_notes': noteText,
+            'updated_at': now,
+          })
+          .eq('id', reportId);
 
-      if (response.isNotEmpty && response[0]['success'] == true) {
-        return StatusUpdateResult.success(response[0]['message']);
-      } else {
-        return StatusUpdateResult.error(response[0]['message'] ?? 'Adding note failed');
-      }
+      try {
+        await _supabase.from('admin_notes').insert({
+          'report_id': int.tryParse(reportId) ?? reportId,
+          'admin_id': adminId,
+          'note_text': noteText,
+          'note_type': noteType.value,
+          'created_at': now,
+        });
+      } catch (_) {}
+
+      return StatusUpdateResult.success('Note added successfully');
     } catch (e) {
       print('Add note error: $e');
       return StatusUpdateResult.error('Add note error: ${e.toString()}');

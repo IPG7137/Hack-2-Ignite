@@ -5,6 +5,7 @@ import { Card } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
 import { hasValidCoordinates } from '../services/reportAdapter';
+import { useAuth } from '../hooks/useAuth';
 import {
   MapPin,
   Layers,
@@ -56,37 +57,29 @@ export const LiveMap: React.FC<LiveMapProps> = ({
   error = null,
   onRefresh,
 }) => {
+  const { user } = useAuth();
+  const isMunicipalAdmin = user?.role === 'municipal_admin' || user?.role === 'super_admin';
+
   const [selectedCategory, setSelectedCategory] = useState<IncidentCategory | 'all'>('all');
   const [selectedPriority, setSelectedPriority] = useState<ComplaintPriority | 'all'>('all');
-  const [selectedStatus, setSelectedStatus] = useState<ComplaintStatus | 'all' | 'overdue'>('all');
-  const [activePinId, setActivePinId] = useState<string | null>(null);
+  const [selectedStatus, setSelectedStatus] = useState<ComplaintStatus | 'all'>('all');
   const [show200mRings, setShow200mRings] = useState<boolean>(true);
   const [showHotspots, setShowHotspots] = useState<boolean>(true);
+  const [activePinId, setActivePinId] = useState<string | null>(null);
 
-  // 1. Separate plottable complaints (with valid GPS) from unplottable
-  const { plottableComplaints, unplottableCount } = useMemo(() => {
-    let valid: Complaint[] = [];
-    let unplottable = 0;
-    complaints.forEach((c) => {
-      if (hasValidCoordinates(c)) {
-        valid.push(c);
-      } else {
-        unplottable++;
-      }
-    });
-    return { plottableComplaints: valid, unplottableCount: unplottable };
+  // 1. Filter out reports without valid numeric lat/lng
+  const plottableComplaints = useMemo(() => {
+    return complaints.filter((c) => hasValidCoordinates(c));
   }, [complaints]);
 
-  // 2. Apply user filters across category, priority, and status
+  const unplottableCount = complaints.length - plottableComplaints.length;
+
+  // 2. Filter plotted markers by selected tactical filter params
   const filteredComplaints = useMemo(() => {
     return plottableComplaints.filter((c) => {
       if (selectedCategory !== 'all' && c.category !== selectedCategory) return false;
       if (selectedPriority !== 'all' && c.priority !== selectedPriority) return false;
-      if (selectedStatus === 'overdue') {
-        if (!c.sla.isOverdue) return false;
-      } else if (selectedStatus !== 'all') {
-        if (c.status !== selectedStatus) return false;
-      }
+      if (selectedStatus !== 'all' && c.status !== selectedStatus) return false;
       return true;
     });
   }, [plottableComplaints, selectedCategory, selectedPriority, selectedStatus]);
@@ -165,7 +158,7 @@ export const LiveMap: React.FC<LiveMapProps> = ({
         <div className="flex items-center gap-2">
           <MapPin className="w-4 h-4 text-[#1769D2]" />
           <h2 className="text-xs font-bold uppercase tracking-wider text-[#172B4D]">
-            GIS Tactical Command Map
+            {isMunicipalAdmin ? 'City-wide GIS Incident Matrix' : 'Zone 2 Incident & Response GIS Map'}
           </h2>
           <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-blue-50 text-[#1769D2] border border-blue-200 font-semibold">
             {filteredComplaints.length} PLOTTED ON MAP

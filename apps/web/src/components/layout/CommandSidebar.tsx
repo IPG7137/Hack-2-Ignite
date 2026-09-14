@@ -11,8 +11,10 @@ import {
   Bot,
   Settings,
   ChevronRight,
+  ShieldCheck,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { useAuth } from '../../hooks/useAuth';
 
 export type ActivePage =
   | 'dashboard'
@@ -40,7 +42,10 @@ export const CommandSidebar: React.FC<CommandSidebarProps> = ({
   urgentCount = 4,
   openCount = 18,
 }) => {
-  const menuItems: Array<{
+  const { user } = useAuth();
+  const isMunicipalAdmin = user?.role === 'municipal_admin' || user?.role === 'super_admin';
+
+  const municipalAdminMenuItems: Array<{
     id: ActivePage;
     label: string;
     icon: React.ElementType;
@@ -59,10 +64,30 @@ export const CommandSidebar: React.FC<CommandSidebarProps> = ({
     { id: 'settings', label: 'System Configuration', icon: Settings },
   ];
 
+  const zoneAdminMenuItems: Array<{
+    id: ActivePage;
+    label: string;
+    icon: React.ElementType;
+    badge?: number;
+    badgeColor?: string;
+  }> = [
+    { id: 'dashboard', label: 'Zone 2 Overview', icon: LayoutDashboard },
+    { id: 'complaints', label: 'Zone 2 Queue', icon: FileText, badge: openCount },
+    { id: 'map', label: 'Zone 2 Incident Map', icon: MapPin },
+    { id: 'field_teams', label: 'Field Response Crews', icon: Users },
+    { id: 'sla', label: 'Zone 2 SLA Matrix', icon: Timer, badge: urgentCount, badgeColor: 'bg-amber-50 text-amber-700 border border-amber-200' },
+    { id: 'copilot', label: 'Field Decision Copilot', icon: Bot },
+  ];
+
+  const menuItems = isMunicipalAdmin ? municipalAdminMenuItems : zoneAdminMenuItems;
+
   return (
     <aside className="w-64 border-r border-[#D9E2EC] bg-white flex flex-col shrink-0 select-none shadow-xs h-full min-h-0">
-      <div className="p-3 text-[10px] font-mono uppercase tracking-wider text-[#718096] font-bold border-b border-[#E8EEF5] shrink-0">
-        Operations Control
+      <div className="p-3 text-[10px] font-mono uppercase tracking-wider text-[#718096] font-bold border-b border-[#E8EEF5] shrink-0 flex items-center justify-between">
+        <span>{isMunicipalAdmin ? 'Operations Control (HQ)' : 'Zone 2 Operations Desk'}</span>
+        <span className="text-[9px] px-1.5 py-0.2 rounded bg-slate-100 text-[#172B4D] font-bold font-mono">
+          {isMunicipalAdmin ? 'HQ' : 'ZONE 2'}
+        </span>
       </div>
 
       <nav className="flex-1 p-2 space-y-1 overflow-y-auto min-h-0">
@@ -130,7 +155,9 @@ export const CommandSidebar: React.FC<CommandSidebarProps> = ({
         <div className="p-2.5 border-t border-[#E8EEF5] bg-[#F8FAFC] text-[11px]">
           <div className="flex items-center justify-between text-[#526581]">
             <span>Active Command Ward:</span>
-            <span className="font-mono text-[#172B4D] font-bold">Zone 2 (HQ)</span>
+            <span className="font-mono text-[#172B4D] font-bold">
+              {isMunicipalAdmin ? 'City-wide HQ (All Wards)' : user?.ward || 'Zone 2 Command'}
+            </span>
           </div>
           <div className="flex items-center justify-between text-[#718096] text-[10px] mt-1">
             <span>SLA Adherence:</span>

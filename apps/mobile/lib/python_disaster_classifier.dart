@@ -9,6 +9,14 @@ class PythonDisasterClassifier {
   /// Classify disaster image using Python script
   /// Returns a map with classification results
   static Future<Map<String, dynamic>> classifyImage(String imagePath) async {
+    if (kIsWeb) {
+      return {
+        'error': 'Python local execution is not supported in browser/Flutter Web environment',
+        'priority': 'Medium',
+        'success': false,
+      };
+    }
+
     try {
       // Ensure image file exists
       final imageFile = File(imagePath);
@@ -90,6 +98,14 @@ class PythonDisasterClassifier {
 
   /// Enhanced classification that combines Python and Dart analysis
   static Future<Map<String, dynamic>> enhancedClassification(String imagePath) async {
+    if (kIsWeb) {
+      return {
+        'error': 'Python classifier not available in web environment. Using intelligent client AI fallback.',
+        'priority': 'Medium',
+        'success': false,
+      };
+    }
+
     try {
       // Get Python classification
       final pythonResult = await classifyImage(imagePath);
@@ -134,6 +150,7 @@ class PythonDisasterClassifier {
 
   /// Check if Python environment is ready
   static Future<bool> checkPythonEnvironment() async {
+    if (kIsWeb) return false;
     try {
       final result = await Process.run('python', ['--version'], runInShell: true);
       return result.exitCode == 0;
@@ -147,6 +164,7 @@ class PythonDisasterClassifier {
 
   /// Install required Python packages
   static Future<bool> installPythonDependencies() async {
+    if (kIsWeb) return false;
     try {
       final packages = ['google-generativeai', 'pillow'];
       

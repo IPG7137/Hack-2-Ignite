@@ -111,12 +111,10 @@ class ImageAnalysisService {
     return _model!;
   }
 
-  /// Full structured AI triage analysis with JSON enforcement
-  static Future<AiTriageResult> analyzeImage(File imageFile, {String? description}) async {
+  /// Full structured AI triage analysis with JSON enforcement from raw bytes
+  static Future<AiTriageResult> analyzeImageBytes(Uint8List imageBytes, {String? description}) async {
     try {
       print('🔍 Starting structured Gemini AI Triage analysis...');
-      final Uint8List imageBytes = await imageFile.readAsBytes();
-      
       final prompt = _buildStructuredPrompt(description);
       final content = [
         Content.multi([
@@ -165,6 +163,17 @@ class ImageAnalysisService {
       return result;
     } catch (e) {
       print('⚠️ Structured AI analysis encountered error: $e. Using intelligent fallback triage.');
+      return _fallbackTriage(description);
+    }
+  }
+
+  /// Full structured AI triage analysis with JSON enforcement
+  static Future<AiTriageResult> analyzeImage(File imageFile, {String? description}) async {
+    try {
+      final Uint8List imageBytes = await imageFile.readAsBytes();
+      return await analyzeImageBytes(imageBytes, description: description);
+    } catch (e) {
+      print('⚠️ Structured AI analysis encountered error reading file: $e. Using intelligent fallback triage.');
       return _fallbackTriage(description);
     }
   }

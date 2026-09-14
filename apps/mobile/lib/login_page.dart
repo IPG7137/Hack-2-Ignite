@@ -171,7 +171,6 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
 
   Future<void> _handleCitizenLogin() async {
     if (!_isOtpSent) {
-      // Send OTP or Direct Login for valid Aadhaar
       if (!_citizenFormKey.currentState!.validate()) return;
 
       setState(() {
@@ -179,37 +178,8 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
       });
 
       try {
-        await Future.delayed(const Duration(milliseconds: 1500));
+        await Future.delayed(const Duration(milliseconds: 600));
         
-        // Check if admin Aadhaar (direct login)
-        bool isAdmin = _aadharController.text.replaceAll(' ', '') == '123456789012';
-        String cleanAadhaar = _aadharController.text.replaceAll(' ', '');
-        
-        // For demonstration: Allow direct login for any valid 12-digit Aadhaar
-        if (cleanAadhaar.length == 12 && RegExp(r'^\d{12}$').hasMatch(cleanAadhaar)) {
-          setState(() {
-            _isLoading = false;
-          });
-          
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Login successful! Welcome ${isAdmin ? 'Admin' : 'Citizen'}'),
-              backgroundColor: Colors.green,
-              behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              duration: const Duration(seconds: 2),
-            ),
-          );
-          
-          // Direct navigation to dashboard
-          await AppPreferences.setUserRole('citizen');
-          await _authService.login(cleanAadhaar, 'direct_auth', role: 'citizen');
-          await Future.delayed(const Duration(milliseconds: 800));
-          _navigateToDashboard(selectedRole: 'citizen', isAdmin: false);
-          return;
-        }
-        
-        // Fallback to OTP process for invalid Aadhaar
         setState(() {
           _isOtpSent = true;
           _isLoading = false;
@@ -240,11 +210,11 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
         );
       }
     } else {
-      // Verify OTP
-      if (_otpController.text.length != 6) {
+      // Verify OTP and Authenticate with Supabase Auth
+      if (_otpController.text.length < 6) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Please enter 6-digit OTP'),
+            content: Text('Please enter valid 6-digit OTP'),
             backgroundColor: Colors.red,
             behavior: SnackBarBehavior.floating,
           ),
@@ -257,37 +227,56 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
       });
 
       try {
-        await Future.delayed(const Duration(seconds: 1));
+        final cleanAadhaar = _aadharController.text.replaceAll(' ', '');
+        final otp = _otpController.text.trim();
+
+        // Authenticate citizen strictly through Supabase Auth
+        final result = await _authService.login(cleanAadhaar, otp, role: 'citizen');
         
-        // Explicitly set citizen role and authenticate
-        await AppPreferences.setUserRole('citizen');
-        final result = await _authService.login(_aadharController.text, _otpController.text, role: 'citizen');
-        
+        setState(() {
+          _isLoading = false;
+        });
+
         if (result.success) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text('Login successful! Welcome Citizen'),
-              backgroundColor: Colors.green,
-              behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            ),
-          );
-          
-          _navigateToDashboard(selectedRole: 'citizen', isAdmin: false);
+          await AppPreferences.setUserRole('citizen');
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: const Text('Login successful! Welcome Citizen'),
+                backgroundColor: Colors.green,
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+            );
+            _navigateToDashboard(selectedRole: 'citizen', isAdmin: false);
+          }
+        } else {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(result.message),
+                backgroundColor: Colors.red,
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+            );
+          }
         }
       } catch (e) {
         setState(() {
           _isLoading = false;
         });
         
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Login failed: ${e.toString()}'),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-          ),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Login failed: ${e.toString()}'),
+              backgroundColor: Colors.red,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+          );
+        }
       }
     }
   }
@@ -300,8 +289,6 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
     });
 
     try {
-      await Future.delayed(const Duration(seconds: 1));
-      
       final result = await _authService.login(
         _publicServantIdController.text.trim(),
         _passwordController.text.trim(),
@@ -314,38 +301,43 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
 
       if (result.success) {
         await AppPreferences.setUserRole('contractor');
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Login successful! Welcome Duty Officer / Field Contractor'),
-            backgroundColor: Colors.green,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-        
-        _navigateToDashboard(selectedRole: 'contractor', isAdmin: true);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Login successful! Welcome Duty Officer / Field Contractor'),
+              backgroundColor: Colors.green,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+          _navigateToDashboard(selectedRole: 'contractor', isAdmin: true);
+        }
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(result.message),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-          ),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(result.message),
+              backgroundColor: Colors.red,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+          );
+        }
       }
     } catch (e) {
       setState(() {
         _isLoading = false;
       });
       
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Login failed: ${e.toString()}'),
-          backgroundColor: Colors.red,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Login failed: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          ),
+        );
+      }
     }
   }
 
@@ -448,11 +440,11 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      'Contractors',
+                      'Field Officer',
                       style: TextStyle(
                         color: !_isCitizenSelected ? Colors.white : const Color(0xFF6B7280),
                         fontWeight: FontWeight.w600,
-                        fontSize: 16,
+                        fontSize: 15,
                       ),
                     ),
                   ],
@@ -579,30 +571,13 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Citizen Login',
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF1E293B),
-                ),
-              ),
-              TextButton.icon(
-                onPressed: () {
-                  _aadharController.text = '1234 5678 9012';
-                  _otpController.text = '123456';
-                  setState(() {});
-                },
-                icon: const Icon(Icons.flash_on, size: 16, color: Color(0xFF3B82F6)),
-                label: const Text(
-                  'Demo Fill',
-                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF3B82F6)),
-                ),
-              ),
-            ],
+          const Text(
+            'Citizen Login',
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF1E293B),
+            ),
           ),
           const SizedBox(height: 20),
           
@@ -627,7 +602,34 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
               },
               validator: _validateAadhar,
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 12),
+            
+            // Demo quick fill for Citizen
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: () {
+                  setState(() {
+                    _aadharController.text = '9999 8888 7777';
+                  });
+                },
+                icon: const Icon(Icons.flash_on, size: 16, color: Color(0xFF3B82F6)),
+                label: const Text(
+                  'Demo Citizen Fill',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF3B82F6),
+                  ),
+                ),
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  backgroundColor: const Color(0xFFEFF6FF),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
             
             _buildLoginButton(
               text: 'Login with Aadhaar',
@@ -680,7 +682,34 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                 LengthLimitingTextInputFormatter(6),
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 8),
+            
+            // Demo OTP quick fill
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: () {
+                  setState(() {
+                    _otpController.text = '123456';
+                  });
+                },
+                icon: const Icon(Icons.flash_on, size: 16, color: Color(0xFF3B82F6)),
+                label: const Text(
+                  'Demo OTP Fill (123456)',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF3B82F6),
+                  ),
+                ),
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  backgroundColor: const Color(0xFFEFF6FF),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
             
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -748,40 +777,23 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Contractor Login',
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF1E293B),
-                ),
-              ),
-              TextButton.icon(
-                onPressed: () {
-                  _publicServantIdController.text = 'contractor_01';
-                  _passwordController.text = '123456';
-                  setState(() {});
-                },
-                icon: const Icon(Icons.flash_on, size: 16, color: Color(0xFF3B82F6)),
-                label: const Text(
-                  'Demo Fill',
-                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF3B82F6)),
-                ),
-              ),
-            ],
+          const Text(
+            'Field Officer / Contractor Login',
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF1E293B),
+            ),
           ),
           const SizedBox(height: 20),
           
           _buildInputField(
             controller: _publicServantIdController,
-            placeholder: 'Contractor ID / Email',
+            placeholder: 'Officer ID / Email (e.g. demo.officer@civicresolve.gov)',
             prefixIcon: Icons.badge_outlined,
             validator: (value) {
               if (value == null || value.trim().isEmpty) {
-                return 'Contractor ID is required';
+                return 'Officer ID or Email is required';
               }
               return null;
             },
@@ -806,10 +818,38 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
               return null;
             },
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 12),
+
+          // Demo quick fill for Officer
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: () {
+                setState(() {
+                  _publicServantIdController.text = 'demo.officer@civicresolve.gov';
+                  _passwordController.text = 'civic123456';
+                });
+              },
+              icon: const Icon(Icons.flash_on, size: 16, color: Color(0xFF3B82F6)),
+              label: const Text(
+                'Demo Field Officer Fill',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF3B82F6),
+                ),
+              ),
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                backgroundColor: const Color(0xFFEFF6FF),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
           
           _buildLoginButton(
-            text: 'Log in as Contractor',
+            text: 'Log in as Field Officer',
             onPressed: _handlePublicServantLogin,
             isLoading: _isLoading,
           ),
@@ -874,54 +914,6 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                       
                       // Login Form
                       _isCitizenSelected ? _buildCitizenLogin() : _buildPublicServantLogin(),
-                      
-                      const SizedBox(height: 32),
-                      
-                      // Demo Information
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF3F4F6),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: const Color(0xFFE5E7EB)),
-                        ),
-                        child: Column(
-                          children: [
-                            const Text(
-                              'Demo Credentials:',
-                              style: TextStyle(
-                                color: Color(0xFF374151),
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            if (_isCitizenSelected) ...[
-                              const Text(
-                                'Admin: 1234 5678 9012 + Any 6-digit OTP',
-                                style: TextStyle(
-                                  color: Color(0xFF6B7280),
-                                  fontSize: 13,
-                                ),
-                              ),
-                              const Text(
-                                'User: Any other Aadhaar + Any 6-digit OTP',
-                                style: TextStyle(
-                                  color: Color(0xFF6B7280),
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ] else ...[
-                              const Text(
-                                'ID: admin | Password: admin',
-                                style: TextStyle(
-                                  color: Color(0xFF6B7280),
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
                     ],
                   ),
                 ),

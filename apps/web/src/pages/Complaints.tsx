@@ -5,6 +5,7 @@ import { Complaint, ComplaintStatus } from '../types/complaint';
 import { ComplaintFilterParams } from '../services/api.interface';
 import { Button } from '../components/ui/Button';
 import { Download, PlusCircle, RefreshCw } from 'lucide-react';
+import { useAuth } from '../hooks/useAuth';
 
 interface ComplaintsProps {
   complaints: Complaint[];
@@ -27,19 +28,28 @@ export const Complaints: React.FC<ComplaintsProps> = ({
   loading = false,
   error = null,
 }) => {
+  const { user } = useAuth();
+  const isMunicipalAdmin = user?.role === 'municipal_admin' || user?.role === 'super_admin';
+
   return (
     <div className="space-y-4">
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-2 border-b border-[#D9E2EC]">
         <div>
           <h2 className="text-sm font-bold uppercase tracking-wider text-[#172B4D] flex items-center gap-2">
-            <span>Municipal Grievance Inventory & Triage</span>
+            <span>
+              {isMunicipalAdmin
+                ? 'Municipal Grievance Inventory & Triage'
+                : 'Zone 2 Grievance Queue & Operational Triage'}
+            </span>
             <span className="text-xs font-mono px-2 py-0.5 rounded bg-blue-50 text-[#1769D2] border border-blue-200 font-semibold">
               {complaints.length} INCIDENTS
             </span>
           </h2>
           <p className="text-xs text-[#526581]">
-            Real-time intake queue with 7-step lifecycle enforcement and SLA adherence tracking.
+            {isMunicipalAdmin
+              ? 'City-wide intake queue with 7-step lifecycle enforcement and SLA adherence tracking.'
+              : 'Zone 2 operational grievance intake with on-site dispatch and resolution verification.'}
           </p>
         </div>
 

@@ -70,7 +70,7 @@ class _AdminActionsScreenState extends State<AdminActionsScreen> {
     
     try {
       final authService = AuthService.instance;
-      final adminId = authService.userEmail ?? 'admin';
+      final adminId = authService.userId ?? authService.supabaseUser?.id ?? 'officer-id';
       final noteText = _noteController.text.trim();
       
       final result = await _databaseService.updateReportStatus(
@@ -112,7 +112,7 @@ class _AdminActionsScreenState extends State<AdminActionsScreen> {
     
     try {
       final authService = AuthService.instance;
-      final adminId = authService.userEmail ?? 'admin';
+      final adminId = authService.userId ?? authService.supabaseUser?.id ?? 'officer-id';
       
       final result = await _databaseService.addAdminNote(
         reportId: widget.report.id,

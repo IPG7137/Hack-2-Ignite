@@ -26,12 +26,15 @@ import { Complaint } from '../types/complaint';
 import { CopilotMessage } from '../types/ai';
 import { CopilotService } from '../services/copilotService';
 
+import { useAuthContext } from '../context/AuthContext';
+
 interface CopilotStudioProps {
   complaints: Complaint[];
   onSelectComplaint?: (id: string) => void;
 }
 
 export const Copilot: React.FC<CopilotStudioProps> = ({ complaints = [], onSelectComplaint }) => {
+  const { user } = useAuthContext();
   const [messages, setMessages] = useState<CopilotMessage[]>([
     {
       id: 'MSG-INIT-1',
@@ -50,11 +53,11 @@ Currently evaluating **${complaints.length} live municipal reports**. Select a q
       timestamp: new Date().toISOString(),
       referencedComplaintIds: [],
       suggestedPrompts: [
-        "What are today's highest-priority complaints?",
-        'Where are the emerging hotspots?',
+        "What are today's highest-priority complaints in Solapur?",
+        'Where are the emerging hotspots in Solapur?',
         'Which complaints may belong to the same incident?',
         'Which resolved cases need verification?',
-        'Give me a briefing for the municipal commissioner',
+        'Give me a briefing for the Solapur Municipal Commissioner',
       ],
     },
   ]);
@@ -71,7 +74,7 @@ Currently evaluating **${complaints.length} live municipal reports**. Select a q
     if (!text.trim() || loading) return;
 
     const userMsg: CopilotMessage = {
-      id: `USR-${Date.now()}`,
+      id: `chat-msg-${Date.now()}`,
       sender: 'user',
       content: text,
       timestamp: new Date().toISOString(),
@@ -82,7 +85,13 @@ Currently evaluating **${complaints.length} live municipal reports**. Select a q
     setLoading(true);
 
     try {
-      const resp = await CopilotService.answerOfficerQuery(text, complaints);
+      const securityContext = {
+        userId: user?.id,
+        role: user?.role,
+        isStaff: user?.role !== 'citizen',
+        departmentId: user?.departmentId,
+      };
+      const resp = await CopilotService.answerOfficerQuery(text, complaints, securityContext);
       setMessages((prev) => [...prev, resp]);
     } catch (err) {
       setMessages((prev) => [
