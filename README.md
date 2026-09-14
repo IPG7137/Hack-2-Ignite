@@ -1,6 +1,10 @@
 # 🏛️ CivicResolve
 ### *AI-Powered Municipal Grievance Redressal, Intelligence & Decision Support Platform*
 
+[![Live Demo](https://img.shields.io/badge/🌐_Live_Deployment-CivicResolve_Solapur-00C7B7?style=for-the-badge&logo=vercel&logoColor=white)](https://civicresolve-eosin.vercel.app/)
+[![Demo Video](https://img.shields.io/badge/📺_Video_Demonstration-YouTube-FF0000?style=for-the-badge&logo=youtube&logoColor=white)](https://www.youtube.com/watch?v=RZbovuI7gFg)
+[![Survey Feedback](https://img.shields.io/badge/📊_Citizen_Feedback-Google_Sheets-34A853?style=for-the-badge&logo=googlesheets&logoColor=white)](https://docs.google.com/spreadsheets/d/1dCCleNU2lp0RIOz0-KM4JaEw3maJnhjTvF5sVgw2CgE/edit?gid=310055827#gid=310055827)
+
 [![React](https://img.shields.io/badge/React-18.3-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://reactjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.5-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Flutter](https://img.shields.io/badge/Flutter-3.x-02569B?style=for-the-badge&logo=flutter&logoColor=white)](https://flutter.dev)
@@ -13,8 +17,19 @@
 
 ---
 
+## 🔗 Live Access & Project Demonstration
+
+| Resource | Link | Description |
+|:---|:---|:---|
+| 🌐 **Live Web Application** | **[CivicResolve — Solapur Municipal Command Center](https://civicresolve-eosin.vercel.app/)** | Live Municipal Command Center & Zone Operations dashboard deployed on Vercel |
+| 📺 **Video Demonstration** | **[Demonstration Video — Barre Chords (PS-25031)](https://www.youtube.com/watch?v=RZbovuI7gFg)** | Complete video walkthrough of citizen mobile reporting, GIS command map, and municipal triage |
+| 📊 **Citizen Feedback & Survey** | **[Civic Issue Reporting System Feedback (Responses)](https://docs.google.com/spreadsheets/d/1dCCleNU2lp0RIOz0-KM4JaEw3maJnhjTvF5sVgw2CgE/edit?gid=310055827#gid=310055827)** | Citizen responses collected during user testing and community grievance surveys |
+
+---
+
 ## 📚 Table of Contents & Quick Navigation
 
+- [🔗 Live Access & Project Demonstration](#-live-access--project-demonstration)
 - [📌 Executive Overview](#-executive-overview)
 - [⚠️ The Problem](#️-the-problem)
 - [💡 The Solution](#-the-solution)
