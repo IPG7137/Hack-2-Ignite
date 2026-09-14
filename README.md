@@ -2,6 +2,7 @@
 ### *AI-Powered Municipal Grievance Redressal, Intelligence & Decision Support Platform*
 
 [![Live Demo](https://img.shields.io/badge/🌐_Live_Deployment-CivicResolve_Solapur-00C7B7?style=for-the-badge&logo=vercel&logoColor=white)](https://civicresolve-eosin.vercel.app/)
+[![Download APK](https://img.shields.io/badge/📱_Download_APK-Google_Drive-4285F4?style=for-the-badge&logo=googleplay&logoColor=white)](https://drive.google.com/drive/folders/1azDqGXinzO9kAdOr8b1ohYQV0zbtmmGa?usp=sharing)
 [![Demo Video](https://img.shields.io/badge/📺_Video_Demonstration-YouTube-FF0000?style=for-the-badge&logo=youtube&logoColor=white)](https://www.youtube.com/watch?v=RZbovuI7gFg)
 [![Survey Feedback](https://img.shields.io/badge/📊_Citizen_Feedback-Google_Sheets-34A853?style=for-the-badge&logo=googlesheets&logoColor=white)](https://docs.google.com/spreadsheets/d/1dCCleNU2lp0RIOz0-KM4JaEw3maJnhjTvF5sVgw2CgE/edit?gid=310055827#gid=310055827)
 
@@ -22,6 +23,7 @@
 | Resource | Link | Description |
 |:---|:---|:---|
 | 🌐 **Live Web Application** | **[CivicResolve — Solapur Municipal Command Center](https://civicresolve-eosin.vercel.app/)** | Live Municipal Command Center & Zone Operations dashboard deployed on Vercel |
+| 📱 **Android Release APK** | **[Download APK (Google Drive)](https://drive.google.com/drive/folders/1azDqGXinzO9kAdOr8b1ohYQV0zbtmmGa?usp=sharing)** | Direct download link for the compiled production-ready Flutter release APK |
 | 📺 **Video Demonstration** | **[Demonstration Video — Barre Chords (PS-25031)](https://www.youtube.com/watch?v=RZbovuI7gFg)** | Complete video walkthrough of citizen mobile reporting, GIS command map, and municipal triage |
 | 📊 **Citizen Feedback & Survey** | **[Civic Issue Reporting System Feedback (Responses)](https://docs.google.com/spreadsheets/d/1dCCleNU2lp0RIOz0-KM4JaEw3maJnhjTvF5sVgw2CgE/edit?gid=310055827#gid=310055827)** | Citizen responses collected during user testing and community grievance surveys |
 
