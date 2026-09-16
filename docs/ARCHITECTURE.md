@@ -105,6 +105,8 @@ Authorization is enforced at the PostgreSQL level through Row Level Security (RL
 ## Database Schema Highlights
 
 - **`complaints`** — Core grievance table with GPS coordinates, category, status, priority, evidence, SLA
+- **`incident_clusters`** — Operational joint incident clusters linking multiple related grievances into coordinated work packages
+- **`incident_cluster_reports`** — Junction table mapping complaints to joint incident clusters without record duplication
 - **`profiles`** — User profiles linked to Supabase Auth `auth.users`
 - **`user_roles`** — Canonical role assignments (`citizen`, `officer`, `dept_admin`, `municipal_admin`, `super_admin`)
 - **PostGIS** — Spatial queries for proximity, clustering, and hotspot detection

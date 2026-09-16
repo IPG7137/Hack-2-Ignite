@@ -360,6 +360,17 @@ export function mapSupabaseRowToComplaint(
     };
   }
 
+  // 11. Joint Action / Incident Linking
+  let jointIncidentId: string | undefined = row.incident_id || undefined;
+  let jointIncidentTitle: string | undefined = undefined;
+  if (!jointIncidentId && row.admin_notes) {
+    const incMatch = row.admin_notes.match(/Joint Action created \(#(INC-[A-Za-z0-9_-]+)\)/);
+    if (incMatch) {
+      jointIncidentId = incMatch[1];
+      jointIncidentTitle = 'Coordinated Joint Work Package';
+    }
+  }
+
   return {
     id: formattedId,
     dbId,
@@ -384,6 +395,8 @@ export function mapSupabaseRowToComplaint(
     upvotesCount: 1,
     isDuplicateCluster: !!row.potential_duplicate,
     clusterGroupId: row.parent_report_id ? `CLUSTER-${row.parent_report_id}` : undefined,
+    jointIncidentId,
+    jointIncidentTitle,
     createdAt,
     updatedAt,
     resolvedAt: row.completion_date || undefined,

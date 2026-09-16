@@ -92,6 +92,14 @@ export const ComplaintTable: React.FC<ComplaintTableProps> = ({
                   {/* Ticket ID */}
                   <td className="py-3 px-3 font-mono font-bold text-[#1769D2] whitespace-nowrap">
                     #{c.id}
+                    {c.jointIncidentId && (
+                      <span
+                        className="ml-1.5 px-1.5 py-0.5 rounded text-[9px] font-bold font-mono border bg-amber-50 text-amber-800 border-amber-300"
+                        title={`Coordinated under Joint Action #${c.jointIncidentId}`}
+                      >
+                        ⚡ Joint Action
+                      </span>
+                    )}
                     {(() => {
                       const relatedSummary = SimilarityEngine.getRelatedCandidatesSummary(c, complaints);
                       if (!relatedSummary) return null;

@@ -5,9 +5,12 @@ import { ComplaintFilterParams } from '../services/api.interface';
 import { supabase } from '../services/supabaseClient';
 import { useAuthContext } from '../context/AuthContext';
 
+import { JointActionRequest, JointActionResult, IncidentClusterRecord } from '../services/incidentGroupingEngine';
+
 export function useComplaints(initialFilters: ComplaintFilterParams = {}) {
   const { user, isAuthenticated } = useAuthContext();
   const [complaints, setComplaints] = useState<Complaint[]>([]);
+  const [incidentClusters, setIncidentClusters] = useState<IncidentClusterRecord[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [filters, setFilters] = useState<ComplaintFilterParams>(initialFilters);
@@ -16,8 +19,12 @@ export function useComplaints(initialFilters: ComplaintFilterParams = {}) {
     try {
       setLoading(true);
       setError(null);
-      const data = await complaintService.getComplaints(filters);
+      const [data, clusters] = await Promise.all([
+        complaintService.getComplaints(filters),
+        complaintService.getIncidentClusters().catch(() => []),
+      ]);
       setComplaints(data);
+      setIncidentClusters(clusters);
     } catch (err: any) {
       console.error('❌ Error fetching complaints in useComplaints:', err);
       setError(err.message || 'Failed to fetch complaints');
@@ -47,6 +54,14 @@ export function useComplaints(initialFilters: ComplaintFilterParams = {}) {
         { event: '*', schema: 'public', table: 'report_status_history' },
         (payload) => {
           console.log('📡 Realtime status history update detected:', payload.eventType);
+          fetchComplaints();
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'incident_clusters' },
+        (payload) => {
+          console.log('📡 Realtime incident cluster update detected:', payload.eventType);
           fetchComplaints();
         }
       )
@@ -91,12 +106,19 @@ export function useComplaints(initialFilters: ComplaintFilterParams = {}) {
     return updated;
   };
 
+  const createJointAction = async (req: JointActionRequest): Promise<JointActionResult> => {
+    const result = await complaintService.createJointAction(req);
+    await fetchComplaints();
+    return result;
+  };
+
   const getComplaintById = async (id: string): Promise<Complaint | null> => {
     return await complaintService.getComplaintById(id);
   };
 
   return {
     complaints,
+    incidentClusters,
     loading,
     error,
     filters,
@@ -105,6 +127,7 @@ export function useComplaints(initialFilters: ComplaintFilterParams = {}) {
     updateStatus,
     assignOfficer,
     addAdminNote,
+    createJointAction,
     getComplaintById,
   };
 }

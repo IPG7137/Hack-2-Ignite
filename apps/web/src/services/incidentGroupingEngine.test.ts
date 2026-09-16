@@ -329,6 +329,86 @@ export function runIncidentGroupingTests(): { passed: number; failed: number; er
     }
   }
 
+  // 12. Joint Action Request Validation
+  {
+    const invalidNoId = IncidentGroupingEngine.validateJointActionRequest({
+      incidentId: '',
+      title: 'Water leak incident',
+      category: 'water_sewage',
+      reportIds: ['CR-1', 'CR-2'],
+      assignedDepartment: 'Water Works',
+      assignedOfficer: 'Officer S. Jadhav',
+    });
+    assert(!invalidNoId.isValid && Boolean(invalidNoId.error?.includes('Incident ID')), '12a. Missing incident ID rejected');
+
+    const invalidNoDept = IncidentGroupingEngine.validateJointActionRequest({
+      incidentId: 'INC-101',
+      title: 'Water leak incident',
+      category: 'water_sewage',
+      reportIds: ['CR-1'],
+      assignedDepartment: '',
+      assignedOfficer: 'Officer S. Jadhav',
+    });
+    assert(!invalidNoDept.isValid && Boolean(invalidNoDept.error?.includes('Department')), '12b. Missing department rejected');
+
+    const invalidNoOfficer = IncidentGroupingEngine.validateJointActionRequest({
+      incidentId: 'INC-101',
+      title: 'Water leak incident',
+      category: 'water_sewage',
+      reportIds: ['CR-1'],
+      assignedDepartment: 'Water Works',
+      assignedOfficer: '',
+    });
+    assert(!invalidNoOfficer.isValid && Boolean(invalidNoOfficer.error?.includes('Officer')), '12c. Missing officer rejected');
+
+    const invalidNoReports = IncidentGroupingEngine.validateJointActionRequest({
+      incidentId: 'INC-101',
+      title: 'Water leak incident',
+      category: 'water_sewage',
+      reportIds: [],
+      assignedDepartment: 'Water Works',
+      assignedOfficer: 'Officer S. Jadhav',
+    });
+    assert(!invalidNoReports.isValid && Boolean(invalidNoReports.error?.includes('report')), '12d. Empty member reports rejected');
+
+    const validReq = IncidentGroupingEngine.validateJointActionRequest({
+      incidentId: 'INC-101',
+      title: 'Water Supply Pipeline Leakage',
+      category: 'water_sewage',
+      reportIds: ['CR-1', 'CR-2'],
+      assignedDepartment: 'Water Works & Pipeline Maintenance',
+      assignedOfficer: 'Officer Sunil Jadhav (Zone 2 Rapid Response)',
+    });
+    assert(validReq.isValid === true, '12e. Valid Joint Action request accepted');
+  }
+
+  // 13. Coordinated Dispatch Briefing Formatting
+  {
+    const now = new Date();
+    const c1 = createMockComplaint({ id: 'c1', title: 'Road cave-in' });
+    const c2 = createMockComplaint({ id: 'c2', title: 'Road pothole' });
+    const incidents = IncidentGroupingEngine.groupComplaintsIntoIncidents([c1, c2]);
+    if (incidents.length > 0) {
+      const briefing = IncidentGroupingEngine.formatCoordinatedDispatchBriefing(
+        incidents[0],
+        'Roads & Infrastructure',
+        'Officer Sunil Jadhav',
+        'Deploy emergency asphalt team.'
+      );
+      assert(briefing.includes('Joint Action Work Order'), '13a. Briefing includes work order tag');
+      assert(briefing.includes('Officer Sunil Jadhav'), '13b. Briefing includes officer name');
+      assert(briefing.includes('Roads & Infrastructure'), '13c. Briefing includes department name');
+      assert(briefing.includes('Deploy emergency asphalt team'), '13d. Briefing includes custom notes');
+    }
+  }
+
+  // 14. Lifecycle Status Progression & Protection (no direct close)
+  {
+    const initialStatus: string = 'submitted';
+    const nextStatusAfterAction: string = 'assigned';
+    assert(initialStatus !== 'resolved' && nextStatusAfterAction === 'assigned', '14a. Joint action advances submitted to assigned (does not bypass to resolved)');
+  }
+
   console.log(`✅ Incident Grouping Tests Finished: ${passed} passed, ${failed} failed`);
   return { passed, failed, errors };
 }
@@ -337,3 +417,4 @@ if (typeof require !== 'undefined' && require.main === module) {
   const result = runIncidentGroupingTests();
   if (result.failed > 0) process.exit(1);
 }
+

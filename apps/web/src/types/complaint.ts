@@ -118,6 +118,8 @@ export interface Complaint {
   upvotesCount: number;
   isDuplicateCluster: boolean;
   clusterGroupId?: string;
+  jointIncidentId?: string;
+  jointIncidentTitle?: string;
   createdAt: string;
   updatedAt: string;
   resolvedAt?: string;

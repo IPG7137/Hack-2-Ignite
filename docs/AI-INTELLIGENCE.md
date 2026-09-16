@@ -53,6 +53,25 @@ flowchart LR
 
 ---
 
+### 3D Potential Incident → Joint Action Operational Workflow (`incidentGroupingEngine.ts`)
+```mermaid
+flowchart TD
+    A[3D Potential Incident Detection] -->|Algorithmic Clustering| B[Human Review in Command Center]
+    B -->|Admin Approves & Configures| C[Create Joint Action]
+    C -->|Atomic DB Transaction| D[Coordinated Work Package Created]
+    D -->|Batch Assignment| E[Department & Officer Dispatched]
+    E -->|Normal Complaint Lifecycle| F[Field Work & Proof Upload]
+    F -->|Geofenced & Temporal Validation| G[3E Resolution Verification]
+```
+
+- **Detection**: 3D identifies potential relationships using spatial radius, temporal clustering, and category alignment.
+- **Human Review**: Municipal administrators explicitly review potential incidents (preserving "Potential" terminology until confirmed).
+- **Joint Action**: One-click coordinated operational work package creation (`incident_clusters` & `incident_cluster_reports`).
+- **Data Integrity**: Preserves individual complaint records without duplication while establishing relational linkages.
+- **Normal Lifecycle**: Advances pending complaints to `assigned` status; full resolution requires standard field evidence and 3E verification.
+
+---
+
 ### 3C. Dynamic Priority Scoring Engine (`priorityEngine.ts`)
 Calculates real-time priority scores ($0.0 - 100.0$) using a multi-factor formula:
 

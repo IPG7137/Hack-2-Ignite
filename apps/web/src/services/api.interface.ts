@@ -15,12 +15,16 @@ export interface ComplaintFilterParams {
   sortOrder?: 'asc' | 'desc';
 }
 
+import { JointActionRequest, JointActionResult, IncidentClusterRecord } from './incidentGroupingEngine';
+
 export interface IComplaintService {
   getComplaints(filters?: ComplaintFilterParams): Promise<Complaint[]>;
   getComplaintById(id: string): Promise<Complaint | null>;
   updateStatus(id: string, newStatus: ComplaintStatus, officerName: string, notes?: string, proofImageUrl?: string): Promise<Complaint>;
   addAdminNote(id: string, author: string, text: string, isInternal?: boolean): Promise<Complaint>;
   assignOfficer(id: string, officerName: string, departmentName: string, contractorName?: string): Promise<Complaint>;
+  createJointAction(req: JointActionRequest): Promise<JointActionResult>;
+  getIncidentClusters(): Promise<IncidentClusterRecord[]>;
 }
 
 export interface IAnalyticsService {

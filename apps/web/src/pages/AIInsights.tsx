@@ -34,28 +34,41 @@ import {
   IncidentGroupingInsight,
   ResolutionAuditInsight,
 } from '../services/aiInsightsService';
+import {
+  PotentialIncidentResult,
+  JointActionRequest,
+  JointActionResult,
+  IncidentClusterRecord,
+} from '../services/incidentGroupingEngine';
+import { JointActionModal } from '../components/incidents/JointActionModal';
+import { complaintService } from '../services/complaintService';
 
 interface AIInsightsProps {
   complaints: Complaint[];
+  incidentClusters?: IncidentClusterRecord[];
   loading?: boolean;
   error?: string | null;
   onRefresh?: () => void;
   onSelectComplaint?: (id: string) => void;
   onNavigatePage?: (page: any) => void;
+  onCreateJointAction?: (req: JointActionRequest) => Promise<JointActionResult>;
 }
 
 type InsightSection = 'all' | 'dispatch' | 'anomalies' | 'grouping' | 'audits';
 
 export const AIInsights: React.FC<AIInsightsProps> = ({
   complaints = [],
+  incidentClusters = [],
   loading = false,
   error = null,
   onRefresh,
   onSelectComplaint,
   onNavigatePage,
+  onCreateJointAction,
 }) => {
   const [activeTab, setActiveTab] = useState<InsightSection>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedIncidentForAction, setSelectedIncidentForAction] = useState<PotentialIncidentResult | IncidentGroupingInsight | null>(null);
 
   // Synthesize operational insights deterministically from live complaints (Phases 3A - 3E)
   const synthesis: AIInsightsSynthesis = useMemo(() => {
@@ -675,7 +688,7 @@ export const AIInsights: React.FC<AIInsightsProps> = ({
                         </div>
                       </div>
 
-                      {/* Grounded Directive */}
+                      {/* Grounded Directive & Joint Action Status */}
                       <div className="p-2.5 rounded bg-amber-50/50 border border-amber-200 text-[11px] space-y-1">
                         <div className="font-bold text-[#92400E] flex items-center gap-1">
                           <Layers className="w-3.5 h-3.5" />
@@ -685,24 +698,59 @@ export const AIInsights: React.FC<AIInsightsProps> = ({
                           {inc.recommendedAction}
                         </p>
                       </div>
+
+                      {/* Active Joint Action Badge if already created */}
+                      {(() => {
+                        const existingCluster = incidentClusters.find((c) => c.id === inc.incidentId);
+                        const hasLinkedMember = complaints.some(
+                          (c) => inc.memberComplaintIds.includes(c.id) && (c.jointIncidentId === inc.incidentId || (c.status === 'assigned' && c.assignment?.officerName))
+                        );
+                        if (existingCluster || hasLinkedMember) {
+                          const dept = existingCluster?.assignedDepartment || 'Roads & Infrastructure';
+                          const off = existingCluster?.assignedOfficer || 'Assigned Field Crew';
+                          return (
+                            <div className="p-2 rounded bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] flex items-center justify-between">
+                              <div className="flex items-center gap-1.5">
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                                <span><strong>Joint Action Active:</strong> {dept} ({off})</span>
+                              </div>
+                              <span className="font-mono text-[10px] bg-emerald-100 px-1.5 py-0.5 rounded font-bold">
+                                COORDINATED
+                              </span>
+                            </div>
+                          );
+                        }
+                        return null;
+                      })()}
                     </div>
 
-                    <div className="pt-2 border-t border-[#E8EEF5] flex items-center justify-between">
+                    <div className="pt-2 border-t border-[#E8EEF5] flex flex-wrap items-center justify-between gap-2">
                       <span className="text-[10px] text-[#718096]">
                         {inc.explainableReasons[0] || 'Multi-report evidence verified'}
                       </span>
 
-                      {onSelectComplaint && (
+                      <div className="flex items-center gap-2">
+                        {onSelectComplaint && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => onSelectComplaint(inc.memberComplaintIds[0])}
+                            className="h-7 text-xs bg-white border-slate-300 text-[#526581] hover:bg-slate-50"
+                          >
+                            <span>Inspect #{inc.memberComplaintIds[0]}</span>
+                          </Button>
+                        )}
+
                         <Button
-                          variant="outline"
+                          variant="primary"
                           size="sm"
-                          onClick={() => onSelectComplaint(inc.memberComplaintIds[0])}
-                          className="h-7 text-xs bg-white border-amber-200 text-[#D99A00] hover:bg-amber-50"
+                          onClick={() => setSelectedIncidentForAction(inc)}
+                          className="h-7 text-xs bg-[#D99A00] hover:bg-[#B78103] text-white font-bold gap-1 px-2.5 shadow-xs"
                         >
-                          <span>Inspect Primary #{inc.memberComplaintIds[0]}</span>
-                          <ArrowRight className="w-3 h-3 ml-1" />
+                          <Layers className="w-3 h-3" />
+                          <span>Create Joint Action</span>
                         </Button>
-                      )}
+                      </div>
                     </div>
                   </Card>
                 ))}
@@ -841,6 +889,24 @@ export const AIInsights: React.FC<AIInsightsProps> = ({
           </div>
         )}
       </div>
+
+      {/* 3D Potential Incident Joint Action Dispatch Modal */}
+      <JointActionModal
+        isOpen={selectedIncidentForAction !== null}
+        onClose={() => setSelectedIncidentForAction(null)}
+        incident={selectedIncidentForAction}
+        allComplaints={complaints}
+        onSubmitJointAction={async (req) => {
+          if (onCreateJointAction) {
+            const res = await onCreateJointAction(req);
+            onRefresh?.();
+            return res;
+          }
+          const res = await complaintService.createJointAction(req);
+          onRefresh?.();
+          return res;
+        }}
+      />
     </div>
   );
 };

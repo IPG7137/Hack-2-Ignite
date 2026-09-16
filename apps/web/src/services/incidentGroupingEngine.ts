@@ -9,6 +9,66 @@ export type IncidentClassification =
   | 'weakRelatedCluster'
   | 'noIncidentGroup';
 
+export type IncidentOperationalStatus =
+  | 'potential'
+  | 'acknowledged'
+  | 'action_created'
+  | 'in_progress'
+  | 'resolved'
+  | 'verified';
+
+export interface JointActionRequest {
+  incidentId: string;
+  title: string;
+  summary?: string;
+  category: string;
+  reportIds: string[]; // List of complaint IDs e.g. ["CR-101", "CR-102"] or numeric IDs
+  assignedDepartment: string;
+  assignedOfficer: string;
+  assignedOfficerId?: string;
+  actionNotes?: string;
+  confidenceScore?: number;
+  centerLatitude?: number;
+  centerLongitude?: number;
+  radiusMeters?: number;
+  explainableReasons?: string[];
+  createdBy?: string;
+}
+
+export interface JointActionResult {
+  success: boolean;
+  incidentId: string;
+  status: IncidentOperationalStatus;
+  assignedDepartment: string;
+  assignedOfficer: string;
+  reportsUpdated: number;
+  actionNotes?: string;
+  createdAt: string;
+  error?: string;
+}
+
+export interface IncidentClusterRecord {
+  id: string;
+  title: string;
+  summary?: string;
+  category: string;
+  status: IncidentOperationalStatus;
+  confidenceScore: number;
+  explainableReasons: string[];
+  centerLatitude?: number;
+  centerLongitude?: number;
+  affectedRadiusMeters: number;
+  assignedDepartment?: string;
+  assignedOfficer?: string;
+  assignedOfficerId?: string;
+  createdBy?: string;
+  createdByName?: string;
+  actionNotes?: string;
+  reportIds: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface IncidentSignalBreakdown {
   similarityEvidence: number;
   spatialConcentration: number;
@@ -556,4 +616,44 @@ export class IncidentGroupingEngine {
 
     return `Potential Common ${categoryLabel || category} Incident`;
   }
+
+  /**
+   * Validate a Joint Action request before dispatch
+   */
+  public static validateJointActionRequest(req: JointActionRequest): { isValid: boolean; error?: string } {
+    if (!req.incidentId || !req.incidentId.trim()) {
+      return { isValid: false, error: 'Incident ID is required.' };
+    }
+    if (!req.title || !req.title.trim()) {
+      return { isValid: false, error: 'Incident title is required.' };
+    }
+    if (!req.category || !req.category.trim()) {
+      return { isValid: false, error: 'Category is required.' };
+    }
+    if (!req.reportIds || req.reportIds.length === 0) {
+      return { isValid: false, error: 'At least one member report is required for a Joint Action.' };
+    }
+    if (!req.assignedDepartment || !req.assignedDepartment.trim()) {
+      return { isValid: false, error: 'Department assignment is required.' };
+    }
+    if (!req.assignedOfficer || !req.assignedOfficer.trim()) {
+      return { isValid: false, error: 'Officer or crew assignment is required.' };
+    }
+    return { isValid: true };
+  }
+
+  /**
+   * Generate an explainable coordinated dispatch briefing for the Joint Action work order
+   */
+  public static formatCoordinatedDispatchBriefing(
+    incident: PotentialIncidentResult,
+    department: string,
+    officer: string,
+    customNotes?: string
+  ): string {
+    const reasons = incident.explainableReasons.slice(0, 3).join('; ');
+    const notePart = customNotes && customNotes.trim() ? ` Notes: ${customNotes.trim()}` : '';
+    return `[Joint Action Work Order #${incident.incidentId}] ${incident.complaintCount} related grievances consolidated into a coordinated municipal work package. Assigned to ${officer} (${department}). Primary drivers: ${reasons}.${notePart}`;
+  }
 }
+

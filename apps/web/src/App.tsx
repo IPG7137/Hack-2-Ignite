@@ -35,6 +35,7 @@ export function App() {
 
   const {
     complaints,
+    incidentClusters,
     loading: complaintsLoading,
     error: complaintsError,
     filters,
@@ -43,6 +44,7 @@ export function App() {
     updateStatus,
     assignOfficer,
     addAdminNote,
+    createJointAction,
   } = useComplaints();
 
   const { kpis, loading: kpisLoading } = useAnalytics();
@@ -220,11 +222,13 @@ export function App() {
       {activePage === 'ai_insights' && (
         <AIInsights
           complaints={visibleComplaints}
+          incidentClusters={incidentClusters}
           loading={complaintsLoading}
           error={complaintsError}
           onRefresh={handleRefresh}
           onSelectComplaint={handleSelectComplaint}
           onNavigatePage={(p) => setActivePage(p)}
+          onCreateJointAction={createJointAction}
         />
       )}
 

@@ -16,6 +16,7 @@ import {
   CheckCircle2,
   Flame,
   Activity,
+  Layers,
 } from 'lucide-react';
 import { Complaint, ComplaintStatus } from '../types/complaint';
 import { StatusStepper } from '../components/complaints/StatusStepper';
@@ -373,6 +374,31 @@ export const ComplaintDetails: React.FC<ComplaintDetailsProps> = ({
           </Button>
         </div>
       </div>
+
+      {/* Coordinated Joint Action Work Package Banner */}
+      {complaint.jointIncidentId && (
+        <div className="p-3.5 rounded-lg bg-amber-50 border border-amber-300 text-xs text-amber-950 flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-xs">
+          <div className="flex items-center gap-2.5">
+            <div className="p-1.5 rounded-md bg-amber-200 text-amber-900">
+              <Layers className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="font-bold text-amber-950 flex items-center gap-2">
+                <span>Coordinated Joint Action Work Package</span>
+                <span className="font-mono text-[10px] bg-amber-200/80 px-1.5 py-0.5 rounded border border-amber-400">
+                  #{complaint.jointIncidentId}
+                </span>
+              </div>
+              <p className="text-[11px] text-amber-800 mt-0.5">
+                This grievance is coordinated with neighboring reports under a single municipal dispatch order.
+              </p>
+            </div>
+          </div>
+          <span className="self-start sm:self-center text-[10px] uppercase font-bold tracking-wider px-2.5 py-1 rounded bg-amber-100 text-amber-900 border border-amber-300 whitespace-nowrap">
+            ⚡ Coordinated Dispatch Active
+          </span>
+        </div>
+      )}
 
       {/* 7-Step Linear Progression Tracker */}
       <Card className="p-4 border-[#D9E2EC] bg-white shadow-sm">
