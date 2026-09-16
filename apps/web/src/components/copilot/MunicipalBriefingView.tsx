@@ -23,6 +23,7 @@ import { Complaint } from '../../types/complaint';
 import { Card } from '../ui/Card';
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
+import { CopilotMarkdown } from './CopilotMarkdown';
 
 interface MunicipalBriefingViewProps {
   briefing: GroundedMunicipalBriefing;
@@ -186,10 +187,11 @@ export const MunicipalBriefingView: React.FC<MunicipalBriefingViewProps> = ({
       </div>
 
       {/* Grounded Markdown Document Content */}
-      <div className="prose prose-slate max-w-none text-xs leading-relaxed border border-[#E8EEF5] bg-[#F8FAFC] p-4 md:p-5 rounded-lg overflow-x-auto space-y-3 font-sans">
-        <div className="whitespace-pre-wrap font-sans text-xs text-[#172B4D] leading-relaxed">
-          {briefing.markdownContent}
-        </div>
+      <div className="border border-[#E8EEF5] bg-[#F8FAFC] p-4 md:p-5 rounded-lg overflow-x-auto space-y-3 font-sans">
+        <CopilotMarkdown
+          content={briefing.markdownContent}
+          onSelectComplaint={onSelectComplaint}
+        />
       </div>
 
       {/* Referenced Complaints Bar */}

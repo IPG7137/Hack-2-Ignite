@@ -28,6 +28,7 @@ import { Complaint } from '../types/complaint';
 import { CopilotMessage, GroundedMunicipalBriefing } from '../types/ai';
 import { CopilotService } from '../services/copilotService';
 import { MunicipalBriefingView } from '../components/copilot/MunicipalBriefingView';
+import { CopilotMarkdown } from '../components/copilot/CopilotMarkdown';
 import { useAuthContext } from '../context/AuthContext';
 
 interface CopilotStudioProps {
@@ -304,35 +305,11 @@ Currently evaluating **${complaints.length} live municipal reports**. Click **"G
                           : 'bg-white border border-[#D9E2EC] text-[#172B4D] shadow-xs'
                       }`}
                     >
-                      <div className="whitespace-pre-wrap font-sans space-y-2">
-                        {m.content.split('\n\n').map((para, pIdx) => {
-                          if (para.startsWith('### ')) {
-                            return (
-                              <h3
-                                key={pIdx}
-                                className={`text-sm font-bold ${
-                                  isUser ? 'text-white' : 'text-[#172B4D]'
-                                } pb-1 border-b ${isUser ? 'border-white/20' : 'border-slate-100'}`}
-                              >
-                                {para.replace('### ', '')}
-                              </h3>
-                            );
-                          }
-                          if (para.startsWith('#### ')) {
-                            return (
-                              <h4
-                                key={pIdx}
-                                className={`text-xs font-bold uppercase tracking-wider ${
-                                  isUser ? 'text-white' : 'text-[#1769D2]'
-                                } pt-1`}
-                              >
-                                {para.replace('#### ', '')}
-                              </h4>
-                            );
-                          }
-                          return <p key={pIdx}>{para}</p>;
-                        })}
-                      </div>
+                      <CopilotMarkdown
+                        content={m.content}
+                        isUser={isUser}
+                        onSelectComplaint={onSelectComplaint}
+                      />
 
                       {/* Grounded Citation Badges */}
                       {!isUser && m.referencedComplaintIds && m.referencedComplaintIds.length > 0 && (

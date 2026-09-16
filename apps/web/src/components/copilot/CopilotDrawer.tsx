@@ -5,6 +5,7 @@ import { Input } from '../ui/Input';
 import { CopilotMessage } from '../../types/ai';
 import { Complaint } from '../../types/complaint';
 import { aiService } from '../../services/aiService';
+import { CopilotMarkdown } from './CopilotMarkdown';
 
 interface CopilotDrawerProps {
   isOpen: boolean;
@@ -145,7 +146,14 @@ You can click any prompt chip below or type an inquiry regarding road safety clu
                     : 'bg-white border border-[#D9E2EC] text-[#172B4D] shadow-sm'
                 }`}
               >
-                <div className="whitespace-pre-wrap font-sans">{msg.content}</div>
+                <CopilotMarkdown
+                  content={msg.content}
+                  isUser={msg.sender === 'user'}
+                  onSelectComplaint={(id) => {
+                    onSelectComplaint?.(id);
+                    onClose();
+                  }}
+                />
 
                 {/* Cited tickets if any */}
                 {msg.referencedComplaintIds && msg.referencedComplaintIds.length > 0 && (

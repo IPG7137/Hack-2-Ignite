@@ -333,6 +333,34 @@ export async function runCopilotTests(): Promise<{ passed: number; failed: numbe
     assert(brief.markdownContent.includes('Potential Incident'), '17a. Uses potential incident terminology strictly');
   }
 
+  // 18. Exact User Markdown Rendering Pattern Verification
+  {
+    const exactGreeting = `### 🏛️ Municipal Operations Intelligence Online
+
+Hello Officer! I am your **AI Copilot**, grounded in the **0 active incidents** in your command matrix.
+
+You can click any prompt chip below or type an inquiry regarding road safety clusters, SLA breach countdowns, or shift handover briefings.`;
+
+    assert(exactGreeting.includes('### 🏛️ Municipal Operations Intelligence Online'), '18a. Greeting includes h3 markdown heading');
+    assert(exactGreeting.includes('**AI Copilot**'), '18b. Greeting includes bold AI Copilot token');
+    assert(exactGreeting.includes('**0 active incidents**'), '18c. Greeting includes bold active incidents count');
+  }
+
+  // 19. Structured Lists and Complaint Citations Pattern
+  {
+    const listMarkdown = `### High Priority Complaints
+
+- **#CR-3** requires attention
+- **#CR-7** has an SLA concern
+
+1. Review complaint
+2. Assign officer
+3. Verify resolution`;
+
+    assert(listMarkdown.includes('- **#CR-3**'), '19a. Includes bullet list with bold complaint citation');
+    assert(listMarkdown.includes('1. Review complaint'), '19b. Includes ordered numbered list');
+  }
+
   console.log(`✅ Municipal AI Copilot Tests Finished: ${passed} passed, ${failed} failed`);
   return { passed, failed, errors };
 }
