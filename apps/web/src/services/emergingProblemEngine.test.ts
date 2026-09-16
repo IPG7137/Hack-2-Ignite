@@ -225,6 +225,103 @@ export function runEmergingProblemTests(): { passed: number; failed: number; err
     `Test 8: Output must be strictly deterministic`
   );
 
+  // Test 9: getContributingComplaints extracts the matching complaint objects
+  const contributing = EmergingProblemEngine.getContributingComplaints(surgeRes[0], surgeReports);
+  assert(
+    contributing.length === 6,
+    `Test 9: Contributing complaints should match all 6 reports, got ${contributing.length}`
+  );
+  assert(
+    contributing.every((c) => surgeRes[0].complaintIds.includes(c.id)),
+    `Test 9: All extracted complaints must be in the hotspot's complaintIds list`
+  );
+
+  // Test 10: generateGeoJSON produces valid FeatureCollection
+  const geojson = EmergingProblemEngine.generateGeoJSON(surgeRes);
+  assert(
+    geojson.type === 'FeatureCollection',
+    `Test 10: GeoJSON type must be FeatureCollection`
+  );
+  assert(
+    geojson.features.length === surgeRes.length,
+    `Test 10: GeoJSON features count must match hotspots count`
+  );
+  assert(
+    geojson.features[0].geometry.type === 'Polygon',
+    `Test 10: Geometry type must be Polygon`
+  );
+  assert(
+    geojson.features[0].geometry.coordinates[0].length >= 32,
+    `Test 10: Polygon ring must have at least 32 geodesic coordinate points`
+  );
+  assert(
+    geojson.features[0].properties.id === surgeRes[0].id,
+    `Test 10: Feature properties must preserve hotspot ID`
+  );
+
+  // Test 11: generateCircleCoordinates creates closed geodesic ring
+  const circleCoords = EmergingProblemEngine.generateCircleCoordinates(17.6599, 75.9064, 500, 32);
+  assert(circleCoords.length === 33, `Test 11: 32-point circle must contain 33 coordinates (closed loop)`);
+  assert(
+    Math.abs(circleCoords[0][0] - circleCoords[32][0]) < 0.0001 &&
+    Math.abs(circleCoords[0][1] - circleCoords[32][1]) < 0.0001,
+    `Test 11: First and last coordinates must match to form closed polygon`
+  );
+
+  // Test 12: Zero PII leaked in hotspot summary and driver records
+  const serialized = JSON.stringify(surgeRes);
+  assert(!serialized.includes('+91 98765 43210'), `Test 12: Phone number must never leak in hotspot results`);
+  assert(!serialized.includes('XXXX-XXXX-1234'), `Test 12: Aadhaar number must never leak in hotspot results`);
+  assert(!serialized.includes('Ramesh Sharma'), `Test 12: Citizen name must never leak in hotspot results`);
+
+  // Test 13: Multiple spatial clusters in different quadrants form distinct hotspots
+  const cluster2Reports: Complaint[] = [];
+  for (let i = 1; i <= 4; i++) {
+    cluster2Reports.push(
+      createMockComplaint({
+        id: `CR-WATER-${i}`,
+        dbId: 600 + i,
+        title: `Water pipeline rupture near Station Road #${i}`,
+        category: 'water_sewage',
+        location: {
+          address: 'Station Road',
+          landmark: '',
+          ward: 'Ward 4',
+          zone: 'Zone B',
+          latitude: 17.6800 + (i * 0.0003), // ~3km away from cluster 1
+          longitude: 75.9400 + (i * 0.0003),
+        },
+        priority: 'urgent',
+        createdAt: new Date(refTime.getTime() - (i * 1800 * 1000)).toISOString(),
+      })
+    );
+  }
+
+  const multiHotspots = EmergingProblemEngine.detectHotspots(
+    [...surgeReports, ...cluster2Reports],
+    { referenceTime: refTime }
+  );
+  assert(
+    multiHotspots.length >= 2,
+    `Test 13: Two geographically separate clusters must produce >= 2 hotspots, got ${multiHotspots.length}`
+  );
+  const categories = multiHotspots.map((h) => h.category);
+  assert(
+    categories.includes('roads') && categories.includes('water_sewage'),
+    `Test 13: Separate category hotspots must be distinctly categorized`
+  );
+
+  // Test 14: Top drivers & explainable reasons are generated
+  assert(
+    surgeRes[0].explainableReasons.length > 0,
+    `Test 14: Hotspot must contain at least 1 explainable reason`
+  );
+  assert(
+    surgeRes[0].topDrivers.length > 0,
+    `Test 14: Hotspot must contain at least 1 top driver tag`
+  );
+
   console.log(`✅ Emerging Problem Tests Finished: ${passed} passed, ${failed} failed`);
   return { passed, failed, errors };
 }
+

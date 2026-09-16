@@ -202,7 +202,10 @@ export function App() {
       {activePage === 'map' && (
         <LiveMap
           complaints={visibleComplaints}
+          incidentClusters={incidentClusters}
           onSelectComplaint={handleSelectComplaint}
+          onCreateJointAction={createJointAction}
+          onNavigatePage={(p) => setActivePage(p as any)}
           loading={complaintsLoading}
           error={complaintsError}
           onRefresh={handleRefresh}

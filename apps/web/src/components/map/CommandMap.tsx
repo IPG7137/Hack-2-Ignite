@@ -7,13 +7,21 @@ import { hasValidCoordinates } from '../../services/reportAdapter';
 import { SimilarityEngine } from '../../services/similarityEngine';
 import { PriorityEngine } from '../../services/priorityEngine';
 import { EmergingProblemEngine, EmergingHotspotResult } from '../../services/emergingProblemEngine';
+import { IncidentGroupingEngine, PotentialIncidentResult } from '../../services/incidentGroupingEngine';
 
 interface CommandMapProps {
   complaints: Complaint[];
   selectedId?: string | null;
   onSelectComplaint?: (id: string) => void;
+  selectedHotspotId?: string | null;
+  onSelectHotspot?: (hotspotId: string) => void;
+  selectedIncidentId?: string | null;
+  onSelectIncident?: (incidentId: string) => void;
   showProximityRings?: boolean;
   showHotspots?: boolean;
+  showIncidentClusters?: boolean;
+  activeFilterHotspotId?: string | null;
+  focusCoordinates?: { lat: number; lng: number } | null;
 }
 
 /**
@@ -42,13 +50,21 @@ export const CommandMap: React.FC<CommandMapProps> = ({
   complaints,
   selectedId,
   onSelectComplaint,
+  selectedHotspotId,
+  onSelectHotspot,
+  selectedIncidentId,
+  onSelectIncident,
   showProximityRings = true,
   showHotspots = true,
+  showIncidentClusters = true,
+  activeFilterHotspotId,
+  focusCoordinates,
 }) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const markersRef = useRef<{ [key: string]: maplibregl.Marker }>({});
   const hotspotMarkersRef = useRef<{ [key: string]: maplibregl.Marker }>({});
+  const incidentMarkersRef = useRef<{ [key: string]: maplibregl.Marker }>({});
   const initialFitDone = useRef(false);
 
   // Initialize MapLibre
@@ -101,20 +117,40 @@ export const CommandMap: React.FC<CommandMapProps> = ({
     };
   }, []);
 
-  // Update Markers & 200m Proximity Visualizations & Phase 3C Hotspots on real data change
+  // Handle external focus coordinate changes
+  useEffect(() => {
+    if (focusCoordinates && map.current) {
+      map.current.flyTo({
+        center: [focusCoordinates.lng, focusCoordinates.lat],
+        zoom: 15.5,
+        speed: 1.2,
+      });
+    }
+  }, [focusCoordinates]);
+
+  // Update Markers & 200m Proximity Visualizations & Phase 3C Hotspots & 3D Incidents
   useEffect(() => {
     if (!map.current) return;
 
-    // 1. Filter complaints with strict valid coordinates (no default/invented coordinates)
+    // 1. Filter complaints with strict valid coordinates
     const validComplaints = complaints.filter((c) => {
-      const valid = hasValidCoordinates(c);
-      if (!valid) {
-        console.log(`ℹ️ [GIS Map] Skipping complaint #${c.id}: No valid GPS coordinates available.`);
-      }
-      return valid;
+      return hasValidCoordinates(c);
     });
 
-    // 2. Identify complaints within 200m of another complaint
+    // 2. Identify active hotspot and its member IDs if selected or filtered
+    const detectedHotspots = EmergingProblemEngine.detectHotspots(validComplaints, {
+      clusterRadiusMeters: 500,
+      minimumClusterSize: 2,
+    }).filter((h) => h.classification !== 'normal');
+
+    const selectedHotspot = detectedHotspots.find((h) => h.id === selectedHotspotId);
+    const hotspotMemberIds = new Set<string>();
+    if (selectedHotspot) {
+      selectedHotspot.complaintIds.forEach((id) => hotspotMemberIds.add(id));
+      selectedHotspot.reportIds.forEach((id) => hotspotMemberIds.add(id));
+    }
+
+    // 3. Identify complaints within 200m of another complaint
     const proximityMemberIds = new Set<string>();
     for (let i = 0; i < validComplaints.length; i++) {
       for (let j = i + 1; j < validComplaints.length; j++) {
@@ -133,24 +169,22 @@ export const CommandMap: React.FC<CommandMapProps> = ({
       }
     }
 
-    // 3. Clear existing markers
+    // 4. Clear existing markers
     Object.values(markersRef.current).forEach((m) => m.remove());
     markersRef.current = {};
     Object.values(hotspotMarkersRef.current).forEach((m) => m.remove());
     hotspotMarkersRef.current = {};
+    Object.values(incidentMarkersRef.current).forEach((m) => m.remove());
+    incidentMarkersRef.current = {};
 
-    // 4. Render Phase 3C Hotspot Overlays (500m Activity Clusters)
+    // 5. Render Phase 3C Hotspot Overlays (500m Activity Clusters)
     if (showHotspots) {
-      const detectedHotspots = EmergingProblemEngine.detectHotspots(validComplaints, {
-        clusterRadiusMeters: 500,
-        minimumClusterSize: 2,
-      }).filter((h) => h.classification !== 'normal');
-
       detectedHotspots.forEach((hotspot) => {
         const hEl = document.createElement('div');
         hEl.className = 'hotspot-marker-wrapper cursor-pointer';
 
         const isCritical = hotspot.classification === 'criticalEmergingProblem';
+        const isSelected = hotspot.id === selectedHotspotId;
         const ringColor = isCritical ? '#D92D20' : '#EA580C';
 
         hEl.innerHTML = `
@@ -158,41 +192,48 @@ export const CommandMap: React.FC<CommandMapProps> = ({
             <!-- 500m Geographic Proximity Ring -->
             <div style="
               position: absolute;
-              width: 84px;
-              height: 84px;
+              width: ${isSelected ? '120px' : '90px'};
+              height: ${isSelected ? '120px' : '90px'};
               border-radius: 50%;
-              background: ${ringColor}15;
-              border: 2px dashed ${ringColor}80;
+              background: ${ringColor}${isSelected ? '28' : '15'};
+              border: ${isSelected ? '3px solid' : '2px dashed'} ${ringColor}${isSelected ? 'CC' : '80'};
               pointer-events: none;
-              animation: pulse 3s infinite ease-in-out;
+              animation: pulse ${isSelected ? '2s' : '3.5s'} infinite ease-in-out;
+              box-shadow: ${isSelected ? `0 0 24px ${ringColor}60` : 'none'};
             "></div>
             <!-- Hotspot Badge Center Pin -->
             <div style="
               position: relative;
-              z-index: 5;
-              padding: 2px 6px;
+              z-index: ${isSelected ? '20' : '8'};
+              padding: ${isSelected ? '3px 8px' : '2px 6px'};
               border-radius: 12px;
               background: ${ringColor};
-              border: 2px solid #FFFFFF;
-              box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+              border: ${isSelected ? '2.5px solid #FEF08A' : '2px solid #FFFFFF'};
+              box-shadow: 0 3px 12px rgba(0,0,0,0.35);
               color: #FFFFFF;
-              font-size: 10px;
+              font-size: ${isSelected ? '11px' : '10px'};
               font-weight: 800;
               font-family: monospace;
               display: flex;
               align-items: center;
               gap: 3px;
               white-space: nowrap;
+              transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
             ">
               <span>🔥</span>
-              <span>${hotspot.levelLabel.toUpperCase()} · ${hotspot.scoreDisplay}</span>
+              <span>${hotspot.shortLabel.toUpperCase()} · ${hotspot.scoreDisplay}</span>
             </div>
           </div>
         `;
 
+        hEl.addEventListener('click', (e) => {
+          e.stopPropagation();
+          onSelectHotspot?.(hotspot.id);
+        });
+
         const hotspotPopupContent = document.createElement('div');
         hotspotPopupContent.style.fontFamily = 'Inter, sans-serif';
-        hotspotPopupContent.style.minWidth = '240px';
+        hotspotPopupContent.style.minWidth = '250px';
         hotspotPopupContent.style.color = '#172B4D';
 
         hotspotPopupContent.innerHTML = `
@@ -200,7 +241,7 @@ export const CommandMap: React.FC<CommandMapProps> = ({
             <span style="font-size: 10px; font-family: monospace; font-weight: bold; color: ${isCritical ? '#D92D20' : '#EA580C'}; padding: 1px 6px; border-radius: 4px; background: ${isCritical ? '#FEF2F2' : '#FFF7ED'}; border: 1px solid ${isCritical ? '#FECACA' : '#FFEDD5'};">
               ${hotspot.levelLabel.toUpperCase()} · ${hotspot.scoreDisplay}
             </span>
-            <span style="font-size: 10px; font-mono; color: #526581;">~500m Zone</span>
+            <span style="font-size: 10px; font-family: monospace; color: #526581;">~${hotspot.radiusMeters}m Zone</span>
           </div>
           <div style="font-size: 12px; font-weight: 700; color: #172B4D; line-height: 1.3; margin-bottom: 4px;">
             📂 ${hotspot.categoryLabel}
@@ -217,7 +258,7 @@ export const CommandMap: React.FC<CommandMapProps> = ({
               <span style="color: #718096;">Spike Ratio:</span> <strong style="color: ${hotspot.increaseRatio >= 1.5 ? '#D92D20' : '#16803C'};">${hotspot.increaseRatio.toFixed(1)}×</strong>
             </div>
             <div style="background: #F8FAFC; border: 1px solid #E2E8F0; padding: 3px 5px; border-radius: 4px;">
-              <span style="color: #718096;">500m Cluster:</span> <strong>${hotspot.complaintCount}</strong>
+              <span style="color: #718096;">Total in Zone:</span> <strong>${hotspot.complaintCount}</strong>
             </div>
             <div style="background: #F8FAFC; border: 1px solid #E2E8F0; padding: 3px 5px; border-radius: 4px;">
               <span style="color: #718096;">Priority/Safety:</span> <strong>${hotspot.highPriorityCount}</strong>
@@ -229,33 +270,27 @@ export const CommandMap: React.FC<CommandMapProps> = ({
             ${hotspot.explainableReasons.map((r) => `<div style="color: #334155; margin-bottom: 1px;">• ${r}</div>`).join('')}
           </div>
 
-          ${
-            hotspot.complaintIds[0]
-              ? `<button id="inspect-hotspot-lead-${hotspot.id}" style="
-                  width: 100%;
-                  padding: 5px 8px;
-                  background: #1769D2;
-                  color: white;
-                  border: none;
-                  border-radius: 4px;
-                  font-size: 11px;
-                  font-weight: 600;
-                  cursor: pointer;
-                  transition: background 0.2s;
-                ">
-                  Inspect Cluster Lead (#${hotspot.complaintIds[0]}) ➔
-                </button>`
-              : ''
-          }
+          <button id="inspect-hotspot-dossier-${hotspot.id}" style="
+            width: 100%;
+            padding: 5px 8px;
+            background: #1769D2;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+          ">
+            Inspect Hotspot Dossier (${hotspot.complaintCount} Grievances) ➔
+          </button>
         `;
 
         hotspotPopupContent
-          .querySelector(`#inspect-hotspot-lead-${hotspot.id}`)
+          .querySelector(`#inspect-hotspot-dossier-${hotspot.id}`)
           ?.addEventListener('click', (e) => {
             e.stopPropagation();
-            if (hotspot.complaintIds[0]) {
-              onSelectComplaint?.(hotspot.complaintIds[0]);
-            }
+            onSelectHotspot?.(hotspot.id);
           });
 
         const hotspotPopup = new maplibregl.Popup({ offset: 15, closeButton: true }).setDOMContent(
@@ -273,7 +308,117 @@ export const CommandMap: React.FC<CommandMapProps> = ({
       });
     }
 
-    // 5. Render individual complaint markers
+    // 6. Render 3D Potential Incidents (Common Root-Cause Groups)
+    if (showIncidentClusters) {
+      const detectedIncidents = IncidentGroupingEngine.groupComplaintsIntoIncidents(validComplaints).filter(
+        (inc: PotentialIncidentResult) => inc.classification !== 'noIncidentGroup'
+      );
+
+      detectedIncidents.forEach((incident: PotentialIncidentResult) => {
+        const incEl = document.createElement('div');
+        incEl.className = 'incident-cluster-marker-wrapper cursor-pointer';
+
+        const isSelected = incident.incidentId === selectedIncidentId;
+        const incColor = '#7C3AED'; // Purple theme for 3D incidents
+
+        incEl.innerHTML = `
+          <div style="position: relative; display: flex; align-items: center; justify-content: center; transform: translate(0, 0);">
+            <div style="
+              position: absolute;
+              width: ${isSelected ? '72px' : '56px'};
+              height: ${isSelected ? '72px' : '56px'};
+              border-radius: 50%;
+              background: ${incColor}${isSelected ? '30' : '15'};
+              border: 1.5px solid ${incColor}${isSelected ? 'AA' : '60'};
+              pointer-events: none;
+            "></div>
+            <div style="
+              position: relative;
+              z-index: ${isSelected ? '18' : '7'};
+              padding: 2px 5px;
+              border-radius: 10px;
+              background: ${incColor};
+              border: 1.5px solid #FFFFFF;
+              box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+              color: #FFFFFF;
+              font-size: 9px;
+              font-weight: 700;
+              font-family: monospace;
+              display: flex;
+              align-items: center;
+              gap: 2px;
+              white-space: nowrap;
+            ">
+              <span>⚡</span>
+              <span>${incident.incidentId} (${incident.complaintCount})</span>
+            </div>
+          </div>
+        `;
+
+        incEl.addEventListener('click', (e) => {
+          e.stopPropagation();
+          onSelectIncident?.(incident.incidentId);
+        });
+
+        const incPopupContent = document.createElement('div');
+        incPopupContent.style.fontFamily = 'Inter, sans-serif';
+        incPopupContent.style.minWidth = '220px';
+        incPopupContent.style.color = '#172B4D';
+
+        incPopupContent.innerHTML = `
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+            <span style="font-size: 10px; font-family: monospace; font-weight: bold; color: #7C3AED; padding: 1px 5px; border-radius: 4px; background: #F5F3FF; border: 1px solid #DDD6FE;">
+              3D POTENTIAL INCIDENT
+            </span>
+            <span style="font-size: 10px; font-family: monospace; font-weight: bold; color: #7C3AED;">
+              ${incident.confidenceDisplay} Match
+            </span>
+          </div>
+          <div style="font-size: 12px; font-weight: 700; color: #172B4D; margin-bottom: 2px;">
+            ${incident.incidentLabel}
+          </div>
+          <div style="font-size: 11px; color: #526581; margin-bottom: 4px;">
+            📂 ${incident.primaryCategoryLabel} · ${incident.complaintCount} linked complaints
+          </div>
+          <button id="inspect-incident-btn-${incident.incidentId}" style="
+            width: 100%;
+            margin-top: 4px;
+            padding: 4px 6px;
+            background: #7C3AED;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+          ">
+            Inspect Incident Cluster ➔
+          </button>
+        `;
+
+        incPopupContent
+          .querySelector(`#inspect-incident-btn-${incident.incidentId}`)
+          ?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            onSelectIncident?.(incident.incidentId);
+          });
+
+        const incPopup = new maplibregl.Popup({ offset: 12, closeButton: true }).setDOMContent(
+          incPopupContent
+        );
+
+        if (map.current) {
+          const incMarker = new maplibregl.Marker({ element: incEl })
+            .setLngLat([incident.centerLongitude, incident.centerLatitude])
+            .setPopup(incPopup)
+            .addTo(map.current);
+
+          incidentMarkersRef.current[incident.incidentId] = incMarker;
+        }
+      });
+    }
+
+    // 7. Render individual complaint markers
     validComplaints.forEach((c) => {
       const el = document.createElement('div');
       el.className = 'command-marker-wrapper cursor-pointer';
@@ -282,6 +427,7 @@ export const CommandMap: React.FC<CommandMapProps> = ({
       const isUrgent = c.priority === 'urgent';
       const isHigh = c.priority === 'high';
       const isProximityNear = proximityMemberIds.has(c.id) || c.isDuplicateCluster;
+      const isHotspotMember = hotspotMemberIds.has(c.id) || (c.dbId && hotspotMemberIds.has(String(c.dbId)));
 
       const color = isUrgent
         ? '#D92D20'
@@ -294,7 +440,17 @@ export const CommandMap: React.FC<CommandMapProps> = ({
       el.innerHTML = `
         <div style="position: relative; display: flex; align-items: center; justify-content: center;">
           ${
-            showProximityRings && isProximityNear
+            isHotspotMember
+              ? `<div style="
+                  position: absolute;
+                  width: 38px;
+                  height: 38px;
+                  border-radius: 50%;
+                  background: #EA580C30;
+                  border: 2px solid #EA580C;
+                  animation: pulse 2s infinite ease-in-out;
+                "></div>`
+              : showProximityRings && isProximityNear
               ? `<div style="
                   position: absolute;
                   width: 48px;
@@ -307,11 +463,11 @@ export const CommandMap: React.FC<CommandMapProps> = ({
               : ''
           }
           <div style="
-            width: ${isSelected ? '28px' : '22px'};
-            height: ${isSelected ? '28px' : '22px'};
+            width: ${isSelected ? '28px' : isHotspotMember ? '24px' : '22px'};
+            height: ${isSelected ? '28px' : isHotspotMember ? '24px' : '22px'};
             border-radius: 50%;
             background: ${color};
-            border: 2px solid #FFFFFF;
+            border: ${isSelected ? '2.5px solid #FEF08A' : isHotspotMember ? '2px solid #FED7AA' : '2px solid #FFFFFF'};
             box-shadow: 0 2px 8px rgba(0,0,0,0.25);
             display: flex;
             align-items: center;
@@ -333,7 +489,7 @@ export const CommandMap: React.FC<CommandMapProps> = ({
 
       const popupContent = document.createElement('div');
       popupContent.style.fontFamily = 'Inter, sans-serif';
-      popupContent.style.minWidth = '210px';
+      popupContent.style.minWidth = '220px';
       popupContent.style.color = '#172B4D';
 
       const statusConfig = COMPLAINT_STATUS_CONFIG[c.status] || {
@@ -365,6 +521,13 @@ export const CommandMap: React.FC<CommandMapProps> = ({
           <span style="font-weight: 600; color: ${statusConfig.color};">${statusConfig.label}</span>
           <span style="font-weight: bold; color: ${c.sla.isOverdue ? '#D92D20' : '#16803C'};">${c.sla.isOverdue ? 'OVERDUE' : `${c.sla.hoursRemaining}h SLA`}</span>
         </div>
+        ${
+          c.jointIncidentId
+            ? `<div style="margin-top: 4px; padding: 2px 5px; border-radius: 3px; background: #F5F3FF; border: 1px solid #DDD6FE; color: #6D28D9; font-size: 9px; font-mono; font-weight: bold;">
+                ⚡ Coordinated Joint Action: #${c.jointIncidentId}
+              </div>`
+            : ''
+        }
         ${
           relatedSummary
             ? `<div style="margin-top: 6px; padding: 3px 6px; border-radius: 4px; background: ${
@@ -414,7 +577,7 @@ export const CommandMap: React.FC<CommandMapProps> = ({
       }
     });
 
-    // 6. Initial auto-fit bounds or flyTo selected
+    // 8. Auto-fit bounds or flyTo selected
     if (selectedId && map.current) {
       const selected = validComplaints.find((c) => c.id === selectedId);
       if (selected) {
@@ -433,45 +596,76 @@ export const CommandMap: React.FC<CommandMapProps> = ({
       map.current.fitBounds(bounds, { padding: 60, maxZoom: 14 });
       initialFitDone.current = true;
     }
-  }, [complaints, selectedId, showProximityRings, showHotspots, onSelectComplaint]);
+  }, [
+    complaints,
+    selectedId,
+    selectedHotspotId,
+    selectedIncidentId,
+    showProximityRings,
+    showHotspots,
+    showIncidentClusters,
+    onSelectComplaint,
+    onSelectHotspot,
+    onSelectIncident,
+  ]);
 
   return (
     <div className="relative w-full h-full min-h-[400px] rounded-lg overflow-hidden border border-[#D9E2EC] bg-[#F8FAFC] shadow-sm">
       <div ref={mapContainer} className="w-full h-full" />
 
-      {/* Map Legend Overlay (Municipal Standard) */}
-      <div className="absolute bottom-3 left-3 bg-white/95 backdrop-blur-md p-3 rounded-lg border border-[#D9E2EC] shadow-md text-[11px] space-y-1.5 z-10 text-[#172B4D]">
+      {/* Map Legend Overlay (Municipal Standard Matrix) */}
+      <div className="absolute bottom-3 left-3 bg-white/95 backdrop-blur-md p-3 rounded-lg border border-[#D9E2EC] shadow-md text-[11px] space-y-1.5 z-10 text-[#172B4D] max-w-[240px]">
         <div className="text-[10px] font-mono text-[#526581] uppercase font-bold tracking-wider">
-          Incident Severity Matrix
+          GIS Matrix & Intelligence Legend
         </div>
-        <div className="flex items-center gap-2">
-          <span className="w-2.5 h-2.5 rounded-full bg-[#D92D20] shadow-xs" />
-          <span className="text-[#172B4D] font-medium">Critical / Urgent (12h SLA)</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="w-2.5 h-2.5 rounded-full bg-[#EA580C]" />
-          <span className="text-[#172B4D] font-medium">High Priority (24h SLA)</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="w-2.5 h-2.5 rounded-full bg-[#D99A00]" />
-          <span className="text-[#172B4D] font-medium">Medium Priority (48h)</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="w-2.5 h-2.5 rounded-full bg-[#1769D2]" />
-          <span className="text-[#172B4D] font-medium">Low Priority (72h)</span>
-        </div>
-        {showHotspots && (
-          <div className="flex items-center gap-2 pt-1.5 border-t border-[#E8EEF5] text-[10px] text-[#526581]">
-            <span className="w-3 h-3 rounded-full border border-dashed border-[#D92D20] bg-red-500/20 flex items-center justify-center text-[8px]">🔥</span>
-            <span className="text-red-700 font-bold">500m Hotspot Anomaly Zone</span>
+        
+        {/* Severity Dots */}
+        <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-[10px]">
+          <div className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-full bg-[#D92D20] shrink-0" />
+            <span className="text-[#172B4D] truncate">Urgent (12h)</span>
           </div>
-        )}
-        {showProximityRings && (
-          <div className="flex items-center gap-2 text-[10px] text-[#526581]">
-            <span className="w-3 h-3 rounded-full border border-dashed border-[#D92D20] bg-red-500/15" />
-            <span>200m Proximity Duplication Buffer</span>
+          <div className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-full bg-[#EA580C] shrink-0" />
+            <span className="text-[#172B4D] truncate">High (24h)</span>
           </div>
-        )}
+          <div className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-full bg-[#D99A00] shrink-0" />
+            <span className="text-[#172B4D] truncate">Medium (48h)</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-full bg-[#1769D2] shrink-0" />
+            <span className="text-[#172B4D] truncate">Low (72h)</span>
+          </div>
+        </div>
+
+        {/* Intelligence Overlays */}
+        <div className="pt-1.5 border-t border-[#E8EEF5] space-y-1 text-[10px]">
+          {showHotspots && (
+            <div className="flex items-center gap-1.5 text-amber-900 font-medium">
+              <span className="w-3 h-3 rounded-full border border-dashed border-[#EA580C] bg-orange-500/20 flex items-center justify-center text-[8px] shrink-0">
+                🔥
+              </span>
+              <span>3C Emerging Hotspot (~500m)</span>
+            </div>
+          )}
+
+          {showIncidentClusters && (
+            <div className="flex items-center gap-1.5 text-purple-900 font-medium">
+              <span className="w-3 h-3 rounded-full border border-purple-500 bg-purple-500/20 flex items-center justify-center text-[8px] shrink-0">
+                ⚡
+              </span>
+              <span>3D Potential Incident Group</span>
+            </div>
+          )}
+
+          {showProximityRings && (
+            <div className="flex items-center gap-1.5 text-[#526581]">
+              <span className="w-3 h-3 rounded-full border border-dashed border-[#1769D2] bg-blue-500/15 shrink-0" />
+              <span>200m Proximity Cluster Buffer</span>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

@@ -92,9 +92,21 @@ $$P = w_{sev} \cdot S_{base} + w_{sla} \cdot S_{sla} + w_{pop} \cdot S_{pop} + w
 ---
 
 ### 3E. Emerging Problem & Pattern Detection Engine (`emergingProblemEngine.ts`)
-- **Spike Detection**: Statistical z-score anomaly detection across temporal complaint volume per ward.
-- **Spatial Hotspotting**: Identifies geographic clusters where complaint velocity exceeds baseline thresholds by $>2.5\sigma$.
-- **Infrastructure Decay Warnings**: Highlights chronic failure nodes (e.g., repeated water pipe bursts on the same road segment).
+- **Spike Detection**: Statistical volume surge scoring ($0.0 - 100.0$) comparing 24-hour recent complaint intake with baseline daily averages.
+- **Spatial Hotspotting**: Geodesic clustering identifying ~500m concentration zones across specific grievance categories.
+- **Explainable Driver Breakdown**: Multi-signal mathematical attribution (Volume Spike 40%, Spatial Density 25%, Category Focus 20%, Safety/Priority 15%).
+- **GIS Hotspot Map Layer**: Live GIS visualization with dynamic pulsing rings, score badges, centroid inspection, and GeoJSON polygon boundaries.
+- **Explainable Traceability**: Hotspots trace back to the exact list of contributing complaints, enabling operators to filter the map to the cluster or trigger immediate Joint Action workflows.
+
+```mermaid
+flowchart LR
+    A[Citizen Complaints Stream] --> B[3C Emerging Problem Engine]
+    B --> C[Spatial & Temporal Density Matrix]
+    C --> D[Emerging Hotspots ~500m Layer]
+    D --> E[Interactive GIS Map Inspector]
+    E --> F[Explainable Drivers & Traceable Complaints]
+    F --> G[Direct Joint Action Work Order]
+```
 
 ---
 

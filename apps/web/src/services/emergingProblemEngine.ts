@@ -526,4 +526,115 @@ export class EmergingProblemEngine {
       highPriorityCount,
     };
   }
+
+  /**
+   * Retrieves all full Complaint objects contributing to a given Hotspot
+   */
+  public static getContributingComplaints(
+    hotspot: EmergingHotspotResult,
+    allComplaints: Complaint[]
+  ): Complaint[] {
+    if (!hotspot || !allComplaints) return [];
+    const idSet = new Set<string>([
+      ...(hotspot.complaintIds || []),
+      ...(hotspot.reportIds || []),
+    ]);
+
+    return allComplaints.filter((c) => {
+      if (idSet.has(c.id)) return true;
+      if (c.dbId && idSet.has(String(c.dbId))) return true;
+      return false;
+    });
+  }
+
+  /**
+   * Generates geodesic circle polygon coordinates (lng, lat pairs) around a center point
+   * Suitable for MapLibre / Leaflet polygon boundaries (standard GeoJSON format: [longitude, latitude])
+   */
+  public static generateCircleCoordinates(
+    centerLat: number,
+    centerLng: number,
+    radiusMeters: number,
+    numPoints: number = 32
+  ): [number, number][] {
+    const coords: [number, number][] = [];
+    const earthRadius = 6371000;
+    const latRad = (centerLat * Math.PI) / 180;
+    const lngRad = (centerLng * Math.PI) / 180;
+    const dDivR = radiusMeters / earthRadius;
+
+    for (let i = 0; i <= numPoints; i++) {
+      const angle = (i * 2 * Math.PI) / numPoints;
+      const pointLatRad = Math.asin(
+        Math.sin(latRad) * Math.cos(dDivR) +
+          Math.cos(latRad) * Math.sin(dDivR) * Math.cos(angle)
+      );
+      const pointLngRad =
+        lngRad +
+        Math.atan2(
+          Math.sin(angle) * Math.sin(dDivR) * Math.cos(latRad),
+          Math.cos(dDivR) - Math.sin(latRad) * Math.sin(pointLatRad)
+        );
+
+      const lat = (pointLatRad * 180) / Math.PI;
+      const lng = (pointLngRad * 180) / Math.PI;
+      coords.push([lng, lat]);
+    }
+
+    return coords;
+  }
+
+  /**
+   * Produces a standard GeoJSON FeatureCollection representing all detected hotspots
+   */
+  public static generateGeoJSON(hotspots: EmergingHotspotResult[]): {
+    type: 'FeatureCollection';
+    features: Array<{
+      type: 'Feature';
+      geometry: {
+        type: 'Polygon';
+        coordinates: [number, number][][];
+      };
+      properties: {
+        id: string;
+        category: string;
+        categoryLabel: string;
+        score: number;
+        classification: string;
+        complaintCount: number;
+        centerLat: number;
+        centerLng: number;
+        radiusMeters: number;
+      };
+    }>;
+  } {
+    return {
+      type: 'FeatureCollection',
+      features: (hotspots || []).map((h) => ({
+        type: 'Feature',
+        geometry: {
+          type: 'Polygon',
+          coordinates: [
+            EmergingProblemEngine.generateCircleCoordinates(
+              h.centerLatitude,
+              h.centerLongitude,
+              h.radiusMeters || 500
+            ),
+          ],
+        },
+        properties: {
+          id: h.id,
+          category: h.category,
+          categoryLabel: h.categoryLabel,
+          score: h.emergingScore,
+          classification: h.classification,
+          complaintCount: h.complaintCount,
+          centerLat: h.centerLatitude,
+          centerLng: h.centerLongitude,
+          radiusMeters: h.radiusMeters || 500,
+        },
+      })),
+    };
+  }
 }
+
