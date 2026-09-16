@@ -27,7 +27,7 @@ Ensure the following variables are configured (values are illustrative):
 # Root / Web Application
 VITE_SUPABASE_URL=https://your-project-ref.supabase.co
 VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-VITE_GEMINI_API_KEY=AIzaSy...
+VITE_GEMINI_API_KEY=your-gemini-api-key-here
 
 # Mobile Application (apps/mobile/.env)
 SUPABASE_URL=https://your-project-ref.supabase.co

@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:civic_resolve/app_config.dart';
 import 'package:civic_resolve/comprehensive_database_service.dart';
 import 'package:civic_resolve/auth_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -6,12 +7,13 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 void main() async {
   print('🧪 Testing Report Submission Functionality');
   print('==========================================');
+  await AppConfig.initialize();
   
   // Initialize Supabase
   try {
     await Supabase.initialize(
-      url: 'https://wquvnmtwsqykptwfwikq.supabase.co',
-      anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndxdXZubXR3c3F5a3B0d2Z3aWtxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzE1MDcyOTMsImV4cCI6MjA0NzA4MzI5M30.ZJoaIbnHKqnCNJ9KUQFsrCNLQrVLdSgjrJLeLhVo5vI',
+      url: AppConfig.supabaseUrl,
+      anonKey: AppConfig.supabaseAnonKey,
     );
     print('✅ Supabase initialized successfully');
   } catch (e) {

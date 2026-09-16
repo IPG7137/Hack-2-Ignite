@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:civic_resolve/app_config.dart';
 import 'lib/auth_service_fixed.dart';
 import 'lib/report_service_fixed.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await AppConfig.initialize();
   
   await Supabase.initialize(
-    url: 'https://ooryormddgyvgthggnzo.supabase.co',
-    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9vcnlvcm1kZGd5dmd0aGdnbnpvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgzNzQyNzIsImV4cCI6MjA3Mzk1MDI3Mn0.fkqBfcvgYy90HfJWPrqBnNSTCbIzlSN9c0QpE7eYavg',
+    url: AppConfig.supabaseUrl,
+    anonKey: AppConfig.supabaseAnonKey,
   );
 
   await testCompleteLoginFlow();
