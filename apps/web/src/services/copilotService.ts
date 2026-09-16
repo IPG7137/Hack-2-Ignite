@@ -1,5 +1,5 @@
 import { Complaint } from '../types/complaint';
-import { CopilotMessage } from '../types/ai';
+import { CopilotMessage, GroundedMunicipalBriefing, MunicipalBriefingMetrics } from '../types/ai';
 import { PriorityEngine, CivicPriorityAnalysis } from './priorityEngine';
 import { EmergingProblemEngine, EmergingHotspotResult } from './emergingProblemEngine';
 import { IncidentGroupingEngine, PotentialIncidentResult } from './incidentGroupingEngine';
@@ -225,7 +225,7 @@ export class CopilotService {
         grounded = this.handleDepartmentQuery(cleanQuery, safeComplaints);
         break;
       case 'COMMISSIONER_BRIEFING':
-        grounded = this.handleCommissionerBriefingQuery(cleanQuery, safeComplaints);
+        grounded = await this.handleCommissionerBriefingQuery(cleanQuery, safeComplaints, securityContext);
         break;
       case 'SLA_OVERDUE':
         grounded = this.handleSlaOverdueQuery(cleanQuery, safeComplaints);
@@ -633,42 +633,401 @@ export class CopilotService {
     };
   }
 
-  private static handleCommissionerBriefingQuery(query: string, complaints: Complaint[]): GroundedCopilotResponse {
-    const synthesis = AIInsightsService.synthesizeOperationalInsights(complaints);
-    const { executiveBrief, criticalDispatch, emergingAnomalies, incidentGrouping, resolutionAudits } = synthesis;
+  /**
+   * Generates a comprehensive, 6-section Grounded Municipal / Commissioner Briefing.
+   * Leverages Gemini 1.5 Flash when available with strict grounding context, or falls back to
+   * the deterministic 3A-3E intelligence engines. Zero hallucinated statistics.
+   */
+  public static async generateMunicipalBriefing(
+    complaints: Complaint[],
+    securityContext?: CopilotSecurityContext
+  ): Promise<GroundedMunicipalBriefing> {
+    // 1. Authorization guard
+    if (securityContext?.role === 'citizen') {
+      return {
+        id: `BRIEF-AUTH-${Date.now()}`,
+        timestamp: new Date().toISOString(),
+        datasetSize: 0,
+        isAiGenerated: false,
+        modelName: 'Access Restricted',
+        summary: 'Citizen accounts cannot access city-wide executive municipal briefings.',
+        markdownContent: `### 🏛️ Municipal AI Copilot\n\n**Access Restricted:** Executive municipal briefings are reserved for municipal administrators and departmental supervisors. Please query your submitted personal grievances or ward status.`,
+        referencedComplaintIds: [],
+        metrics: {
+          totalComplaints: 0,
+          activeComplaints: 0,
+          resolvedComplaints: 0,
+          overdueComplaints: 0,
+          criticalPriorityCount: 0,
+          highPriorityCount: 0,
+          emergingHotspotsCount: 0,
+          potentialIncidentsCount: 0,
+          pendingVerificationCount: 0,
+          departmentDistribution: {},
+        },
+        topDirectives: [],
+      };
+    }
+
+    if (!complaints || complaints.length === 0) {
+      return {
+        id: `BRIEF-EMPTY-${Date.now()}`,
+        timestamp: new Date().toISOString(),
+        datasetSize: 0,
+        isAiGenerated: false,
+        modelName: 'Deterministic 3A-3E Engine',
+        summary: 'No active or historical complaint records available in the authorized dataset.',
+        markdownContent: `### 🏛️ Municipal Commissioner Executive Operational Briefing\n\n**Telemetry Timestamp:** ${new Date().toLocaleTimeString()} | **Dataset:** 0 Records\n\n#### 1. Overall Workload & Status Distribution\n- There are currently **0 complaints** on record in the accessible command queue.\n\n*All municipal intelligence engines require active complaint records to synthesize operational briefings.*`,
+        referencedComplaintIds: [],
+        metrics: {
+          totalComplaints: 0,
+          activeComplaints: 0,
+          resolvedComplaints: 0,
+          overdueComplaints: 0,
+          criticalPriorityCount: 0,
+          highPriorityCount: 0,
+          emergingHotspotsCount: 0,
+          potentialIncidentsCount: 0,
+          pendingVerificationCount: 0,
+          departmentDistribution: {},
+        },
+        topDirectives: ['Await citizen complaint telemetry intake.'],
+      };
+    }
+
+    // 2. Deterministic Metric Computations across 3A–3E
+    const safeComplaints = complaints.map((c) => GroundingSecurityGuard.sanitizeComplaintForTelemetry(c));
+    const active = safeComplaints.filter(
+      (c) => c.status !== 'closed' && c.status !== 'rejected' && c.status !== 'verified'
+    );
+    const resolved = safeComplaints.filter((c) => c.status === 'verified' || c.status === 'closed');
+    const overdue = safeComplaints.filter((c) => c.sla.isOverdue);
+
+    // Department Distribution
+    const departmentDistribution: { [key: string]: number } = {};
+    safeComplaints.forEach((c) => {
+      const dept = c.categoryLabel || c.category || 'General';
+      departmentDistribution[dept] = (departmentDistribution[dept] || 0) + 1;
+    });
+
+    // 3B Priority Analysis
+    const scoredList = PriorityEngine.sortComplaintsByPriority(active);
+    const topCriticalCases = scoredList.filter((s) => s.priorityAnalysis.score >= 60 || s.complaint.priority === 'urgent');
+    const highPriorityCases = scoredList.filter((s) => s.priorityAnalysis.score >= 40 && s.priorityAnalysis.score < 60);
+
+    // 3C Emerging Hotspots
+    const detectedHotspots = EmergingProblemEngine.detectHotspots(safeComplaints, {
+      clusterRadiusMeters: 500,
+      minimumClusterSize: 2,
+    }).filter((h) => h.classification !== 'normal');
+
+    // 3D Potential Incidents
+    const detectedIncidents = IncidentGroupingEngine.groupComplaintsIntoIncidents(safeComplaints).filter(
+      (inc: PotentialIncidentResult) => inc.classification !== 'noIncidentGroup'
+    );
+
+    // 3E Resolution Audits
+    const auditCases = safeComplaints
+      .filter((c) => c.status === 'resolution_submitted' || c.status === 'resolved' || c.status === 'verified')
+      .map((c) => ({
+        complaint: c,
+        audit: ResolutionVerificationEngine.evaluateComplaintResolution(c),
+      }));
+    const pendingVerification = auditCases.filter((a) => a.audit.needsHumanVerification);
+
+    const metrics: MunicipalBriefingMetrics = {
+      totalComplaints: safeComplaints.length,
+      activeComplaints: active.length,
+      resolvedComplaints: resolved.length,
+      overdueComplaints: overdue.length,
+      criticalPriorityCount: topCriticalCases.length,
+      highPriorityCount: highPriorityCases.length,
+      emergingHotspotsCount: detectedHotspots.length,
+      potentialIncidentsCount: detectedIncidents.length,
+      pendingVerificationCount: pendingVerification.length,
+      departmentDistribution,
+    };
 
     const referencedIds = [
-      ...criticalDispatch.slice(0, 2).map((c) => c.complaintId),
-      ...resolutionAudits.slice(0, 1).map((r) => r.complaintId),
+      ...topCriticalCases.slice(0, 4).map((c) => c.complaint.id),
+      ...overdue.slice(0, 2).map((c) => c.id),
+      ...detectedIncidents.slice(0, 2).flatMap((inc) => inc.memberComplaintIds.slice(0, 2)),
     ];
+    const uniqueReferencedIds = Array.from(new Set(referencedIds));
 
-    let content = `### 🏛️ Municipal Commissioner Executive Operational Briefing\n\n`;
-    content += `**Telemetry Timestamp:** ${new Date().toLocaleTimeString()} | **Dataset:** ${complaints.length} Verified Reports\n\n`;
+    // 3. Try Gemini API invocation if API key is present
+    let geminiResponseText: string | null = null;
+    const apiKey =
+      (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_GEMINI_API_KEY) ||
+      (typeof process !== 'undefined' && process.env && (process.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY));
 
-    content += `#### 1. Command Overview\n`;
-    content += `- **Active Grievances:** **${executiveBrief.totalActiveComplaints}** unresolved complaints across all wards.\n`;
-    content += `- **Critical Escalations:** **${executiveBrief.criticalDispatchCount}** high-risk cases (Priority Score ≥ 60 / SLA breached).\n`;
-    content += `- **Spatio-Temporal Hotspots:** **${executiveBrief.activeHotspotsCount}** 500m surge clusters detected.\n`;
-    content += `- **Consolidated Work Orders:** **${executiveBrief.potentialIncidentsCount}** grouped incidents ready for unified contractor dispatch.\n\n`;
+    if (apiKey && apiKey !== 'undefined' && apiKey.length > 5) {
+      try {
+        const payload = {
+          telemetryTimestamp: new Date().toISOString(),
+          metrics,
+          topCriticalCases: topCriticalCases.slice(0, 5).map((s) => ({
+            id: s.complaint.id,
+            title: s.complaint.title,
+            category: s.complaint.categoryLabel,
+            score: s.priorityAnalysis.scoreDisplay,
+            drivers: s.priorityAnalysis.topDrivers,
+            address: s.complaint.location.address,
+            isOverdue: s.complaint.sla.isOverdue,
+          })),
+          overdueComplaints: overdue.slice(0, 4).map((c) => ({
+            id: c.id,
+            title: c.title,
+            category: c.categoryLabel,
+            status: c.status,
+          })),
+          emergingHotspots: detectedHotspots.slice(0, 3).map((h) => ({
+            id: h.id,
+            category: h.categoryLabel,
+            score: h.scoreDisplay,
+            surgeMultiplier: `${h.increaseRatio.toFixed(1)}x`,
+            countIn24h: h.currentWindowCount,
+            totalInZone: h.complaintCount,
+            centerLat: h.centerLatitude,
+            centerLng: h.centerLongitude,
+            reasons: h.explainableReasons,
+          })),
+          potentialIncidents: detectedIncidents.slice(0, 3).map((inc) => ({
+            id: inc.incidentId,
+            title: inc.incidentLabel,
+            category: inc.primaryCategoryLabel,
+            confidence: inc.confidenceDisplay,
+            complaintCount: inc.complaintCount,
+          })),
+          resolutionQuality: {
+            auditedTotal: auditCases.length,
+            flaggedNeedsReview: pendingVerification.length,
+          },
+        };
 
-    content += `#### 2. Key Action Directives\n`;
-    if (criticalDispatch.length > 0) {
-      content += `• **Priority Dispatch:** Direct field squads to **#${criticalDispatch[0].complaintId}** (${criticalDispatch[0].title}) due to ${criticalDispatch[0].topDrivers.join(', ')}.\n`;
+        const systemPrompt = `You are the CivicResolve Grounded Municipal AI Copilot generating an authoritative executive briefing for municipal commissioners and department directors.
+STRICT GROUNDING RULES:
+1. You MUST strictly use the provided JSON telemetry payload.
+2. NEVER invent, fabricate, extrapolate, or hallucinate numeric figures, counts, percentages, locations, or statuses. Every number in your briefing MUST originate from the payload.
+3. Structure your response into EXACTLY these 6 numbered sections:
+   1. Overall Workload & Status Distribution
+   2. High-Priority Unresolved Incidents
+   3. SLA Health & Overdue Escalations
+   4. 3C Emerging Spatio-Temporal Hotspots
+   5. 3D Potential Incident Clusters (Common Root Causes)
+   6. Recommended Operational Focus Areas (clearly labeled as AI decision-support advice)
+4. For 3D grouped clusters, ALWAYS use "potential incident" terminology.
+5. NEVER disclose citizen PII (no private phone numbers, Aadhaar, citizen personal identities).
+6. Be crisp, executive-ready, and highly structured with Markdown headings and bullet points.`;
+
+        const response = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [
+                {
+                  role: 'user',
+                  parts: [
+                    { text: `${systemPrompt}\n\nGROUNDED TELEMETRY PAYLOAD:\n${JSON.stringify(payload, null, 2)}` },
+                  ],
+                },
+              ],
+              generationConfig: {
+                temperature: 0.1,
+                topK: 20,
+                maxOutputTokens: 1500,
+              },
+            }),
+          }
+        );
+
+        if (response.ok) {
+          const data = await response.json();
+          const generatedText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (generatedText && generatedText.trim().length > 100) {
+            geminiResponseText = GroundingSecurityGuard.maskPII(generatedText);
+          }
+        }
+      } catch (geminiErr) {
+        console.warn('⚠️ Gemini API invocation unavailable, falling back to deterministic 3A-3E generator:', geminiErr);
+      }
     }
-    if (emergingAnomalies.length > 0) {
-      content += `• **Hotspot Containment:** Investigate ${emergingAnomalies[0].categoryLabel} activity surge (${emergingAnomalies[0].increaseRatio.toFixed(1)}× spike) at \`${emergingAnomalies[0].centerLatitude.toFixed(3)}, ${emergingAnomalies[0].centerLongitude.toFixed(3)}\`.\n`;
-    }
-    if (resolutionAudits.filter((r) => r.needsHumanVerification).length > 0) {
-      const auditCount = resolutionAudits.filter((r) => r.needsHumanVerification).length;
-      content += `• **Quality Audit:** Review ${auditCount} completed case${auditCount > 1 ? 's' : ''} flagged for missing photographic proof or citizen dissatisfaction.\n`;
+
+    if (geminiResponseText) {
+      return {
+        id: `BRIEF-AI-${Date.now()}`,
+        timestamp: new Date().toISOString(),
+        datasetSize: safeComplaints.length,
+        isAiGenerated: true,
+        modelName: 'Gemini 1.5 Flash',
+        summary: `Executive Municipal Briefing synthesized via Google Gemini 1.5 Flash (Grounded on ${safeComplaints.length} records, ${active.length} active).`,
+        markdownContent: geminiResponseText,
+        referencedComplaintIds: uniqueReferencedIds,
+        metrics,
+        topDirectives: [
+          topCriticalCases[0] ? `Dispatch field crew to #${topCriticalCases[0].complaint.id} (${topCriticalCases[0].complaint.categoryLabel})` : 'Monitor active queues',
+          detectedHotspots[0] ? `Contain ${detectedHotspots[0].categoryLabel} activity surge (${detectedHotspots[0].increaseRatio.toFixed(1)}× spike)` : 'No active hotspots',
+          detectedIncidents[0] ? `Issue Joint Action for ${detectedIncidents[0].incidentId} (${detectedIncidents[0].complaintCount} reports)` : 'No common incidents',
+        ],
+      };
     }
 
-    content += `\n*Grounded in live telemetry derived from Phase 3A–3E Civic Intelligence Engines.*`;
+    // 4. Deterministic Fallback Generator
+    const deterministicMarkdown = this.generateDeterministicBriefing(
+      safeComplaints,
+      metrics,
+      topCriticalCases,
+      overdue,
+      detectedHotspots,
+      detectedIncidents,
+      pendingVerification
+    );
+
+    return {
+      id: `BRIEF-DET-${Date.now()}`,
+      timestamp: new Date().toISOString(),
+      datasetSize: safeComplaints.length,
+      isAiGenerated: false,
+      modelName: 'Deterministic 3A-3E Engine',
+      summary: `Authoritative Municipal Briefing generated via Deterministic 3A–3E Intelligence Engines (${safeComplaints.length} records, ${active.length} active).`,
+      markdownContent: deterministicMarkdown,
+      referencedComplaintIds: uniqueReferencedIds,
+      metrics,
+      topDirectives: [
+        topCriticalCases[0] ? `Dispatch field crew to #${topCriticalCases[0].complaint.id} (${topCriticalCases[0].complaint.categoryLabel})` : 'Monitor active queues',
+        detectedHotspots[0] ? `Contain ${detectedHotspots[0].categoryLabel} activity surge (${detectedHotspots[0].increaseRatio.toFixed(1)}× spike)` : 'No active hotspots',
+        detectedIncidents[0] ? `Issue Joint Action for ${detectedIncidents[0].incidentId} (${detectedIncidents[0].complaintCount} reports)` : 'No common incidents',
+      ],
+    };
+  }
+
+  /**
+   * Generates a fully structured, deterministic municipal briefing when LLM is offline or unavailable.
+   */
+  private static generateDeterministicBriefing(
+    complaints: Complaint[],
+    metrics: MunicipalBriefingMetrics,
+    topCriticalCases: Array<{ complaint: Complaint; priorityAnalysis: CivicPriorityAnalysis }>,
+    overdue: Complaint[],
+    detectedHotspots: EmergingHotspotResult[],
+    detectedIncidents: PotentialIncidentResult[],
+    pendingVerification: Array<{ complaint: Complaint; audit: ResolutionVerificationResult }>
+  ): string {
+    let md = `### 🏛️ Municipal Commissioner Executive Operational Briefing\n\n`;
+    md += `> **Telemetry Timestamp:** ${new Date().toLocaleTimeString()} | **Dataset:** ${metrics.totalComplaints} Verified Records | **Intelligence:** Deterministic 3A–3E Core\n\n`;
+
+    // 1. Overall Workload
+    md += `#### 1. Overall Workload & Status Distribution\n`;
+    md += `- **Total Ingested Grievances:** **${metrics.totalComplaints}**\n`;
+    md += `- **Active Operational Workload:** **${metrics.activeComplaints}** unresolved cases (${Math.round((metrics.activeComplaints / (metrics.totalComplaints || 1)) * 100)}% of total)\n`;
+    md += `- **Resolved / Verified Closed:** **${metrics.resolvedComplaints}** cases\n`;
+    md += `- **Department Breakdown:**\n`;
+    Object.entries(metrics.departmentDistribution).forEach(([dept, count]) => {
+      md += `  • **${dept}:** ${count} report${count !== 1 ? 's' : ''}\n`;
+    });
+    md += `\n`;
+
+    // 2. High-Priority Unresolved Incidents
+    md += `#### 2. High-Priority Unresolved Incidents\n`;
+    if (topCriticalCases.length === 0) {
+      md += `- **Zero critical emergency escalations** currently pending. All active items are within standard priority bounds.\n\n`;
+    } else {
+      md += `Evaluated via Phase 3B Smart Priority Engine (Severity 30%, Safety 25%, Clusters 20%, Age 15%, Category 10%):\n\n`;
+      topCriticalCases.slice(0, 3).forEach((item, idx) => {
+        const c = item.complaint;
+        const pa = item.priorityAnalysis;
+        const overdueNotice = c.sla.isOverdue ? ' **[SLA Overdue]**' : '';
+        md += `${idx + 1}. **#${c.id}** — *${c.title}*\n`;
+        md += `   • **Priority Score:** \`${pa.scoreDisplay}\` (${pa.levelLabel})${overdueNotice}\n`;
+        md += `   • **Category / Area:** ${c.categoryLabel} — ${c.location.address || c.location.ward || 'Registered area'}\n`;
+        md += `   • **Primary Drivers:** ${pa.topDrivers.join(' · ') || 'Routine report'}\n`;
+        md += `   • **Officer Directive:** ${
+          pa.signalBreakdown.publicSafety >= 80
+            ? 'Emergency containment recommended due to high public safety risk.'
+            : c.sla.isOverdue
+            ? 'Priority escalation recommended due to breached SLA.'
+            : 'Standard field crew deployment.'
+        }\n\n`;
+      });
+    }
+
+    // 3. SLA Health & Overdue Escalations
+    md += `#### 3. SLA Health & Overdue Escalations\n`;
+    if (metrics.overdueComplaints === 0) {
+      md += `- **100% SLA Compliance:** **0 complaints are overdue**. All active workflows are progressing within their statutory resolution windows.\n\n`;
+    } else {
+      md += `- **${metrics.overdueComplaints} case${metrics.overdueComplaints !== 1 ? 's' : ''} currently overdue** exceeding statutory citizen timelines:\n`;
+      overdue.slice(0, 3).forEach((o) => {
+        md += `  • **#${o.id}** (*${o.title}*) — ${o.categoryLabel} · Status: \`${o.status.toUpperCase()}\`\n`;
+      });
+      md += `\n`;
+    }
+
+    // 4. 3C Emerging Spatio-Temporal Hotspots
+    md += `#### 4. 3C Emerging Spatio-Temporal Hotspots\n`;
+    if (detectedHotspots.length === 0) {
+      md += `- **No localized activity surges detected** across ~500m municipal grids (< 1.5× baseline volume).\n\n`;
+    } else {
+      md += `Identified **${detectedHotspots.length} localized 500m surge zone${detectedHotspots.length !== 1 ? 's' : ''}**:\n\n`;
+      detectedHotspots.slice(0, 2).forEach((h, idx) => {
+        md += `${idx + 1}. **${h.categoryLabel} Hotspot (${h.levelLabel})**\n`;
+        md += `   • **Emerging Score:** \`${h.scoreDisplay}\` (**${h.increaseRatio.toFixed(1)}× volume spike** vs baseline)\n`;
+        md += `   • **24h Intake:** **${h.currentWindowCount}** reports in last 24 hours (${h.complaintCount} total in ~500m zone)\n`;
+        md += `   • **Centroid GPS:** \`${h.centerLatitude.toFixed(4)}, ${h.centerLongitude.toFixed(4)}\`\n`;
+        md += `   • **Evidence Drivers:** ${h.explainableReasons.slice(0, 2).join('; ')}\n\n`;
+      });
+    }
+
+    // 5. 3D Potential Incident Clusters
+    md += `#### 5. 3D Potential Incident Clusters (Common Root Causes)\n`;
+    if (detectedIncidents.length === 0) {
+      md += `- **No multi-complaint systemic clusters identified**. Citizen submissions represent isolated occurrences.\n\n`;
+    } else {
+      md += `Grouped **${detectedIncidents.length} potential incident work package${detectedIncidents.length !== 1 ? 's' : ''}** for consolidated dispatch:\n\n`;
+      detectedIncidents.slice(0, 2).forEach((inc, idx) => {
+        md += `${idx + 1}. **⚡ ${inc.incidentId} — ${inc.incidentLabel}**\n`;
+        md += `   • **Incident Confidence:** \`${inc.confidenceDisplay}\` (${inc.levelLabel})\n`;
+        md += `   • **Connected Grievances:** **${inc.complaintCount} citizen reports**\n`;
+        md += `   • **Category / Spread:** ${inc.primaryCategoryLabel} (~${Math.round(inc.affectedRadiusMeters)}m radius)\n\n`;
+      });
+    }
+
+    // 6. Recommended Operational Focus Areas
+    md += `#### 6. Recommended Operational Focus Areas *(AI Decision Support)*\n`;
+    if (topCriticalCases[0]) {
+      md += `• **Priority Dispatch:** Direct field squads to **#${topCriticalCases[0].complaint.id}** (${topCriticalCases[0].complaint.title}) due to ${topCriticalCases[0].priorityAnalysis.topDrivers.join(', ')}.\n`;
+    }
+    if (detectedHotspots[0]) {
+      md += `• **Hotspot Containment:** Deploy zonal inspection squad to ${detectedHotspots[0].categoryLabel} surge zone (\`${detectedHotspots[0].centerLatitude.toFixed(3)}, ${detectedHotspots[0].centerLongitude.toFixed(3)}\`) to identify root-cause failure.\n`;
+    }
+    if (detectedIncidents[0]) {
+      md += `• **Coordinated Joint Action:** Consolidate **${detectedIncidents[0].incidentId}** (${detectedIncidents[0].complaintCount} reports) into a single operational work order to prevent redundant contractor labor.\n`;
+    }
+    if (pendingVerification.length > 0) {
+      md += `• **Quality Control Audit:** Conduct photographic and feedback review on ${pendingVerification.length} completed resolution${pendingVerification.length !== 1 ? 's' : ''} flagged for audit.\n`;
+    }
+    if (overdue.length > 0) {
+      md += `• **SLA Mitigation:** Issue supervisor alert for ${overdue.length} overdue grievance${overdue.length !== 1 ? 's' : ''}.\n`;
+    }
+
+    md += `\n---\n*Notice: This briefing is deterministically synthesized from live municipal records. All recommendations serve as decision-support guidance for authorized municipal officials.*`;
+
+    return md;
+  }
+
+  private static async handleCommissionerBriefingQuery(
+    query: string,
+    complaints: Complaint[],
+    securityContext?: CopilotSecurityContext
+  ): Promise<GroundedCopilotResponse> {
+    const briefing = await this.generateMunicipalBriefing(complaints, securityContext);
 
     return {
       intent: 'COMMISSIONER_BRIEFING',
-      content,
-      referencedComplaintIds: referencedIds,
+      content: briefing.markdownContent,
+      referencedComplaintIds: briefing.referencedComplaintIds,
       suggestedPrompts: [
         'What are today\'s highest-priority complaints?',
         'Where are the emerging hotspots?',

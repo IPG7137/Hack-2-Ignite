@@ -134,4 +134,46 @@ sequenceDiagram
 
 ---
 
+## Grounded Municipal / Commissioner Briefing
+
+```mermaid
+flowchart TD
+    A[Authorized Municipal Admin / Commissioner] -->|Trigger 'Generate Municipal Briefing'| B[CopilotService.generateMunicipalBriefing]
+    B --> C[Authorized RLS Data Retrieval]
+    C --> D[Aggregate 3A-3E Telemetry]
+    D --> E[GroundingSecurityGuard: PII & Credential Masking]
+    E --> F[Structured Municipal Context JSON]
+    F --> G{Gemini 1.5 Flash Available?}
+    G -->|Yes: API Key Present & Online| H[Strict Grounded Synthesis]
+    G -->|No: Offline / Fallback| I[Deterministic 3A-3E Fallback Generator]
+    H --> J[Grounding & PII Verification]
+    I --> K[Authoritative 6-Section Structured Briefing]
+    J --> K
+    K --> L[Municipal Command Center & Copilot UI]
+```
+
+### Flow & Core Guarantees:
+1. **Authorized Retrieval**: Only users with municipal administrative roles (`municipal_admin`, `dept_admin`, `super_admin`) can generate city-wide commissioner briefings. Citizen accounts are strictly blocked.
+2. **Security & PII Sanitization**: `GroundingSecurityGuard` strips citizen phone numbers, Aadhaar tokens, private names, and credentials prior to prompt preparation or deterministic display.
+3. **Structured Context Payload**:
+   - Live Workload & Status Distribution (Active, Resolved, Overdue, Category metrics)
+   - Phase 3B Priority Scored Top Critical Cases (severity, safety, SLA, drivers)
+   - Phase 3C Emerging Spatio-Temporal Hotspots (500m surge zones, increase ratios, GPS centroids)
+   - Phase 3D Potential Incidents (Common root-cause clusters, confidence scores, member reports)
+   - Phase 3E Resolution Audits (Photographic evidence, citizen ratings, audit recommendations)
+   - Overdue SLA Breaches
+4. **Decision Support vs. Authoritative Grounding**:
+   - Large Language Models (Gemini 1.5 Flash) operate strictly as **decision support**, providing synthesized narratives based on real metrics.
+   - **Zero Hallucinated Statistics**: Every number, percentage, count, and complaint ID originates directly from retrieved database records.
+   - **Deterministic Fallback**: If Gemini is offline, rate-limited, or unconfigured, the system automatically falls back to the deterministic 3A–3E template engine, ensuring 100% uptime with identical 6-section structure.
+5. **Canonical 6-Section Briefing Structure**:
+   1. **Overall Workload & Status Distribution**
+   2. **High-Priority Unresolved Incidents** (Phase 3B)
+   3. **SLA Health & Overdue Escalations**
+   4. **3C Emerging Spatio-Temporal Hotspots** (Surge ratios & centroids)
+   5. **3D Potential Incident Clusters** (Root causes & common work packages)
+   6. **Recommended Operational Focus Areas** (Actionable decision-support directives)
+
+---
+
 *← Back to [README](../README.md)*

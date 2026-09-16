@@ -29,10 +29,10 @@ Hello Officer! I am your **AI Copilot**, grounded in the **${complaints.length} 
 You can click any prompt chip below or type an inquiry regarding road safety clusters, SLA breach countdowns, or shift handover briefings.`,
       timestamp: new Date().toISOString(),
       suggestedPrompts: [
-        'Summarize high-priority complaints this week',
+        'Give me a briefing for the municipal commissioner',
+        'What are today\'s highest-priority complaints?',
+        'Where are the emerging hotspots?',
         'Which complaints are currently overdue?',
-        'Show recurring issues in waste management',
-        'Generate daily municipal handover report',
       ],
     },
   ]);

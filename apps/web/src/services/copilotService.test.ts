@@ -219,8 +219,118 @@ export async function runCopilotTests(): Promise<{ passed: number; failed: numbe
     const c1 = createMockComplaint({ id: 'c-brief-1', priority: 'urgent' });
     const resp = await CopilotService.answerOfficerQuery('Give me a briefing for the municipal commissioner', [c1]);
     assert(resp.content.includes('Municipal Commissioner Executive Operational Briefing'), '10a. Formats executive briefing');
-    assert(resp.content.includes('Command Overview'), '10b. Includes command overview');
-    assert(resp.content.includes('Key Action Directives'), '10c. Includes grounded action directives');
+    assert(resp.content.includes('Overall Workload & Status Distribution'), '10b. Includes workload overview');
+    assert(resp.content.includes('Recommended Operational Focus Areas'), '10c. Includes grounded action directives');
+  }
+
+  // 11. Grounded Municipal Briefing Engine (Direct Invocation)
+  {
+    const now = new Date();
+    const c1 = createMockComplaint({
+      id: 'c-brief-crit',
+      title: 'Water pipe rupture on Station Road',
+      category: 'water_sewage',
+      categoryLabel: 'Water Supply',
+      priority: 'urgent',
+      location: { address: 'Station Rd', ward: 'Ward 1', latitude: 17.6599, longitude: 75.9064, landmark: 'Tank', zone: 'Central' },
+      createdAt: now.toISOString(),
+      sla: { targetHours: 12, deadline: new Date(now.getTime() - 3600000).toISOString(), hoursRemaining: 0, isOverdue: true, slaStatus: 'breached' },
+    });
+    const c2 = createMockComplaint({
+      id: 'c-brief-hot-2',
+      title: 'Water pipe leak on Station Road block 2',
+      category: 'water_sewage',
+      categoryLabel: 'Water Supply',
+      priority: 'high',
+      location: { address: 'Station Rd 2', ward: 'Ward 1', latitude: 17.6601, longitude: 75.9065, landmark: 'Tank 2', zone: 'Central' },
+      createdAt: new Date(now.getTime() - 1800000).toISOString(),
+    });
+    const c3 = createMockComplaint({
+      id: 'c-brief-res',
+      title: 'Streetlight fixed',
+      category: 'streetlights',
+      categoryLabel: 'Streetlights',
+      status: 'verified',
+    });
+
+    const dataset = [c1, c2, c3];
+    const briefing = await CopilotService.generateMunicipalBriefing(dataset, { role: 'municipal_admin' });
+
+    assert(briefing.datasetSize === 3, '11a. Briefing reports exact dataset size');
+    assert(briefing.metrics.totalComplaints === 3, '11b. Metrics report 3 total complaints');
+    assert(briefing.metrics.activeComplaints === 2, '11c. Metrics report 2 active complaints');
+    assert(briefing.metrics.resolvedComplaints === 1, '11d. Metrics report 1 resolved complaint');
+    assert(briefing.metrics.overdueComplaints === 1, '11e. Metrics report 1 overdue complaint');
+    assert(briefing.markdownContent.includes('1. Overall Workload & Status Distribution'), '11f. Contains Section 1');
+    assert(briefing.markdownContent.includes('2. High-Priority Unresolved Incidents'), '11g. Contains Section 2');
+    assert(briefing.markdownContent.includes('3. SLA Health & Overdue Escalations'), '11h. Contains Section 3');
+    assert(briefing.markdownContent.includes('4. 3C Emerging Spatio-Temporal Hotspots'), '11i. Contains Section 4');
+    assert(briefing.markdownContent.includes('5. 3D Potential Incident Clusters'), '11j. Contains Section 5');
+    assert(briefing.markdownContent.includes('6. Recommended Operational Focus Areas'), '11k. Contains Section 6');
+  }
+
+  // 12. Citizen Role Authorization Blocking
+  {
+    const c1 = createMockComplaint({ id: 'c-cit-1' });
+    const briefAuth = await CopilotService.generateMunicipalBriefing([c1], { role: 'citizen' });
+    assert(briefAuth.markdownContent.includes('Access Restricted'), '12a. Citizen role is blocked from executive briefing');
+    assert(briefAuth.metrics.totalComplaints === 0, '12b. No city-wide metrics leaked to citizen role');
+  }
+
+  // 13. Empty Dataset Handling
+  {
+    const emptyBrief = await CopilotService.generateMunicipalBriefing([], { role: 'municipal_admin' });
+    assert(emptyBrief.metrics.totalComplaints === 0, '13a. Empty dataset reports 0 complaints');
+    assert(emptyBrief.markdownContent.includes('0 complaints'), '13b. Returns clean zero-data state');
+  }
+
+  // 14. PII Masking Guarantee in Briefing Output
+  {
+    const cPii = createMockComplaint({
+      id: 'c-pii-1',
+      title: 'Private grievance report',
+      description: 'Citizen Ramesh Sharma phone +91 98765 43210 Aadhaar XXXX-XXXX-1234 reported sewage overflow',
+      reporter: {
+        name: 'Ramesh Sharma',
+        phone: '+91 98765 43210',
+        aadharMasked: 'XXXX-XXXX-1234',
+        verifiedCitizen: true,
+      },
+      priority: 'urgent',
+    });
+
+    const piiBrief = await CopilotService.generateMunicipalBriefing([cPii], { role: 'municipal_admin' });
+    const text = piiBrief.markdownContent;
+    assert(!text.includes('+91 98765 43210'), '14a. Phone number never exposed in briefing');
+    assert(!text.includes('XXXX-XXXX-1234'), '14b. Aadhaar number never exposed in briefing');
+    assert(!text.includes('Ramesh Sharma'), '14c. Citizen private name never exposed in briefing text');
+  }
+
+  // 15. Read-only Guarantee (Zero Database/Array Mutation)
+  {
+    const initialClone = createMockComplaint({ id: 'c-orig-1', status: 'submitted', priority: 'medium' });
+    const originalJson = JSON.stringify(initialClone);
+    const arrayInput = [initialClone];
+
+    await CopilotService.generateMunicipalBriefing(arrayInput, { role: 'municipal_admin' });
+    assert(JSON.stringify(arrayInput[0]) === originalJson, '15a. Complaint object is strictly not mutated during briefing synthesis');
+    assert(arrayInput.length === 1, '15b. Array length remains unmodified');
+  }
+
+  // 16. Deterministic Fallback Availability
+  {
+    const cFallback = createMockComplaint({ id: 'c-fall-1', priority: 'high' });
+    const brief = await CopilotService.generateMunicipalBriefing([cFallback], { role: 'municipal_admin' });
+    assert(brief.markdownContent.length > 200, '16a. Generates rich structured markdown content');
+    assert(Boolean(brief.modelName), '16b. Model name is explicitly provided');
+  }
+
+  // 17. Potential Incident Terminology Enforced for 3D
+  {
+    const c1 = createMockComplaint({ id: 'c-grp-1', category: 'roads', location: { latitude: 17.659, longitude: 75.906, address: 'A', ward: 'W1', landmark: '', zone: '' } });
+    const c2 = createMockComplaint({ id: 'c-grp-2', category: 'roads', location: { latitude: 17.660, longitude: 75.907, address: 'B', ward: 'W1', landmark: '', zone: '' } });
+    const brief = await CopilotService.generateMunicipalBriefing([c1, c2], { role: 'municipal_admin' });
+    assert(brief.markdownContent.includes('Potential Incident'), '17a. Uses potential incident terminology strictly');
   }
 
   console.log(`✅ Municipal AI Copilot Tests Finished: ${passed} passed, ${failed} failed`);
@@ -232,3 +342,4 @@ if (typeof require !== 'undefined' && require.main === module) {
     if (res.failed > 0) process.exit(1);
   });
 }
+

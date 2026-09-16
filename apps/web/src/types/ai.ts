@@ -20,3 +20,30 @@ export interface CopilotMessage {
   referencedComplaintIds?: string[];
   suggestedPrompts?: string[];
 }
+
+export interface MunicipalBriefingMetrics {
+  totalComplaints: number;
+  activeComplaints: number;
+  resolvedComplaints: number;
+  overdueComplaints: number;
+  criticalPriorityCount: number;
+  highPriorityCount: number;
+  emergingHotspotsCount: number;
+  potentialIncidentsCount: number;
+  pendingVerificationCount: number;
+  departmentDistribution: { [key: string]: number };
+}
+
+export interface GroundedMunicipalBriefing {
+  id: string;
+  timestamp: string;
+  datasetSize: number;
+  isAiGenerated: boolean;
+  modelName: string;
+  summary: string;
+  markdownContent: string;
+  referencedComplaintIds: string[];
+  metrics: MunicipalBriefingMetrics;
+  topDirectives: string[];
+}
+
