@@ -24,7 +24,7 @@
 |:---|:---|:---|
 | 🌐 **Live Web Application** | **[CivicResolve — Solapur Municipal Command Center](https://civicresolve-eosin.vercel.app/)** | Live Municipal Command Center & Zone Operations dashboard deployed on Vercel |
 | 📱 **Android Release APK** | **[Download APK (Google Drive)](https://drive.google.com/drive/folders/1azDqGXinzO9kAdOr8b1ohYQV0zbtmmGa?usp=sharing)** | Direct download link for the compiled production-ready Flutter release APK |
-| 📺 **Video Demonstration** | **[Demonstration Video — Barre Chords (PS-25031)](https://www.youtube.com/watch?v=RZbovuI7gFg)** | Complete video walkthrough of citizen mobile reporting, GIS command map, and municipal triage |
+| 📺 **Video Demonstration** | **[Demonstration Video — Civic Resolve](https://www.youtube.com/watch?v=FCalhhiW2ds)** | Complete video walkthrough of citizen mobile reporting, GIS command map, and municipal triage |
 | 📊 **Citizen Feedback & Survey** | **[Civic Issue Reporting System Feedback (Responses)](https://docs.google.com/spreadsheets/d/1dCCleNU2lp0RIOz0-KM4JaEw3maJnhjTvF5sVgw2CgE/edit?gid=310055827#gid=310055827)** | Citizen responses collected during user testing and community grievance surveys |
 
 ---
