@@ -15,9 +15,11 @@ import { runIntegrationContractTests } from './integrationContract.test';
 import { runCommandCenterAuthAndQueueTests } from './commandCenterAuthAndQueue.test';
 import { runComplaintLifecycleTests } from './complaintLifecycle.test';
 
+import { runSmartMapGisTests } from './smartMapGis.test';
+
 async function main() {
   console.log('===========================================================');
-  console.log('🚀 CIVICRESOLVE TEST SUITE: INTELLIGENCE + SECURITY + RLS + LIFECYCLE');
+  console.log('🚀 CIVICRESOLVE TEST SUITE: INTELLIGENCE + SECURITY + RLS + LIFECYCLE + SMART GIS');
   console.log('===========================================================\n');
 
   let totalPassed = 0;
@@ -114,6 +116,12 @@ async function main() {
   totalFailed += res14.failed;
   allErrors.push(...res14.errors);
 
+  // Phase 15: Smart Map & GIS Intelligence Isolation
+  const res15 = runSmartMapGisTests();
+  totalPassed += res15.passed;
+  totalFailed += res15.failed;
+  allErrors.push(...res15.errors);
+
   console.log('\n===========================================================');
   console.log('📊 FINAL VERIFICATION SCORECARD:');
   console.log(`   3A Similarity:             ${res3A.passed}/${res3A.passed + res3A.failed}`);
@@ -131,6 +139,7 @@ async function main() {
   console.log(`   11 Lifecycle & Verify:     ${res11.passed}/${res11.passed + res11.failed}`);
   console.log(`   13 Live Integration:       ${res13.passed}/${res13.passed + res13.failed}`);
   console.log(`   14 Auth Gate & Queue:      ${res14.passed}/${res14.passed + res14.failed}`);
+  console.log(`   15 Smart Map & GIS Intel:  ${res15.passed}/${res15.passed + res15.failed}`);
   console.log('-----------------------------------------------------------');
   console.log(`   TOTAL:                     ${totalPassed} PASSED / ${totalFailed} FAILED`);
   console.log('===========================================================');
