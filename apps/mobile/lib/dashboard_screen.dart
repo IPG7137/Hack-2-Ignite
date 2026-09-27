@@ -12,6 +12,7 @@ import 'profile_page.dart';
 import 'auth_service.dart';
 import 'comprehensive_database_service.dart';
 import 'comprehensive_report_models.dart';
+import 'ai_copilot_sheet.dart';
 
 class DashboardScreen extends StatefulWidget {
   final bool isAdmin;
@@ -176,6 +177,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ],
       ),
       actions: [
+        IconButton(
+          icon: const Icon(Icons.smart_toy_rounded, color: Colors.white, size: 22),
+          tooltip: 'AI Civic Copilot',
+          onPressed: () => AiCopilotSheet.show(context, reports: _recentReports),
+        ),
         // Language Selector Action
         IconButton(
           icon: const Icon(Icons.translate_rounded, color: Colors.white, size: 20),

@@ -12,6 +12,22 @@ export interface AIOperationalInsight {
   acknowledged: boolean;
 }
 
+export interface CopilotActionProposal {
+  type: 'create_complaint' | 'change_priority' | 'assign_officer' | 'reopen_complaint';
+  title: string;
+  payload: {
+    category?: string;
+    secondaryIssue?: string;
+    description?: string;
+    location?: string;
+    priority?: string;
+    evidenceRecommended?: string;
+    assignedOfficer?: string;
+    department?: string;
+  };
+  confirmed?: boolean;
+}
+
 export interface CopilotMessage {
   id: string;
   sender: 'user' | 'assistant';
@@ -19,6 +35,22 @@ export interface CopilotMessage {
   timestamp: string;
   referencedComplaintIds?: string[];
   suggestedPrompts?: string[];
+  actionProposal?: CopilotActionProposal;
+  similarComplaints?: Array<{
+    id: string;
+    title: string;
+    category: string;
+    location: string;
+    status: string;
+    similarityScore?: number;
+  }>;
+  groundedSources?: {
+    datasetCount: number;
+    district: string;
+    timestamp: string;
+    lastUpdated?: string;
+  };
+  uncertaintyNote?: string;
 }
 
 export interface MunicipalBriefingMetrics {

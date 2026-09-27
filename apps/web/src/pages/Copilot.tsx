@@ -326,6 +326,68 @@ Currently evaluating **${complaints.length} live municipal reports**. Click **"G
                         onSelectComplaint={onSelectComplaint}
                       />
 
+                      {/* Action Proposal Card */}
+                      {m.actionProposal && (
+                        <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg space-y-2">
+                          <div className="flex items-center justify-between text-xs font-bold text-blue-900">
+                            <span>{m.actionProposal.title}</span>
+                            <span className="text-[10px] bg-blue-200 text-blue-800 px-1.5 py-0.5 rounded uppercase">
+                              Confirmation Required
+                            </span>
+                          </div>
+                          <div className="text-[11px] text-slate-700 space-y-0.5 bg-white p-2 rounded border border-blue-100 font-mono">
+                            <div>Category: {m.actionProposal.payload.category}</div>
+                            {m.actionProposal.payload.secondaryIssue && (
+                              <div>Secondary: {m.actionProposal.payload.secondaryIssue}</div>
+                            )}
+                            <div>Location: {m.actionProposal.payload.location}</div>
+                          </div>
+                          <div className="flex items-center gap-2 pt-1">
+                            <button
+                              onClick={() => {
+                                alert(`Grievance recorded: ${m.actionProposal?.payload.description}`);
+                              }}
+                              className="px-2.5 py-1 text-xs bg-blue-700 text-white rounded font-bold hover:bg-blue-800"
+                            >
+                              Review & Submit
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Similar Complaints Card */}
+                      {m.similarComplaints && m.similarComplaints.length > 0 && (
+                        <div className="mt-2.5 pt-2 border-t border-slate-100 space-y-1.5">
+                          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                            Similar Incidents Nearby:
+                          </span>
+                          {m.similarComplaints.map((sc) => (
+                            <div key={sc.id} className="p-2 bg-slate-50 border border-slate-200 rounded text-xs flex items-center justify-between">
+                              <div>
+                                <span className="font-bold text-blue-800">#{sc.id}</span> — {sc.title} ({sc.category})
+                                <div className="text-[10px] text-slate-500">📍 {sc.location} · Status: {sc.status}</div>
+                              </div>
+                              <button
+                                onClick={() => onSelectComplaint?.(sc.id)}
+                                className="px-2 py-0.5 text-[10px] bg-white border border-slate-200 rounded font-medium text-blue-700 hover:bg-blue-50"
+                              >
+                                View
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Grounding Source Attribution Footer */}
+                      {m.groundedSources && (
+                        <div className="mt-2 pt-2 border-t border-slate-100 text-[10px] text-slate-400 flex items-center justify-between">
+                          <span>
+                            ✓ Based on {m.groundedSources.datasetCount} {m.groundedSources.district} records
+                          </span>
+                          <span>{new Date(m.groundedSources.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                        </div>
+                      )}
+
                       {/* Grounded Citation Badges */}
                       {!isUser && m.referencedComplaintIds && m.referencedComplaintIds.length > 0 && (
                         <div className="mt-3 pt-2.5 border-t border-[#E8EEF5] flex flex-wrap gap-1.5 items-center">

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { RefreshCw, LogIn, LogOut, ShieldCheck, MapPin, Building, Menu } from 'lucide-react';
+import { RefreshCw, LogIn, LogOut, ShieldCheck, MapPin, Building, Menu, Bot } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { useAuth } from '../../hooks/useAuth';
 import { useOrganization } from '../../context/OrganizationContext';
@@ -13,6 +13,7 @@ interface CommandHeaderProps {
 }
 
 export const CommandHeader: React.FC<CommandHeaderProps> = ({
+  onOpenCopilot,
   onRefresh,
   isRefreshing = false,
   onToggleMobileMenu,
@@ -191,6 +192,22 @@ export const CommandHeader: React.FC<CommandHeaderProps> = ({
               <span className="text-[#172B4D] font-bold text-xs whitespace-nowrap">{timeString || '--:--:--'}</span>
             </div>
           </div>
+
+          {/* AI Civic Copilot Launcher */}
+          {onOpenCopilot && (
+            <div className="flex items-center shrink-0">
+              <Button
+                variant="default"
+                size="sm"
+                onClick={onOpenCopilot}
+                className="h-8.5 px-2.5 sm:px-3 bg-gradient-to-r from-blue-700 to-indigo-700 hover:from-blue-800 hover:to-indigo-800 text-white text-xs font-bold shadow-xs shrink-0 flex items-center gap-1.5 rounded-lg border border-blue-600"
+                title="Open Civic Copilot AI Assistant"
+              >
+                <Bot className="w-3.5 h-3.5 text-blue-200" />
+                <span className="hidden sm:inline font-bold whitespace-nowrap">Civic Copilot</span>
+              </Button>
+            </div>
+          )}
 
           {/* Refresh Control */}
           <div className="flex items-center shrink-0">

@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
-import { Sparkles } from 'lucide-react';
+import { Sparkles, Bot } from 'lucide-react';
 import { CommandHeader } from './CommandHeader';
 import { CommandSidebar, ActivePage } from './CommandSidebar';
-import { CopilotDrawer } from '../copilot/CopilotDrawer';
+import { CivicCopilotModal } from '../copilot/CivicCopilotModal';
 import { Complaint } from '../../types/complaint';
-
 import { Breadcrumbs } from './Breadcrumbs';
+import { useAuth } from '../../hooks/useAuth';
+import { useOrganization } from '../../context/OrganizationContext';
+import { CopilotSecurityContext } from '../../services/copilotService';
 
 interface MainLayoutProps {
   activePage: ActivePage;
@@ -30,14 +32,27 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
 }) => {
   const [copilotOpen, setCopilotOpen] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const { user } = useAuth();
+  const { district, organizationType } = useOrganization();
 
   const urgentCount = complaints.filter((c) => c.priority === 'urgent' && c.status !== 'closed').length;
   const openCount = complaints.filter((c) => c.status !== 'closed' && c.status !== 'verified').length;
+
+  const securityContext: CopilotSecurityContext = {
+    userId: user?.id,
+    role: (organizationType === 'STATE' || user?.role === 'state_admin'
+      ? 'state_admin'
+      : user?.role === 'citizen'
+      ? 'citizen'
+      : (user?.role as any) || 'municipal_admin'),
+    districtId: district || (user as any)?.district || 'pune',
+  };
 
   return (
     <div className="h-screen w-screen overflow-hidden bg-[#F7F9FC] text-[#172B4D] flex flex-col font-sans">
       {/* Top Tactical Command Header */}
       <CommandHeader
+        onOpenCopilot={() => setCopilotOpen(true)}
         onRefresh={onRefresh}
         isRefreshing={isRefreshing}
         onToggleMobileMenu={() => setMobileSidebarOpen(!mobileSidebarOpen)}
@@ -70,18 +85,28 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
         onClick={() => setCopilotOpen(true)}
         aria-label="Open AI Decision Support Copilot"
         title="Open AI Decision Support Copilot"
-        className="fixed bottom-[24px] right-[24px] z-40 w-[56px] h-[56px] rounded-full bg-[#1769D2] hover:bg-[#123B6D] text-white flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 active:scale-95 border-2 border-white/25 cursor-pointer group"
+        className="fixed bottom-[24px] right-[24px] z-40 w-[56px] h-[56px] rounded-full bg-gradient-to-r from-[#1769D2] to-[#1E3A8A] hover:from-[#123B6D] hover:to-[#0A2540] text-white flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 active:scale-95 border-2 border-white/30 cursor-pointer group"
       >
-        <Sparkles className="w-6 h-6 text-white group-hover:rotate-12 transition-transform duration-200" />
+        <Bot className="w-6 h-6 text-white group-hover:scale-110 transition-transform duration-200" />
       </button>
 
-      {/* Grounded Copilot Drawer */}
-      <CopilotDrawer
+      {/* Grounded Copilot Modal */}
+      <CivicCopilotModal
         isOpen={copilotOpen}
         onClose={() => setCopilotOpen(false)}
         complaints={complaints}
-        onSelectComplaint={onSelectComplaint}
+        securityContext={securityContext}
+        onSelectComplaint={(complaint) => {
+          if (onSelectComplaint) {
+            onSelectComplaint(complaint.id);
+          }
+        }}
+        onCreateComplaintFromCopilot={(proposal) => {
+          // Open intake or switch to complaints
+          onSelectPage('complaints');
+        }}
       />
     </div>
   );
 };
+

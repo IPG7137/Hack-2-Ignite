@@ -108,6 +108,13 @@ export class GroundingSecurityGuard {
   }
 
   /**
+   * Alias for maskPII
+   */
+  public static maskCitizenPII(text: string): string {
+    return this.maskPII(text);
+  }
+
+  /**
    * Validates a complaint object to ensure corrupt / missing fields do not crash deterministic engines.
    */
   public static sanitizeComplaintForTelemetry(c: Partial<Complaint>): Complaint {

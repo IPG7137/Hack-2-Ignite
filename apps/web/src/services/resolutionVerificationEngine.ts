@@ -101,6 +101,16 @@ export class ResolutionVerificationEngine {
     return 'neutral';
   }
 
+  public static evaluateResolution(
+    complaint: Complaint,
+    options?: {
+      isProblemResolvedVisual?: boolean;
+      aiConfidence?: number;
+    }
+  ): ResolutionVerificationResult {
+    return this.evaluateComplaintResolution(complaint, options);
+  }
+
   /**
    * Primary evaluation function: Verify complaint resolution evidence
    */
