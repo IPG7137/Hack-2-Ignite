@@ -30,10 +30,10 @@ export interface DistrictCredential {
   /** Primary municipal corporation ID for this district */
   primaryCorpId: string;
   /** Role assigned to this account */
-  role: 'district_admin' | 'municipal_admin';
+  role: 'district_admin' | 'municipal_admin' | 'citizen';
   /** Full name shown in the UI after login */
   fullName: string;
-  /** Department name for this administrator */
+  /** Department or citizen title */
   departmentName: string;
 }
 
@@ -127,6 +127,88 @@ export const DISTRICT_CREDENTIAL_REGISTRY: DistrictCredential[] = [
     role: 'district_admin',
     fullName: 'Amravati District Administrator',
     departmentName: 'Amravati District Collectorate — Urban Development Cell',
+  },
+  // Citizen Accounts for District Civic Champions Testing
+  {
+    loginId: 'solapur_citizen',
+    districtName: 'Solapur',
+    districtId: 'solapur',
+    primaryCorpId: 'smc',
+    role: 'citizen',
+    fullName: 'Mahesh B. (Citizen)',
+    departmentName: 'Solapur Citizen Civic Contributor',
+  },
+  {
+    loginId: 'pune_citizen',
+    districtName: 'Pune',
+    districtId: 'pune',
+    primaryCorpId: 'pmc',
+    role: 'citizen',
+    fullName: 'Siddharth J. (Citizen)',
+    departmentName: 'Pune Citizen Civic Contributor',
+  },
+  {
+    loginId: 'nashik_citizen',
+    districtName: 'Nashik',
+    districtId: 'nashik',
+    primaryCorpId: 'nmc',
+    role: 'citizen',
+    fullName: 'Pooja N. (Citizen)',
+    departmentName: 'Nashik Citizen Civic Contributor',
+  },
+  {
+    loginId: 'csn_citizen',
+    districtName: 'Chhatrapati Sambhajinagar',
+    districtId: 'chhatrapati_sambhajinagar',
+    primaryCorpId: 'csmc',
+    role: 'citizen',
+    fullName: 'Syed I. (Citizen)',
+    departmentName: 'CSN Citizen Civic Contributor',
+  },
+  {
+    loginId: 'mumbai_citizen',
+    districtName: 'Mumbai',
+    districtId: 'mumbai',
+    primaryCorpId: 'bmc',
+    role: 'citizen',
+    fullName: 'Kunal M. (Citizen)',
+    departmentName: 'Mumbai Citizen Civic Contributor',
+  },
+  {
+    loginId: 'nagpur_citizen',
+    districtName: 'Nagpur',
+    districtId: 'nagpur',
+    primaryCorpId: 'nmc_nagpur',
+    role: 'citizen',
+    fullName: 'Prashant G. (Citizen)',
+    departmentName: 'Nagpur Citizen Civic Contributor',
+  },
+  {
+    loginId: 'thane_citizen',
+    districtName: 'Thane',
+    districtId: 'thane',
+    primaryCorpId: 'tmc',
+    role: 'citizen',
+    fullName: 'Aditya S. (Citizen)',
+    departmentName: 'Thane Citizen Civic Contributor',
+  },
+  {
+    loginId: 'kolhapur_citizen',
+    districtName: 'Kolhapur',
+    districtId: 'kolhapur',
+    primaryCorpId: 'kmc',
+    role: 'citizen',
+    fullName: 'Digvijay P. (Citizen)',
+    departmentName: 'Kolhapur Citizen Civic Contributor',
+  },
+  {
+    loginId: 'amravati_citizen',
+    districtName: 'Amravati',
+    districtId: 'amravati',
+    primaryCorpId: 'amc',
+    role: 'citizen',
+    fullName: 'Mangesh T. (Citizen)',
+    departmentName: 'Amravati Citizen Civic Contributor',
   },
 ];
 

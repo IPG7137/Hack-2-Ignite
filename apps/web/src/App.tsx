@@ -23,10 +23,11 @@ import { Department } from './types/department';
 import { ComplaintStatus } from './types/complaint';
 import { Button } from './components/ui/Button';
 import { StateDashboard } from './pages/StateDashboard';
+import { CivicChampions } from './pages/CivicChampions';
 import { useOrganization } from './context/OrganizationContext';
 import { isComplaintInZone } from './lib/zoneFilter';
 
-const ALLOWED_MUNICIPAL_ROLES = ['officer', 'dept_admin', 'municipal_admin', 'super_admin', 'state_admin'];
+const ALLOWED_MUNICIPAL_ROLES = ['officer', 'dept_admin', 'municipal_admin', 'super_admin', 'state_admin', 'citizen'];
 
 export function App() {
   const { user, isAuthenticated, loading: authLoading, signOut } = useAuthContext();
@@ -267,6 +268,8 @@ export function App() {
           onSelectComplaint={handleSelectComplaint}
         />
       )}
+
+      {activePage === 'civic_champions' && <CivicChampions />}
 
       {activePage === 'settings' && isMunicipalAdmin && <Settings />}
     </MainLayout>

@@ -12,6 +12,8 @@ import {
   Settings,
   ChevronRight,
   Shield,
+  Trophy,
+  Award,
   Layers,
   X,
 } from 'lucide-react';
@@ -31,6 +33,7 @@ export type ActivePage =
   | 'field_teams'
   | 'sla'
   | 'copilot'
+  | 'civic_champions'
   | 'settings';
 
 interface CommandSidebarProps {
@@ -74,6 +77,7 @@ export const CommandSidebar: React.FC<CommandSidebarProps> = ({
       items: [
         { id: 'dashboard', label: 'State Dashboard', icon: LayoutDashboard },
         { id: 'map', label: 'Maharashtra GIS Map', icon: MapPin },
+        { id: 'civic_champions', label: 'Civic Champions & Rewards', icon: Trophy },
       ],
     },
     {
@@ -116,6 +120,7 @@ export const CommandSidebar: React.FC<CommandSidebarProps> = ({
       items: [
         { id: 'dashboard', label: 'Command Overview', icon: LayoutDashboard },
         { id: 'map', label: 'Live GIS Map', icon: MapPin },
+        { id: 'civic_champions', label: 'Civic Champions & Rewards', icon: Trophy },
       ],
     },
     {
