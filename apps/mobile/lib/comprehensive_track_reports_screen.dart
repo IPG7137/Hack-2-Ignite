@@ -1900,14 +1900,18 @@ class _ReportDetailsBottomSheetState extends State<_ReportDetailsBottomSheet> {
         break;
       case ReportStatus.progress:
       case ReportStatus.inProgress:
-      case ReportStatus.resolutionSubmitted:
         currentStageIndex = 3;
+        break;
+      case ReportStatus.resolutionSubmitted:
+        currentStageIndex = 4;
         break;
       case ReportStatus.resolved:
       case ReportStatus.verified:
+        currentStageIndex = 5;
+        break;
       case ReportStatus.closed:
       case ReportStatus.rejected:
-        currentStageIndex = 4;
+        currentStageIndex = 6;
         break;
     }
 
@@ -1931,7 +1935,7 @@ class _ReportDetailsBottomSheetState extends State<_ReportDetailsBottomSheet> {
               const Icon(Icons.timeline, color: Color(0xFF1E3A8A), size: 18),
               const SizedBox(width: 6),
               const Text(
-                'Status Lifecycle Timeline',
+                '7-Stage Municipal Lifecycle',
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.bold,
@@ -1951,65 +1955,89 @@ class _ReportDetailsBottomSheetState extends State<_ReportDetailsBottomSheet> {
 
           // Stage 1: Submitted
           _buildTimelineStep(
-            title: 'Complaint Submitted',
-            description: 'Registered in CivicResolve central grievance repository.',
+            title: '1. Complaint Submitted',
+            description: 'Registered in CivicResolve municipal grievance repository.',
             timestamp: report.submittedTime,
-            isCompleted: true,
+            isCompleted: currentStageIndex > 0,
             isActive: currentStageIndex == 0,
             isLast: false,
           ),
 
           // Stage 2: Under Review
           _buildTimelineStep(
-            title: 'Under Review',
+            title: '2. Under Review',
             description: 'Municipal grievance cell assessing jurisdiction and priority.',
-            timestamp: historyMap['review'] != null
-                ? _formatDateTime(historyMap['review']!.createdAt)
+            timestamp: historyMap['review'] != null || historyMap['under_review'] != null
+                ? _formatDateTime((historyMap['review'] ?? historyMap['under_review'])!.createdAt)
                 : (currentStageIndex >= 1 ? report.lastUpdatedTime : null),
-            isCompleted: currentStageIndex >= 1,
+            isCompleted: currentStageIndex > 1,
             isActive: currentStageIndex == 1,
             isLast: false,
           ),
 
           // Stage 3: Assigned
           _buildTimelineStep(
-            title: 'Assigned to Department',
+            title: '3. Assigned to Department',
             description: report.assignedOfficerName != null
                 ? 'Assigned to: ${report.assignedOfficerName}'
                 : 'Assigned to jurisdictional municipal maintenance division.',
             timestamp: historyMap['assigned'] != null
                 ? _formatDateTime(historyMap['assigned']!.createdAt)
                 : (currentStageIndex >= 2 ? report.lastUpdatedTime : null),
-            isCompleted: currentStageIndex >= 2,
+            isCompleted: currentStageIndex > 2,
             isActive: currentStageIndex == 2,
             isLast: false,
           ),
 
           // Stage 4: In Progress
           _buildTimelineStep(
-            title: 'Field Response In Progress',
-            description: 'Field inspection and maintenance work underway on-site.',
-            timestamp: historyMap['progress'] != null
-                ? _formatDateTime(historyMap['progress']!.createdAt)
+            title: '4. Field Work In Progress',
+            description: 'Field inspection and maintenance crew active on-site.',
+            timestamp: historyMap['progress'] != null || historyMap['in_progress'] != null
+                ? _formatDateTime((historyMap['progress'] ?? historyMap['in_progress'])!.createdAt)
                 : (currentStageIndex >= 3 ? report.lastUpdatedTime : null),
-            isCompleted: currentStageIndex >= 3,
+            isCompleted: currentStageIndex > 3,
             isActive: currentStageIndex == 3,
             isLast: false,
           ),
 
-          // Stage 5: Resolved
+          // Stage 5: Resolution Submitted
           _buildTimelineStep(
-            title: 'Resolution & Closure',
-            description: currentStageIndex == 4
-                ? 'Issue resolved by municipal authority. Citizen verification requested.'
-                : 'Awaiting completion verification.',
+            title: '5. Resolution Submitted',
+            description: 'Field contractor has uploaded photographic remediation proof.',
+            timestamp: historyMap['resolution_submitted'] != null
+                ? _formatDateTime(historyMap['resolution_submitted']!.createdAt)
+                : (currentStageIndex >= 4 ? report.lastUpdatedTime : null),
+            isCompleted: currentStageIndex > 4,
+            isActive: currentStageIndex == 4,
+            isLast: false,
+          ),
+
+          // Stage 6: Verification
+          _buildTimelineStep(
+            title: '6. Resolution Verification',
+            description: 'Evidence verification and citizen feedback sentiment audit.',
+            timestamp: historyMap['verified'] != null
+                ? _formatDateTime(historyMap['verified']!.createdAt)
+                : (currentStageIndex >= 5 ? report.lastUpdatedTime : null),
+            isCompleted: currentStageIndex > 5,
+            isActive: currentStageIndex == 5,
+            isLast: false,
+          ),
+
+          // Stage 7: Closed
+          _buildTimelineStep(
+            title: '7. Statutory Closure',
+            description: currentStageIndex == 6
+                ? 'Issue successfully resolved and signed off by municipal authority.'
+                : 'Awaiting completion of previous lifecycle stages.',
             timestamp: report.completionDate != null
                 ? _formatDateTime(report.completionDate!)
-                : (historyMap['resolved'] != null
-                    ? _formatDateTime(historyMap['resolved']!.createdAt)
-                    : (currentStageIndex == 4 ? report.lastUpdatedTime : null)),
-            isCompleted: currentStageIndex == 4,
-            isActive: currentStageIndex == 4,
+                : (historyMap['closed'] != null
+                    ? _formatDateTime(historyMap['closed']!.createdAt)
+                    : (currentStageIndex == 6 ? report.lastUpdatedTime : null)),
+            isCompleted: currentStageIndex == 6,
+            isActive: currentStageIndex == 6,
             isLast: true,
           ),
         ],

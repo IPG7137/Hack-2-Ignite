@@ -5,10 +5,13 @@ import { CommandSidebar, ActivePage } from './CommandSidebar';
 import { CopilotDrawer } from '../copilot/CopilotDrawer';
 import { Complaint } from '../../types/complaint';
 
+import { Breadcrumbs } from './Breadcrumbs';
+
 interface MainLayoutProps {
   activePage: ActivePage;
   onSelectPage: (page: ActivePage) => void;
   complaints: Complaint[];
+  selectedComplaintId?: string | null;
   onSelectComplaint?: (id: string) => void;
   onRefresh?: () => void;
   isRefreshing?: boolean;
@@ -19,12 +22,14 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
   activePage,
   onSelectPage,
   complaints,
+  selectedComplaintId,
   onSelectComplaint,
   onRefresh = () => {},
   isRefreshing = false,
   children,
 }) => {
   const [copilotOpen, setCopilotOpen] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   const urgentCount = complaints.filter((c) => c.priority === 'urgent' && c.status !== 'closed').length;
   const openCount = complaints.filter((c) => c.status !== 'closed' && c.status !== 'verified').length;
@@ -35,18 +40,26 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
       <CommandHeader
         onRefresh={onRefresh}
         isRefreshing={isRefreshing}
+        onToggleMobileMenu={() => setMobileSidebarOpen(!mobileSidebarOpen)}
       />
 
       {/* Body: Fixed Sidebar + Independently Scrollable Main Content */}
-      <div className="flex-1 flex overflow-hidden min-h-0">
+      <div className="flex-1 flex overflow-hidden min-h-0 relative">
         <CommandSidebar
           activePage={activePage}
           onSelectPage={onSelectPage}
           urgentCount={urgentCount}
           openCount={openCount}
+          mobileOpen={mobileSidebarOpen}
+          onCloseMobile={() => setMobileSidebarOpen(false)}
         />
 
         <main className="flex-1 overflow-y-auto p-4 lg:p-6 bg-[#F8FAFC] min-h-0">
+          <Breadcrumbs
+            activePage={activePage}
+            selectedComplaintId={selectedComplaintId}
+            onNavigate={onSelectPage}
+          />
           {children}
         </main>
       </div>

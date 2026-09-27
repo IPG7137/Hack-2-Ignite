@@ -141,9 +141,11 @@ export const CATEGORY_CONFIG: Record<
   parks: { label: 'Parks & Urban Greens', departmentName: 'Horticulture Dept', color: '#15803D' },
 };
 
-// Municipal Headquarters default coordinates (Solapur Municipal Corporation Center)
+// Default map center: Maharashtra geographic center (not any specific city)
+// Used ONLY as ultimate fallback when no org context is available.
+// In practice, CommandMap receives explicit district coordinates via props.
 export const DEFAULT_MAP_CENTER = {
-  lng: 75.9064,
-  lat: 17.6599,
-  zoom: 12.5,
+  lng: 76.5,
+  lat: 18.8,
+  zoom: 7.5,
 };

@@ -13,6 +13,9 @@ export interface ComplaintFilterParams {
   isOverdueOnly?: boolean;
   sortBy?: 'priority' | 'createdAt' | 'slaDeadline' | 'upvotes';
   sortOrder?: 'asc' | 'desc';
+  organizationType?: string;
+  districtId?: string;
+  corporationId?: string;
 }
 
 import { JointActionRequest, JointActionResult, IncidentClusterRecord } from './incidentGroupingEngine';

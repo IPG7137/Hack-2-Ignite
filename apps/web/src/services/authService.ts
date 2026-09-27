@@ -6,7 +6,8 @@ export type UserRole =
   | 'officer'
   | 'dept_admin'
   | 'municipal_admin'
-  | 'super_admin';
+  | 'super_admin'
+  | 'state_admin';
 
 export const VALID_ROLES: readonly UserRole[] = [
   'citizen',
@@ -14,6 +15,7 @@ export const VALID_ROLES: readonly UserRole[] = [
   'dept_admin',
   'municipal_admin',
   'super_admin',
+  'state_admin',
 ] as const;
 
 export function isValidRole(role: any): role is UserRole {
@@ -22,6 +24,7 @@ export function isValidRole(role: any): role is UserRole {
 
 export function normalizeLegacyRole(rawRole: string): UserRole {
   const r = rawRole.toLowerCase().trim();
+  if (r === 'state_admin' || r === 'stateadmin') return 'state_admin';
   if (r === 'super_admin' || r === 'superadmin') return 'super_admin';
   if (r === 'municipal_admin' || r === 'admin' || r === 'administrator') return 'municipal_admin';
   if (r === 'dept_admin' || r === 'department_admin') return 'dept_admin';

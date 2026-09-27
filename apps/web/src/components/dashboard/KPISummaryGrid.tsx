@@ -1,14 +1,39 @@
 import React from 'react';
-import { FileText, AlertOctagon, Wrench, CheckCircle2, ClockAlert, Timer } from 'lucide-react';
-import { Card } from '../ui/Card';
+import {
+  FileText,
+  AlertOctagon,
+  Wrench,
+  CheckCircle2,
+  ClockAlert,
+  Timer,
+  LucideIcon,
+} from 'lucide-react';
 import { KPISummary } from '../../types/analytics';
+import { KPISkeleton } from '../ui/LoadingSkeleton';
 
 interface KPISummaryGridProps {
   kpis: KPISummary | null;
   loading?: boolean;
 }
 
+interface KPICardData {
+  title: string;
+  value: number;
+  subtext: string;
+  contextTag: string;
+  icon: LucideIcon;
+  iconBg: string;
+  iconColor: string;
+  badgeBg: string;
+  badgeBorder: string;
+  badgeText: string;
+}
+
 export const KPISummaryGrid: React.FC<KPISummaryGridProps> = ({ kpis, loading = false }) => {
+  if (loading) {
+    return <KPISkeleton />;
+  }
+
   const total = kpis?.totalComplaints ?? 0;
   const open = kpis?.openComplaints ?? 0;
   const critical = kpis?.criticalComplaints ?? 0;
@@ -17,94 +42,119 @@ export const KPISummaryGrid: React.FC<KPISummaryGridProps> = ({ kpis, loading = 
   const resolved = kpis?.resolvedComplaints ?? 0;
   const compliance = kpis?.slaComplianceRate ?? 100;
 
-  const cards = [
+  const cards: KPICardData[] = [
     {
       title: 'Total Grievances',
       value: total,
-      change: `${total} registered in DB`,
-      subtext: 'Municipal database',
+      subtext: 'Registered municipal reports',
+      contextTag: 'System Intake',
       icon: FileText,
-      color: 'text-[#1769D2]',
-      borderAccent: 'default' as const,
+      iconBg: 'bg-blue-50',
+      iconColor: 'text-[#1769D2]',
+      badgeBg: 'bg-slate-50',
+      badgeBorder: 'border-slate-200',
+      badgeText: 'text-slate-700',
     },
     {
-      title: 'Needs Triage',
+      title: 'Active Issues',
       value: open,
-      change: open > 0 ? `${open} active reports` : 'Zero pending triage',
-      subtext: 'Pending resolution',
+      subtext: 'Awaiting completion/closure',
+      contextTag: 'Pending Resolution',
       icon: ClockAlert,
-      color: 'text-[#0284C7]',
-      borderAccent: 'info' as const,
+      iconBg: 'bg-sky-50',
+      iconColor: 'text-sky-700',
+      badgeBg: 'bg-sky-50',
+      badgeBorder: 'border-sky-200',
+      badgeText: 'text-sky-800',
     },
     {
-      title: 'Critical / Urgent',
+      title: 'Critical Under SLA',
       value: critical,
-      change: critical > 0 ? '12h SLA target' : 'Zero critical incidents',
-      subtext: 'Life-safety priority',
+      subtext: 'Life-safety 12h response limit',
+      contextTag: critical > 0 ? 'Immediate Action' : 'All Clear',
       icon: AlertOctagon,
-      color: 'text-[#D92D20]',
-      borderAccent: 'urgent' as const,
-      glow: critical > 0,
+      iconBg: 'bg-red-50',
+      iconColor: 'text-red-700',
+      badgeBg: critical > 0 ? 'bg-red-50' : 'bg-emerald-50',
+      badgeBorder: critical > 0 ? 'border-red-200' : 'border-emerald-200',
+      badgeText: critical > 0 ? 'text-red-800' : 'text-emerald-800',
     },
     {
-      title: 'Overdue Complaints',
+      title: 'Overdue Breaches',
       value: overdue,
-      change: overdue > 0 ? `${overdue} breached limit` : 'Zero SLA breaches',
-      subtext: 'Statutory deadline',
+      subtext: 'Exceeded statutory SLA hours',
+      contextTag: overdue > 0 ? 'Escalated' : 'On Schedule',
       icon: Timer,
-      color: 'text-[#EA580C]',
-      borderAccent: 'warning' as const,
+      iconBg: 'bg-amber-50',
+      iconColor: 'text-amber-700',
+      badgeBg: overdue > 0 ? 'bg-amber-50' : 'bg-slate-50',
+      badgeBorder: overdue > 0 ? 'border-amber-200' : 'border-slate-200',
+      badgeText: overdue > 0 ? 'text-amber-800' : 'text-slate-700',
     },
     {
-      title: 'In Progress / Assigned',
+      title: 'Active Field Crews',
       value: inProgress,
-      change: inProgress > 0 ? `${inProgress} under field action` : 'Zero active field jobs',
-      subtext: 'Assigned / In progress',
+      subtext: 'Work orders on-site',
+      contextTag: 'Field Operations',
       icon: Wrench,
-      color: 'text-[#123B6D]',
-      borderAccent: 'default' as const,
+      iconBg: 'bg-indigo-50',
+      iconColor: 'text-indigo-700',
+      badgeBg: 'bg-indigo-50',
+      badgeBorder: 'border-indigo-200',
+      badgeText: 'text-indigo-800',
     },
     {
       title: 'Resolved & Verified',
       value: resolved,
-      change: `${compliance}% SLA Compliance`,
-      subtext: 'Completed remediation',
+      subtext: `${compliance}% statutory SLA compliance`,
+      contextTag: 'Verified Quality',
       icon: CheckCircle2,
-      color: 'text-[#16803C]',
-      borderAccent: 'resolved' as const,
+      iconBg: 'bg-emerald-50',
+      iconColor: 'text-emerald-700',
+      badgeBg: 'bg-emerald-50',
+      badgeBorder: 'border-emerald-200',
+      badgeText: 'text-emerald-800',
     },
   ];
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-3.5">
       {cards.map((card, idx) => {
         const Icon = card.icon;
         return (
-          <Card
+          <div
             key={idx}
-            borderAccent={card.borderAccent}
-            glow={card.glow}
-            className="p-3.5 flex flex-col justify-between bg-white border-[#D9E2EC]"
+            className="p-3.5 sm:p-4 rounded-xl border border-slate-200 bg-white shadow-2xs hover:shadow-xs transition-shadow flex flex-col justify-between"
           >
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[11px] font-bold text-[#526581] uppercase tracking-wider">
+            <div className="flex items-center justify-between gap-1 mb-2.5">
+              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider truncate">
                 {card.title}
               </span>
-              <Icon className={`w-4 h-4 ${card.color}`} />
+              <div
+                className={`w-7 h-7 rounded-lg ${card.iconBg} ${card.iconColor} flex items-center justify-center shrink-0`}
+              >
+                <Icon className="w-4 h-4 stroke-[2.25]" />
+              </div>
             </div>
 
             <div>
-              <div className="text-2xl font-bold font-mono tracking-tight text-[#172B4D]">
-                {loading ? '...' : card.value}
+              <div className="text-2xl lg:text-[28px] font-extrabold font-mono tracking-tight text-slate-900 leading-none">
+                {card.value}
               </div>
-              <div className="text-[11px] font-semibold text-[#123B6D] mt-1 flex items-center gap-1">
-                <span>{card.change}</span>
+
+              <div className="mt-2 flex items-center justify-between gap-1">
+                <span
+                  className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-bold border ${card.badgeBg} ${card.badgeBorder} ${card.badgeText}`}
+                >
+                  {card.contextTag}
+                </span>
               </div>
-              <div className="text-[10px] text-[#718096] truncate mt-0.5">
+
+              <div className="text-[10px] text-slate-500 mt-1.5 truncate">
                 {card.subtext}
               </div>
             </div>
-          </Card>
+          </div>
         );
       })}
     </div>

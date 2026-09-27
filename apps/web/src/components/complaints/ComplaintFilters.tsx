@@ -57,8 +57,8 @@ export const ComplaintFilters: React.FC<ComplaintFiltersProps> = ({
         </div>
       </div>
 
-      {/* Row 2: Category, Status, Priority Dropdowns */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-[#E8EEF5] text-xs">
+      {/* Row 2: Category, Priority, Status, Ward, Sort */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 pt-2 border-t border-[#E8EEF5] text-xs">
         {/* Category */}
         <div>
           <label className="text-[10px] font-mono text-[#526581] uppercase font-bold block mb-1">
@@ -91,10 +91,10 @@ export const ComplaintFilters: React.FC<ComplaintFiltersProps> = ({
             className="w-full h-8 rounded border border-[#D9E2EC] bg-white text-[#172B4D] px-2 text-xs focus:outline-none focus:border-[#1769D2]"
           >
             <option value="all">All Priorities</option>
-            <option value="urgent">Urgent / Critical (12h)</option>
-            <option value="high">High (24h)</option>
-            <option value="medium">Medium (48h)</option>
-            <option value="low">Low (72h)</option>
+            <option value="urgent">Urgent / Critical</option>
+            <option value="high">High</option>
+            <option value="medium">Medium</option>
+            <option value="low">Low</option>
           </select>
         </div>
 
@@ -129,16 +129,32 @@ export const ComplaintFilters: React.FC<ComplaintFiltersProps> = ({
             onChange={(e) => onChange({ ...filters, ward: e.target.value })}
             className="w-full h-8 rounded border border-[#D9E2EC] bg-white text-[#172B4D] px-2 text-xs focus:outline-none focus:border-[#1769D2]"
           >
-            <option value="all">All Wards</option>
-            <option value="Ward 01">Ward 01 - Sadar Bazar</option>
-            <option value="Ward 02">Ward 02 - Saat Rasta</option>
-            <option value="Ward 03">Ward 03 - Navi Peth</option>
-            <option value="Ward 04">Ward 04 - Jule Solapur</option>
-            <option value="Ward 05">Ward 05 - Hotgi Road</option>
-            <option value="Ward 06">Ward 06 - Akkalkot Road</option>
-            <option value="Ward 07">Ward 07 - Vijapur Road</option>
-            <option value="Ward 08">Ward 08 - Railway Station</option>
-            <option value="Ward 09">Ward 09 - North Solapur</option>
+            <option value="all">All Wards / Zones</option>
+            <option value="Ward 01">Ward 01 / Zone A</option>
+            <option value="Ward 02">Ward 02 / Zone B</option>
+            <option value="Ward 03">Ward 03 / Zone C</option>
+            <option value="Ward 04">Ward 04 / Zone D</option>
+            <option value="Ward 05">Ward 05 / Zone E</option>
+            <option value="Ward 06">Ward 06 / Zone F</option>
+            <option value="Ward 07">Ward 07 / Zone G</option>
+            <option value="Ward 08">Ward 08 / Zone H</option>
+          </select>
+        </div>
+
+        {/* Sort By */}
+        <div className="col-span-2 sm:col-span-1">
+          <label className="text-[10px] font-mono text-[#526581] uppercase font-bold block mb-1">
+            Sort Order
+          </label>
+          <select
+            value={filters.sortBy || 'priority'}
+            onChange={(e) => onChange({ ...filters, sortBy: e.target.value as any })}
+            className="w-full h-8 rounded border border-[#D9E2EC] bg-white text-[#172B4D] px-2 text-xs focus:outline-none focus:border-[#1769D2]"
+          >
+            <option value="priority">Priority (Severity)</option>
+            <option value="createdAt">Date (Newest)</option>
+            <option value="slaDeadline">SLA (Most Urgent)</option>
+            <option value="upvotes">Citizen Upvotes</option>
           </select>
         </div>
       </div>

@@ -23,6 +23,8 @@ import { StatusStepper } from '../components/complaints/StatusStepper';
 import { BeforeAfterInspector } from '../components/complaints/BeforeAfterInspector';
 import { RelatedComplaintsPanel } from '../components/complaints/RelatedComplaintsPanel';
 import { Badge } from '../components/ui/Badge';
+import { StatusBadge } from '../components/ui/StatusBadge';
+import { PriorityBadge } from '../components/ui/PriorityBadge';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { Input } from '../components/ui/Input';
@@ -320,25 +322,12 @@ export const ComplaintDetails: React.FC<ComplaintDetailsProps> = ({
             <span>Back to Queue</span>
           </Button>
 
-          <div className="flex items-center gap-2 ml-2">
+          <div className="flex items-center gap-2 ml-2 flex-wrap">
             <span className="font-mono text-base font-bold text-[#1769D2]">
               #{complaint.id}
             </span>
-            {(() => {
-              const priorityAnalysis = PriorityEngine.evaluateComplaintPriority(complaint, allComplaints);
-              return (
-                <span
-                  className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-mono font-bold border uppercase tracking-wider ${priorityAnalysis.badgeBg} ${priorityAnalysis.badgeBorder} ${priorityAnalysis.badgeText}`}
-                >
-                  <span
-                    className="w-1.5 h-1.5 rounded-full"
-                    style={{ backgroundColor: priorityAnalysis.badgeColor }}
-                  />
-                  <span>Priority: {priorityAnalysis.levelLabel} ({priorityAnalysis.scoreDisplay})</span>
-                </span>
-              );
-            })()}
-            <Badge status={complaint.status} />
+            <PriorityBadge priority={complaint.priority} />
+            <StatusBadge status={complaint.status} />
           </div>
         </div>
 

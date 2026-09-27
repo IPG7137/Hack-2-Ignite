@@ -1,11 +1,20 @@
 import React from 'react';
-import { AlertCircle, ArrowRight, Clock, MapPin, Sparkles, UserCheck, Layers } from 'lucide-react';
-import { Card } from '../ui/Card';
-import { Badge } from '../ui/Badge';
-import { Button } from '../ui/Button';
+import {
+  AlertOctagon,
+  ArrowRight,
+  Clock,
+  MapPin,
+  UserCheck,
+  Layers,
+  Inbox,
+  Sparkles,
+} from 'lucide-react';
 import { Complaint } from '../../types/complaint';
 import { SimilarityEngine } from '../../services/similarityEngine';
-import { PriorityEngine, CivicPriorityAnalysis } from '../../services/priorityEngine';
+import { PriorityEngine } from '../../services/priorityEngine';
+import { StatusBadge } from '../ui/StatusBadge';
+import { PriorityBadge } from '../ui/PriorityBadge';
+import { Button } from '../ui/Button';
 
 interface PriorityQueueProps {
   complaints: Complaint[];
@@ -29,95 +38,98 @@ export const PriorityQueue: React.FC<PriorityQueueProps> = ({
   const displayList = sortedPriorities.slice(0, 6);
 
   return (
-    <Card className="flex flex-col h-full overflow-hidden border-[#D9E2EC] bg-white">
-      <div className="px-4 py-3 border-b border-[#D9E2EC] flex items-center justify-between bg-[#F8FAFC]">
+    <div className="flex flex-col h-full rounded-xl border border-slate-200 bg-white shadow-2xs overflow-hidden">
+      {/* Header */}
+      <div className="px-4 py-3 border-b border-slate-200 flex items-center justify-between bg-slate-50/70">
         <div className="flex items-center gap-2">
-          <AlertCircle className="w-4 h-4 text-[#D92D20]" />
-          <h3 className="text-xs font-bold text-[#172B4D] uppercase tracking-wider">
-            Smart Operational Priority Queue
-          </h3>
+          <div className="w-6 h-6 rounded bg-red-100/70 border border-red-200 text-red-700 flex items-center justify-center">
+            <AlertOctagon className="w-3.5 h-3.5 stroke-[2.5]" />
+          </div>
+          <div>
+            <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+              Operational Priority & Triage Queue
+            </h3>
+            <p className="text-[10px] text-slate-500">Multi-signal algorithmic ranking</p>
+          </div>
         </div>
-        <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-red-50 text-red-700 border border-red-200 font-bold">
+        <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-red-50 text-red-700 border border-red-200 font-bold">
           {criticalOrHighCount} HIGH / CRITICAL
         </span>
       </div>
 
-      <div className="divide-y divide-[#E8EEF5] overflow-y-auto flex-1">
+      {/* Body */}
+      <div className="divide-y divide-slate-100 overflow-y-auto flex-1 min-h-[300px]">
         {displayList.length === 0 ? (
-          <div className="p-8 text-center text-[#718096] text-xs flex flex-col items-center justify-center h-full">
-            <AlertCircle className="w-6 h-6 text-[#A0AEC0] mb-2" />
-            <span className="font-semibold text-[#172B4D]">No Active Grievances</span>
-            <p className="text-[11px] text-[#526581] mt-1">
-              Zero complaints pending triage in the municipal queue.
+          <div className="p-8 text-center text-slate-400 text-xs flex flex-col items-center justify-center h-full">
+            <Inbox className="w-8 h-8 text-slate-300 mb-2 stroke-[1.5]" />
+            <span className="font-bold text-slate-700">No Active Grievances in Queue</span>
+            <p className="text-[11px] text-slate-500 mt-1 max-w-xs">
+              All reported complaints have been cleared or are awaiting triage.
             </p>
           </div>
         ) : (
           displayList.map(({ complaint: item, priorityAnalysis }) => {
+            const relatedSummary = SimilarityEngine.getRelatedCandidatesSummary(item, complaints);
+            const isDup = relatedSummary?.topClassification === 'highConfidenceDuplicate';
+
             return (
               <div
                 key={item.id}
-                className="p-3.5 hover:bg-slate-50/80 transition-colors flex flex-col gap-2 group cursor-pointer"
                 onClick={() => onSelectComplaint(item.id)}
+                className="p-3.5 hover:bg-slate-50/90 transition-colors flex flex-col gap-2 group cursor-pointer"
               >
-                {/* Row 1: Badges, Calculated Smart Priority & SLA Timer */}
-                <div className="flex items-center justify-between">
+                {/* Row 1: ID, Badges, SLA */}
+                <div className="flex items-center justify-between gap-2 flex-wrap">
                   <div className="flex items-center gap-1.5 flex-wrap">
                     <span className="font-mono text-xs font-bold text-[#1769D2]">
                       #{item.id}
                     </span>
-
-                    {/* Calculated Priority Score Pill */}
-                    <span
-                      className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono font-bold border ${priorityAnalysis.badgeBg} ${priorityAnalysis.badgeBorder} ${priorityAnalysis.badgeText}`}
-                    >
-                      <span
-                        className="w-1.5 h-1.5 rounded-full"
-                        style={{ backgroundColor: priorityAnalysis.badgeColor }}
-                      />
-                      <span>{priorityAnalysis.levelLabel.toUpperCase()}</span>
-                      <span>·</span>
-                      <span>{priorityAnalysis.scoreDisplay}</span>
-                    </span>
-
-                    <Badge status={item.status} />
+                    <PriorityBadge
+                      priority={item.priority}
+                      score={Math.round(priorityAnalysis.score)}
+                    />
+                    <StatusBadge status={item.status} />
                   </div>
 
-                  {/* SLA Timer */}
                   <div
-                    className={`text-[11px] font-mono font-bold flex items-center gap-1 ${
+                    className={`text-[11px] font-mono font-bold flex items-center gap-1 shrink-0 ${
                       item.sla.isOverdue
-                        ? 'text-[#D92D20] animate-pulse'
+                        ? 'text-red-700 font-black animate-pulse'
                         : item.sla.hoursRemaining <= 4
-                        ? 'text-[#EA580C]'
-                        : 'text-[#526581]'
+                        ? 'text-amber-700'
+                        : 'text-slate-600'
                     }`}
                   >
                     <Clock className="w-3.5 h-3.5" />
-                    <span>{item.sla.isOverdue ? `${Math.abs(item.sla.hoursRemaining)}h OVERDUE` : `${item.sla.hoursRemaining}h SLA left`}</span>
+                    <span>
+                      {item.sla.isOverdue
+                        ? `${Math.abs(item.sla.hoursRemaining)}h OVERDUE`
+                        : `${item.sla.hoursRemaining}h SLA left`}
+                    </span>
                   </div>
                 </div>
 
                 {/* Row 2: Title & Location */}
                 <div>
-                  <h4 className="text-xs font-bold text-[#172B4D] group-hover:text-[#1769D2] transition-colors line-clamp-1">
+                  <h4 className="text-xs font-bold text-slate-800 group-hover:text-[#1769D2] transition-colors line-clamp-1">
                     {item.title}
                   </h4>
-                  <div className="flex items-center gap-1 text-[11px] text-[#526581] mt-0.5">
-                    <MapPin className="w-3 h-3 text-[#718096] shrink-0" />
+                  <div className="flex items-center gap-1 text-[11px] text-slate-500 mt-0.5">
+                    <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
                     <span className="truncate">{item.location.address}</span>
-                    <span className="text-[#D9E2EC]">•</span>
-                    <span className="text-[#172B4D] font-medium shrink-0">{item.location.ward}</span>
+                    <span className="text-slate-300">•</span>
+                    <span className="text-slate-700 font-semibold shrink-0">{item.location.ward}</span>
                   </div>
                 </div>
 
-                {/* Row 3: Priority Drivers Tags */}
+                {/* Row 3: Priority Drivers */}
                 {priorityAnalysis.topDrivers.length > 0 && (
                   <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className="text-[10px] font-mono text-[#718096]">Drivers:</span>
+                    <span className="text-[10px] font-mono text-slate-400 uppercase">Drivers:</span>
                     {priorityAnalysis.topDrivers.map((driver, idx) => (
                       <span
                         key={idx}
-                        className="px-1.5 py-0.2 rounded bg-slate-100 border border-slate-200 text-[#526581] font-mono text-[9px] font-semibold"
+                        className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 font-mono text-[9px] font-semibold border border-slate-200/70"
                       >
                         {driver}
                       </span>
@@ -125,51 +137,46 @@ export const PriorityQueue: React.FC<PriorityQueueProps> = ({
                   </div>
                 )}
 
-                {/* Phase 3A: Related Complaint Indicator */}
-                {(() => {
-                  const relatedSummary = SimilarityEngine.getRelatedCandidatesSummary(item, complaints);
-                  if (!relatedSummary) return null;
-                  const isDup = relatedSummary.topClassification === 'highConfidenceDuplicate';
-                  return (
-                    <div
-                      className={`p-1.5 rounded text-[10px] flex items-center gap-1.5 font-medium border ${
-                        isDup
-                          ? 'bg-purple-50 text-purple-900 border-purple-200'
-                          : 'bg-blue-50 text-blue-900 border-blue-200'
-                      }`}
-                    >
-                      <Layers className="w-3 h-3 text-purple-700 shrink-0" />
-                      <span>
-                        {relatedSummary.count} possible related {relatedSummary.count === 1 ? 'complaint' : 'complaints'} nearby ({Math.round(relatedSummary.highestConfidence * 100)}% similarity)
-                      </span>
-                    </div>
-                  );
-                })()}
+                {/* Duplicate / Cluster Note */}
+                {relatedSummary && (
+                  <div
+                    className={`px-2 py-1 rounded text-[10px] flex items-center gap-1.5 font-medium border ${
+                      isDup
+                        ? 'bg-purple-50 text-purple-800 border-purple-200'
+                        : 'bg-blue-50 text-blue-800 border-blue-200'
+                    }`}
+                  >
+                    <Layers className="w-3 h-3 shrink-0" />
+                    <span className="truncate">
+                      {relatedSummary.count} potential {isDup ? 'duplicate' : 'related'} reports nearby ({Math.round(relatedSummary.highestConfidence * 100)}% match)
+                    </span>
+                  </div>
+                )}
 
                 {/* Row 4: Assigned Unit & Action */}
-                <div className="flex items-center justify-between pt-1 border-t border-[#E8EEF5] mt-0.5">
-                  <div className="text-[11px] text-[#526581] flex items-center gap-1.5">
-                    <UserCheck className="w-3.5 h-3.5 text-[#718096]" />
+                <div className="flex items-center justify-between pt-1 border-t border-slate-100 mt-0.5">
+                  <div className="text-[11px] text-slate-600 flex items-center gap-1.5 truncate">
+                    <UserCheck className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                     {item.assignment ? (
-                      <span className="text-[#172B4D] font-medium">
-                        Assigned: <span className="text-[#1769D2] font-semibold">{item.assignment.officerName}</span>
+                      <span className="truncate">
+                        Assigned: <strong className="text-slate-800">{item.assignment.officerName}</strong>
                       </span>
                     ) : (
-                      <span className="text-amber-700 font-semibold">⚠️ Unassigned Field Unit</span>
+                      <span className="text-amber-700 font-semibold">⚠️ Unassigned Unit</span>
                     )}
                   </div>
 
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-7 text-[10px] px-2.5 bg-white border-[#D9E2EC] text-[#172B4D] hover:bg-[#1769D2] hover:text-white hover:border-[#1769D2]"
+                    className="h-6.5 text-[10px] px-2.5 bg-white border-slate-200 text-slate-700 hover:bg-[#1769D2] hover:text-white hover:border-[#1769D2] shrink-0"
                     onClick={(e) => {
                       e.stopPropagation();
                       onSelectComplaint(item.id);
                     }}
                   >
-                    <span>Inspect Dossier</span>
-                    <ArrowRight className="w-3 h-3 ml-1" />
+                    <span>Inspect</span>
+                    <ArrowRight className="w-2.5 h-2.5 ml-1" />
                   </Button>
                 </div>
               </div>
@@ -177,6 +184,6 @@ export const PriorityQueue: React.FC<PriorityQueueProps> = ({
           })
         )}
       </div>
-    </Card>
+    </div>
   );
 };

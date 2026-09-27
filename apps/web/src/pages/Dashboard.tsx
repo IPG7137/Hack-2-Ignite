@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { KPISummaryGrid } from '../components/dashboard/KPISummaryGrid';
 import { PriorityQueue } from '../components/dashboard/PriorityQueue';
 import { EmergingProblemsHotspotsCard } from '../components/dashboard/EmergingProblemsHotspotsCard';
@@ -11,23 +11,26 @@ import { Complaint } from '../types/complaint';
 import { KPISummary } from '../types/analytics';
 import { AIOperationalInsight } from '../types/ai';
 import { Department } from '../types/department';
-import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { useAuth } from '../hooks/useAuth';
+import { useOrganization } from '../context/OrganizationContext';
 import { LoginModal } from '../components/auth/LoginModal';
+import { KPISkeleton } from '../components/ui/LoadingSkeleton';
+import { ErrorState } from '../components/ui/ErrorState';
 import {
   ArrowUpRight,
   Sparkles,
   MapPin,
-  AlertCircle,
-  Clock,
-  CheckCircle2,
   RefreshCw,
   Layers,
   ShieldAlert,
   ShieldCheck,
   LogIn,
-  Inbox,
+  Activity,
+  CheckCircle2,
+  AlertTriangle,
+  Clock,
+  Radio,
 } from 'lucide-react';
 
 interface DashboardProps {
@@ -56,9 +59,23 @@ export const Dashboard: React.FC<DashboardProps> = ({
   onOpenCopilot,
   onRefresh,
 }) => {
-  const [radarTab, setRadarTab] = React.useState<'hotspots' | 'incidents'>('hotspots');
-  const [isLoginOpen, setIsLoginOpen] = React.useState(false);
+  const [radarTab, setRadarTab] = useState<'hotspots' | 'incidents'>('hotspots');
+  const [isLoginOpen, setIsLoginOpen] = useState(false);
   const { isAuthenticated, user } = useAuth();
+  const { municipalCorporationName, currentCorporation, district, mapCenter } = useOrganization();
+  const [lastSyncTime, setLastSyncTime] = useState<string>('');
+
+  useEffect(() => {
+    setLastSyncTime(
+      new Date().toLocaleTimeString('en-IN', {
+        timeZone: 'Asia/Kolkata',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false,
+      })
+    );
+  }, [complaints]);
 
   // Compute live active hotspot and incident counts for tab badges
   const intelligenceCounts = useMemo(() => {
@@ -147,130 +164,100 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
   if (loading && complaints.length === 0) {
     return (
-      <div className="p-16 text-center text-[#526581]">
-        <div className="flex flex-col items-center justify-center gap-3">
-          <RefreshCw className="w-8 h-8 animate-spin text-[#1769D2]" />
-          <span className="text-sm font-semibold text-[#172B4D]">Loading municipal operations telemetry...</span>
-        </div>
+      <div className="space-y-4">
+        <KPISkeleton />
+        <div className="h-64 rounded-xl border border-slate-200 bg-white animate-pulse" />
       </div>
     );
   }
 
   if (error && complaints.length === 0) {
     return (
-      <div className="p-12 text-center bg-white rounded-lg border border-red-200 max-w-lg mx-auto mt-8 shadow-sm">
-        <AlertCircle className="w-8 h-8 text-red-600 mx-auto mb-2" />
-        <h3 className="text-sm font-bold text-[#172B4D]">Unable to Connect to Supabase</h3>
-        <p className="text-xs text-red-600 mt-1 mb-4">{error}</p>
-        {onRefresh && (
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={onRefresh}
-            className="bg-[#1769D2] text-white"
-          >
-            Retry Connection
-          </Button>
-        )}
-      </div>
+      <ErrorState
+        title="Unable to Connect to Municipal Database"
+        message={error}
+        onRetry={onRefresh}
+      />
     );
   }
 
+  const totalReportsCount = complaints.length;
+
   return (
     <div className="space-y-4">
-      {/* Top Banner: Municipal Duty Officer Executive Greeting & Situational Alert */}
-      <div className="relative overflow-hidden p-4 rounded-lg bg-white border border-[#D9E2EC] shadow-sm flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
-        {/* Subtle Architectural Heritage Background */}
-        <div className="absolute inset-0 pointer-events-none opacity-15 overflow-hidden flex items-end justify-end">
-          <img
-            src="/assets/images/municipal_heritage_banner.svg"
-            alt="City Architecture"
-            className="w-full h-full object-cover object-right"
-          />
-        </div>
-
-        {/* Left: Officer Greeting & Urgent SLA Directive */}
-        <div className="relative z-10 flex items-start sm:items-center gap-3">
-          <div className="w-10 h-10 rounded bg-blue-50 border border-blue-200 flex items-center justify-center text-[#1769D2] shrink-0 shadow-xs">
-            <img
-              src="/assets/images/municipal_emblem.png"
-              alt="Seal"
-              className="w-8 h-8 object-contain"
-            />
+      {/* ==================================================
+          TOP SECTION: COMMAND OVERVIEW & OPERATIONAL STATUS
+          ================================================== */}
+      <div className="p-4 sm:p-5 rounded-xl bg-white border border-slate-200 shadow-2xs flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+        <div className="flex items-start sm:items-center gap-3.5">
+          <div className="w-11 h-11 rounded-xl bg-blue-50 border border-blue-200/80 flex items-center justify-center text-[#1769D2] shrink-0 shadow-2xs font-bold text-lg">
+            🏢
           </div>
           <div>
             <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="text-sm font-bold text-[#123B6D] tracking-tight">
-                {user?.role === 'municipal_admin' || user?.role === 'super_admin'
-                  ? 'Good day, Municipal Administrator (HQ)'
-                  : `Good day, ${user?.fullName || 'Zone 2 Duty Officer'}`}
+              <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-slate-500">
+                CIVICRESOLVE
+              </span>
+              <span className="text-slate-300">•</span>
+              <h1 className="text-lg sm:text-xl font-bold tracking-tight text-[#123B6D]">
+                {municipalCorporationName || 'Municipal Corporation'}
               </h1>
-              {urgentActiveCount > 0 ? (
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-red-50 text-[#D92D20] border border-red-200 font-bold flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#D92D20] live-pulse-dot" />
-                  {urgentActiveCount} URGENT ACTION{urgentActiveCount > 1 ? 'S' : ''} UNDER 12H SLA
-                </span>
-              ) : (
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-50 text-[#16803C] border border-emerald-200 font-bold flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#16803C]" />
-                  ALL CRITICAL ACTIONS CLEARED • NORMAL DISPATCH
-                </span>
-              )}
+              <span className="text-xs text-[#526581] font-medium hidden sm:inline">
+                District: {district || 'Maharashtra'} • Municipal Command Center
+              </span>
+              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
+                LIVE ● OPERATIONAL
+              </span>
             </div>
-            <p className="text-xs text-[#526581] mt-0.5">
-              {user?.role === 'municipal_admin' || user?.role === 'super_admin'
-                ? `Live City-wide Municipal Command Center connected to Supabase (${complaints.length} city-wide grievances on record).`
-                : `Live Zone 2 Operations Desk connected to Supabase (${complaints.length} local grievances on record).`}
+
+            <p className="text-xs text-slate-600 mt-1 flex items-center gap-2 flex-wrap">
+              <span>
+                {currentCorporation?.shortName || 'Municipal'} Command Headquarters • {complaints.length} municipal grievances on record
+              </span>
+              <span className="text-slate-300">•</span>
+              <span className="font-mono text-slate-500 text-[11px]">
+                Last synced at <strong className="text-slate-700">{lastSyncTime || 'now'}</strong> IST
+              </span>
             </p>
           </div>
         </div>
 
-        {/* Right: Institutional Civic Motto & Actions */}
-        <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center gap-3 lg:gap-4 shrink-0">
-          <div className="hidden xl:block text-right border-r border-[#E8EEF5] pr-4">
-            <div className="text-[11px] font-semibold text-[#16803C] tracking-wide">
-              “स्वच्छ शहर, हरित शहर, समृद्ध समाज”
-            </div>
-            <div className="text-[10px] text-[#718096] italic">
-              Responsive Governance • Stronger Communities
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onNavigatePage('sla')}
-              className="h-8 text-xs bg-white border-[#D9E2EC] text-[#172B4D] hover:bg-slate-50 shadow-xs font-medium"
-            >
-              <span>View SLA Matrix</span>
-            </Button>
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={onOpenCopilot}
-              className="h-8 text-xs bg-[#1769D2] hover:bg-[#123B6D] text-white gap-1.5 shadow-xs font-semibold"
-            >
-              <Sparkles className="w-3.5 h-3.5 text-white" />
-              <span>AI Handover Brief</span>
-            </Button>
-          </div>
+        {/* Quick Operational Directives */}
+        <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onNavigatePage('sla')}
+            className="h-8 text-xs bg-white border-slate-200 text-slate-700 hover:bg-slate-50 font-medium"
+          >
+            <span>SLA Escalation Matrix</span>
+          </Button>
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={onOpenCopilot}
+            className="h-8 text-xs bg-[#1769D2] hover:bg-[#123B6D] text-white gap-1.5 shadow-xs font-semibold"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-white" />
+            <span>AI Handover Brief</span>
+          </Button>
         </div>
       </div>
 
       {/* Guest Authentication Banner (When not signed in under Supabase RLS) */}
       {!isAuthenticated && (
-        <div className="p-4 rounded-lg bg-amber-50 border border-amber-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+        <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-2xs">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded bg-amber-100 border border-amber-300 flex items-center justify-center text-amber-800 shrink-0">
-              <ShieldAlert className="w-5 h-5 text-amber-700" />
+            <div className="w-8 h-8 rounded-lg bg-amber-100 border border-amber-300 flex items-center justify-center text-amber-800 shrink-0">
+              <ShieldAlert className="w-4 h-4 text-amber-700" />
             </div>
             <div>
               <div className="text-xs font-bold text-amber-900">
-                Sign in to access the Municipal Command Center
+                Sign in to access authorized municipal features
               </div>
               <div className="text-[11px] text-amber-700">
-                PostgreSQL Row Level Security (RLS) is active. Sign in with municipal officer or administrator credentials to view confidential grievances and dispatch field actions.
+                PostgreSQL Row Level Security (RLS) is active. Sign in with municipal credentials to execute field dispatch and verified resolution audits.
               </div>
             </div>
           </div>
@@ -278,150 +265,178 @@ export const Dashboard: React.FC<DashboardProps> = ({
             variant="primary"
             size="sm"
             onClick={() => setIsLoginOpen(true)}
-            className="h-8 text-xs bg-amber-700 hover:bg-amber-800 text-white font-semibold shrink-0 gap-1.5"
+            className="h-7.5 text-xs bg-amber-700 hover:bg-amber-800 text-white font-semibold shrink-0 gap-1.5"
           >
             <LogIn className="w-3.5 h-3.5" />
-            <span>Sign In to Municipal Portal</span>
+            <span>Officer Sign In</span>
           </Button>
         </div>
       )}
 
-      {/* KPI Stats Grid (Real Database Metrics) */}
+      {/* ==================================================
+          KPI CARDS: REAL DATA SUMMARY
+          ================================================== */}
       <KPISummaryGrid kpis={liveKPIs} loading={loading} />
 
-      {/* Lifecycle Status & Severity Matrices */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
-        {/* 7-Stage Statutory Lifecycle Breakdown (8 cols) */}
-        <Card className="lg:col-span-8 p-3.5 bg-white border-[#D9E2EC] shadow-sm">
-          <div className="flex items-center justify-between mb-2">
+      {/* ==================================================
+          OPERATIONAL PULSE: LIFECYCLE & PRIORITY DISTRIBUTION
+          ================================================== */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5">
+        {/* Operational Pulse: 5 Key Stages (7 cols) */}
+        <div className="lg:col-span-7 p-4 rounded-xl border border-slate-200 bg-white shadow-2xs flex flex-col justify-between">
+          <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
-              <Layers className="w-3.5 h-3.5 text-[#1769D2]" />
-              <h3 className="text-xs font-bold text-[#172B4D] uppercase tracking-wider">
-                Statutory Lifecycle Distribution
-              </h3>
+              <div className="w-6 h-6 rounded-md bg-blue-100 text-[#1769D2] flex items-center justify-center">
+                <Activity className="w-3.5 h-3.5 stroke-[2.25]" />
+              </div>
+              <div>
+                <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                  City Operational Pulse
+                </h3>
+                <p className="text-[10px] text-slate-500">Live grievance stage distribution</p>
+              </div>
             </div>
-            <span className="text-[10px] font-mono text-[#526581]">
-              7 Formal Governance Stages
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-bold border border-slate-200">
+              {totalReportsCount} TOTAL COMPLAINTS
             </span>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 pt-1">
-            <div className="p-2 rounded bg-amber-50/60 border border-amber-200 text-center">
-              <div className="text-[10px] font-mono uppercase text-amber-800 font-semibold">Submitted</div>
-              <div className="text-lg font-bold font-mono text-amber-900 mt-0.5">{statusCounts.submitted}</div>
+          {/* 5 Operational Pulse Buckets */}
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 pt-1">
+            {/* Critical */}
+            <div className="p-2.5 rounded-lg bg-red-50/70 border border-red-200 text-center">
+              <div className="text-[10px] font-mono uppercase text-red-800 font-bold">Critical</div>
+              <div className="text-xl font-extrabold font-mono text-red-900 mt-0.5">
+                {priorityCounts.urgent}
+              </div>
+              <div className="text-[9px] text-red-700 font-mono mt-0.5">12h SLA Limit</div>
             </div>
-            <div className="p-2 rounded bg-blue-50/60 border border-blue-200 text-center">
-              <div className="text-[10px] font-mono uppercase text-blue-800 font-semibold">Review</div>
-              <div className="text-lg font-bold font-mono text-blue-900 mt-0.5">{statusCounts.under_review}</div>
+
+            {/* High */}
+            <div className="p-2.5 rounded-lg bg-orange-50/70 border border-orange-200 text-center">
+              <div className="text-[10px] font-mono uppercase text-orange-800 font-bold">High</div>
+              <div className="text-xl font-extrabold font-mono text-orange-900 mt-0.5">
+                {priorityCounts.high}
+              </div>
+              <div className="text-[9px] text-orange-700 font-mono mt-0.5">24h SLA Limit</div>
             </div>
-            <div className="p-2 rounded bg-purple-50/60 border border-purple-200 text-center">
-              <div className="text-[10px] font-mono uppercase text-purple-800 font-semibold">Assigned</div>
-              <div className="text-lg font-bold font-mono text-purple-900 mt-0.5">{statusCounts.assigned}</div>
+
+            {/* Under Review */}
+            <div className="p-2.5 rounded-lg bg-purple-50/70 border border-purple-200 text-center">
+              <div className="text-[10px] font-mono uppercase text-purple-800 font-bold">Under Review</div>
+              <div className="text-xl font-extrabold font-mono text-purple-900 mt-0.5">
+                {statusCounts.under_review + statusCounts.submitted}
+              </div>
+              <div className="text-[9px] text-purple-700 font-mono mt-0.5">Triage Stage</div>
             </div>
-            <div className="p-2 rounded bg-orange-50/60 border border-orange-200 text-center">
-              <div className="text-[10px] font-mono uppercase text-orange-800 font-semibold">In Progress</div>
-              <div className="text-lg font-bold font-mono text-orange-900 mt-0.5">{statusCounts.in_progress}</div>
+
+            {/* In Progress */}
+            <div className="p-2.5 rounded-lg bg-amber-50/70 border border-amber-200 text-center">
+              <div className="text-[10px] font-mono uppercase text-amber-800 font-bold">In Progress</div>
+              <div className="text-xl font-extrabold font-mono text-amber-900 mt-0.5">
+                {statusCounts.in_progress + statusCounts.assigned}
+              </div>
+              <div className="text-[9px] text-amber-700 font-mono mt-0.5">Field Remediation</div>
             </div>
-            <div className="p-2 rounded bg-sky-50/60 border border-sky-200 text-center">
-              <div className="text-[10px] font-mono uppercase text-sky-800 font-semibold">Resolution</div>
-              <div className="text-lg font-bold font-mono text-sky-900 mt-0.5">{statusCounts.resolution_submitted}</div>
-            </div>
-            <div className="p-2 rounded bg-emerald-50/60 border border-emerald-200 text-center">
-              <div className="text-[10px] font-mono uppercase text-emerald-800 font-semibold">Verified</div>
-              <div className="text-lg font-bold font-mono text-emerald-900 mt-0.5">{statusCounts.verified}</div>
-            </div>
-            <div className="p-2 rounded bg-slate-100 border border-slate-200 text-center">
-              <div className="text-[10px] font-mono uppercase text-slate-700 font-semibold">Closed</div>
-              <div className="text-lg font-bold font-mono text-slate-800 mt-0.5">{statusCounts.closed}</div>
+
+            {/* Resolved */}
+            <div className="p-2.5 rounded-lg bg-emerald-50/70 border border-emerald-200 text-center col-span-2 sm:col-span-1">
+              <div className="text-[10px] font-mono uppercase text-emerald-800 font-bold">Resolved</div>
+              <div className="text-xl font-extrabold font-mono text-emerald-900 mt-0.5">
+                {statusCounts.resolution_submitted + statusCounts.verified + statusCounts.closed}
+              </div>
+              <div className="text-[9px] text-emerald-700 font-mono mt-0.5">Proof Verified</div>
             </div>
           </div>
-        </Card>
+        </div>
 
-        {/* Priority & SLA Health Matrix (4 cols) */}
-        <Card className="lg:col-span-4 p-3.5 bg-white border-[#D9E2EC] shadow-sm flex flex-col justify-between">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-1.5">
-              <ShieldAlert className="w-3.5 h-3.5 text-[#D92D20]" />
-              <h3 className="text-xs font-bold text-[#172B4D] uppercase tracking-wider">
-                Severity & SLA Health
-              </h3>
+        {/* SLA Health Breakdown (5 cols) */}
+        <div className="lg:col-span-5 p-4 rounded-xl border border-slate-200 bg-white shadow-2xs flex flex-col justify-between">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-md bg-amber-100 text-amber-800 flex items-center justify-center">
+                <Clock className="w-3.5 h-3.5 stroke-[2.25]" />
+              </div>
+              <div>
+                <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                  SLA Compliance Health
+                </h3>
+                <p className="text-[10px] text-slate-500">Statutory resolution timeline status</p>
+              </div>
             </div>
-            <span className="text-[10px] font-mono text-[#526581]">
-              Live Breakdown
+            <span className="text-[10px] font-mono text-emerald-700 font-bold">
+              {liveKPIs.slaComplianceRate}% COMPLIANT
             </span>
           </div>
 
-          <div className="grid grid-cols-2 gap-2 text-xs">
-            <div className="space-y-1">
-              <div className="text-[10px] font-mono uppercase text-[#526581] font-semibold">Severity</div>
-              <div className="flex items-center justify-between p-1 rounded bg-red-50 text-red-800 border border-red-200 font-mono text-[11px]">
-                <span>Urgent:</span>
-                <strong>{priorityCounts.urgent}</strong>
+          <div className="grid grid-cols-3 gap-2 text-center pt-1">
+            <div className="p-2.5 rounded-lg bg-red-50/80 border border-red-200">
+              <div className="text-[10px] font-mono uppercase text-red-800 font-semibold">Overdue</div>
+              <div className="text-xl font-extrabold font-mono text-red-900 mt-0.5">
+                {slaHealth.overdue}
               </div>
-              <div className="flex items-center justify-between p-1 rounded bg-orange-50 text-orange-800 border border-orange-200 font-mono text-[11px]">
-                <span>High:</span>
-                <strong>{priorityCounts.high}</strong>
-              </div>
-              <div className="flex items-center justify-between p-1 rounded bg-amber-50 text-amber-800 border border-amber-200 font-mono text-[11px]">
-                <span>Medium:</span>
-                <strong>{priorityCounts.medium}</strong>
-              </div>
-              <div className="flex items-center justify-between p-1 rounded bg-blue-50 text-blue-800 border border-blue-200 font-mono text-[11px]">
-                <span>Low:</span>
-                <strong>{priorityCounts.low}</strong>
-              </div>
+              <div className="text-[9px] text-red-700 font-mono mt-0.5">Breached</div>
             </div>
 
-            <div className="space-y-1">
-              <div className="text-[10px] font-mono uppercase text-[#526581] font-semibold">SLA Health</div>
-              <div className="p-1 rounded bg-red-50 text-red-800 border border-red-200 font-mono text-[11px] text-center">
-                <div>Overdue</div>
-                <strong className="text-base">{slaHealth.overdue}</strong>
+            <div className="p-2.5 rounded-lg bg-amber-50/80 border border-amber-200">
+              <div className="text-[10px] font-mono uppercase text-amber-800 font-semibold">At Risk (&lt;6h)</div>
+              <div className="text-xl font-extrabold font-mono text-amber-900 mt-0.5">
+                {slaHealth.warning}
               </div>
-              <div className="p-1 rounded bg-amber-50 text-amber-800 border border-amber-200 font-mono text-[11px] text-center">
-                <div>Warning (&lt;6h)</div>
-                <strong className="text-base">{slaHealth.warning}</strong>
+              <div className="text-[9px] text-amber-700 font-mono mt-0.5">Urgent Attention</div>
+            </div>
+
+            <div className="p-2.5 rounded-lg bg-emerald-50/80 border border-emerald-200">
+              <div className="text-[10px] font-mono uppercase text-emerald-800 font-semibold">On Track</div>
+              <div className="text-xl font-extrabold font-mono text-emerald-900 mt-0.5">
+                {slaHealth.onTrack}
               </div>
-              <div className="p-1 rounded bg-emerald-50 text-emerald-800 border border-emerald-200 font-mono text-[11px] text-center">
-                <div>On Track</div>
-                <strong className="text-base">{slaHealth.onTrack}</strong>
-              </div>
+              <div className="text-[9px] text-emerald-700 font-mono mt-0.5">Within Target</div>
             </div>
           </div>
-        </Card>
+        </div>
       </div>
 
-      {/* Main Split Grid: Left Priority Queue & Map, Right AI & Depts */}
+      {/* ==================================================
+          MAIN SPLIT: GIS INCIDENT MAP + DISPATCH QUEUE & RADAR
+          ================================================== */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-        {/* Left Column (7 cols): Map & Priority Queue */}
+        {/* Left Column (7 cols): Live GIS Incident Map & Priority Queue */}
         <div className="lg:col-span-7 space-y-4 flex flex-col">
           {/* Mini Map Widget (Real Live GIS) */}
-          <div className="h-[360px] flex flex-col">
-            <div className="flex items-center justify-between pb-2">
-              <div className="flex items-center gap-2 text-xs font-bold text-[#172B4D] uppercase tracking-wider">
-                <MapPin className="w-3.5 h-3.5 text-[#1769D2]" />
-                <span>Live Municipal Incident Matrix (GIS)</span>
+          <div className="rounded-xl border border-slate-200 bg-white shadow-2xs overflow-hidden flex flex-col">
+            <div className="p-3.5 border-b border-slate-200 bg-slate-50/70 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <MapPin className="w-4 h-4 text-[#1769D2]" />
+                <span className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                  Live Municipal Intelligence (GIS)
+                </span>
+                <span className="inline-flex items-center gap-1 text-[10px] font-mono font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.2 rounded-full">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
+                  LIVE
+                </span>
               </div>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => onNavigatePage('map')}
-                className="h-6 text-[11px] text-[#1769D2] hover:text-[#123B6D] gap-1"
+                className="h-6 text-[11px] text-[#1769D2] hover:text-[#123B6D] gap-1 font-semibold"
               >
-                <span>Full GIS Operations</span>
+                <span>Full GIS Console</span>
                 <ArrowUpRight className="w-3 h-3" />
               </Button>
             </div>
-            <div className="flex-1 min-h-[300px]">
+            <div className="h-[340px] w-full">
               <CommandMap
                 complaints={complaints}
                 onSelectComplaint={onSelectComplaint}
                 showProximityRings={true}
+                orgCenter={mapCenter}
               />
             </div>
           </div>
 
-          {/* Priority Queue (Live Grievance Feed) */}
+          {/* Operational Priority Queue */}
           <div className="flex-1 min-h-[420px]">
             <PriorityQueue
               complaints={complaints}
@@ -430,19 +445,19 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </div>
         </div>
 
-        {/* Right Column (5 cols): Civic Intelligence Radar (Phases 3C & 3D) & Real Department Workload */}
+        {/* Right Column (5 cols): Radar Tabs & Department Allocation */}
         <div className="lg:col-span-5 space-y-4 flex flex-col">
           {/* Intelligence Radar Tabs Header */}
-          <div className="flex items-center justify-between p-1 bg-[#F1F5F9] border border-[#D9E2EC] rounded-lg">
+          <div className="flex items-center justify-between p-1 bg-slate-100 border border-slate-200 rounded-xl">
             <button
               onClick={() => setRadarTab('hotspots')}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-md text-xs font-bold transition-all ${
+              className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg text-xs font-bold transition-all ${
                 radarTab === 'hotspots'
-                  ? 'bg-white text-[#172B4D] shadow-xs border border-[#CBD5E1]'
-                  : 'text-[#526581] hover:text-[#172B4D]'
+                  ? 'bg-white text-slate-900 shadow-xs border border-slate-200'
+                  : 'text-slate-500 hover:text-slate-900'
               }`}
             >
-              <span>🔥 500m Hotspots (3C)</span>
+              <span>🔥 500m Hotspots</span>
               {intelligenceCounts.hotspots > 0 && (
                 <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-full bg-red-100 text-red-700 font-bold">
                   {intelligenceCounts.hotspots}
@@ -452,13 +467,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
             <button
               onClick={() => setRadarTab('incidents')}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-md text-xs font-bold transition-all ${
+              className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg text-xs font-bold transition-all ${
                 radarTab === 'incidents'
                   ? 'bg-white text-purple-900 shadow-xs border border-purple-200'
-                  : 'text-[#526581] hover:text-[#172B4D]'
+                  : 'text-slate-500 hover:text-slate-900'
               }`}
             >
-              <span>⚡ Common Incidents (3D)</span>
+              <span>⚡ Common Incidents</span>
               {intelligenceCounts.incidents > 0 && (
                 <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-full bg-purple-100 text-purple-800 font-bold">
                   {intelligenceCounts.incidents}
@@ -468,7 +483,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </div>
 
           {/* Phase 3C Hotspots or Phase 3D Common Incidents Card */}
-          <div className="h-[430px]">
+          <div className="min-h-[400px]">
             {radarTab === 'hotspots' ? (
               <EmergingProblemsHotspotsCard
                 complaints={complaints}
@@ -484,7 +499,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             )}
           </div>
 
-          {/* Departmental Workload Allocation (Live Derived) */}
+          {/* Departmental Workload Allocation */}
           <div className="flex-1 min-h-[350px]">
             <DepartmentWorkload
               departments={departments}

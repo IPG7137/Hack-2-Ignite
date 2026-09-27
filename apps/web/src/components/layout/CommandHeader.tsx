@@ -1,23 +1,34 @@
 import React, { useState, useEffect } from 'react';
-import { RefreshCw, LogIn, LogOut, ShieldCheck, MapPin, Building } from 'lucide-react';
+import { RefreshCw, LogIn, LogOut, ShieldCheck, MapPin, Building, Menu } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { useAuth } from '../../hooks/useAuth';
+import { useOrganization } from '../../context/OrganizationContext';
 import { LoginModal } from '../auth/LoginModal';
 
 interface CommandHeaderProps {
   onOpenCopilot?: () => void;
   onRefresh: () => void;
   isRefreshing?: boolean;
+  onToggleMobileMenu?: () => void;
 }
 
 export const CommandHeader: React.FC<CommandHeaderProps> = ({
   onRefresh,
   isRefreshing = false,
+  onToggleMobileMenu,
 }) => {
   const [timeString, setTimeString] = useState<string>('');
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const { user, isAuthenticated, signOut } = useAuth();
+  const {
+    organizationType,
+    municipalCorporationName,
+    currentCorporation,
+    district,
+    stateName,
+  } = useOrganization();
 
+  const isStateAdmin = organizationType === 'STATE' || user?.role === 'state_admin';
   const isMunicipalAdmin = user?.role === 'municipal_admin' || user?.role === 'super_admin';
   const isZoneAdmin = user?.role === 'officer' || user?.role === 'dept_admin';
 
@@ -51,54 +62,75 @@ export const CommandHeader: React.FC<CommandHeaderProps> = ({
 
   const getRoleLabel = (role?: string) => {
     switch (role) {
+      case 'state_admin':
+        return 'State Administrator';
       case 'super_admin':
-        return 'Super Admin (HQ)';
+        return 'Super Admin';
       case 'municipal_admin':
         return 'Municipal Admin (HQ)';
       case 'dept_admin':
-        return 'Dept Admin (Zone 2)';
+        return 'Dept Admin';
       case 'citizen':
         return 'Citizen Portal';
       case 'officer':
       default:
-        return 'Zone 2 Duty Officer';
+        return 'Field Duty Officer';
     }
   };
 
-  // Header Title and Subtitle dynamically formatted per Solapur municipal requirement
-  const headerTitle = isMunicipalAdmin
-    ? 'CivicResolve — Solapur Municipal Command Center'
-    : 'CivicResolve — Zone Operations';
+  // Header Title and Subtitle dynamically formatted per State vs Municipal selection
+  const headerTitle = isStateAdmin
+    ? 'CivicResolve — Maharashtra State Command'
+    : `CivicResolve — ${currentCorporation?.shortName || municipalCorporationName || 'Municipal'} Command`;
 
-  const headerSubtitle = isMunicipalAdmin
-    ? 'Solapur Municipal Operations & Grievance Redressal System'
-    : 'Solapur Municipal Administration • Zone Operations Desk';
+  const headerSubtitle = isStateAdmin
+    ? 'Statewide Municipal Operations & Multi-Corporation Oversight'
+    : `${municipalCorporationName || 'Municipal Corporation'} • Command Center Operations Desk`;
 
-  const scopeBadgeLabel = isMunicipalAdmin
-    ? 'City-wide HQ'
-    : user?.ward || 'Zone 2 Command';
+  const scopeBadgeLabel = isStateAdmin
+    ? 'Maharashtra Statewide'
+    : isMunicipalAdmin
+    ? `${currentCorporation?.shortName || 'City-wide'} HQ`
+    : user?.ward || `${currentCorporation?.shortName || 'Zone'} Command`;
+
+  const orgEmblemTitle = isStateAdmin
+    ? 'MAHARASHTRA STATE ADMINISTRATION'
+    : (municipalCorporationName || 'MUNICIPAL CORPORATION').toUpperCase();
+
+  const orgEmblemSubtitle = isStateAdmin
+    ? 'Urban Development Department • State Oversight'
+    : `District: ${district || 'Maharashtra'} • Municipal Command Center`;
 
   return (
     <>
       <header className="h-[74px] w-full max-w-full border-b border-[#D9E2EC] bg-white sticky top-0 z-40 px-3 sm:px-4 lg:px-6 flex items-center justify-between shadow-xs select-none gap-3 overflow-hidden">
         {/* ==================================================
-            ZONE 1 (LEFT): MUNICIPAL CORPORATION IDENTITY
+            ZONE 1 (LEFT): STATE / MUNICIPAL CORPORATION IDENTITY
             ================================================== */}
-        <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
-          <img
-            src="/assets/images/municipal_emblem.png"
-            alt="Solapur Municipal Corporation Emblem"
-            className="w-10 h-10 sm:w-11 sm:h-11 object-contain shrink-0 drop-shadow-xs"
-          />
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+          {onToggleMobileMenu && (
+            <button
+              onClick={onToggleMobileMenu}
+              className="lg:hidden p-1.5 -ml-1 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
+              aria-label="Toggle navigation menu"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+          )}
+          <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-lg bg-[#123B6D] text-white flex items-center justify-center font-bold text-base sm:text-lg shadow-xs border border-blue-900 shrink-0">
+            {isStateAdmin ? '🏛️' : '🏢'}
+          </div>
           <div className="flex flex-col justify-center">
             <div className="text-xs sm:text-[13px] lg:text-[14px] font-bold text-[#123B6D] tracking-tight leading-snug whitespace-nowrap">
-              SOLAPUR MUNICIPAL CORPORATION
+              {orgEmblemTitle}
             </div>
             <div className="text-[10px] sm:text-[11px] font-semibold text-[#526581] leading-snug whitespace-nowrap">
-              सोलापूर महानगरपालिका तक्रार निवारण कक्ष
+              {orgEmblemSubtitle}
             </div>
             <div className="text-[9px] text-[#718096] uppercase tracking-wider leading-snug hidden md:block whitespace-nowrap">
-              Clean Solapur • Safe Solapur • Smart Solapur
+              {isStateAdmin
+                ? 'Government of Maharashtra • Level 1 Governance'
+                : `State of Maharashtra • Level 2 Municipal Administration`}
             </div>
           </div>
         </div>
@@ -194,8 +226,15 @@ export const CommandHeader: React.FC<CommandHeaderProps> = ({
               </div>
               <button
                 onClick={() => signOut()}
+                className="px-2 py-1 text-[11px] font-semibold text-[#526581] hover:text-[#123B6D] hover:bg-slate-100 rounded border border-[#D9E2EC] transition-colors shrink-0 hidden sm:flex items-center gap-1"
+                title="Switch Administrative Level or Corporation"
+              >
+                <span>Switch Org</span>
+              </button>
+              <button
+                onClick={() => signOut()}
                 className="p-1.5 text-[#718096] hover:text-rose-600 hover:bg-rose-50 rounded-md transition-colors shrink-0"
-                title="Sign out of Supabase Auth"
+                title="Sign out of Administrative Session"
               >
                 <LogOut className="w-4 h-4" />
               </button>

@@ -1,26 +1,36 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Complaint, ComplaintStatus } from '../types/complaint';
 import { complaintService } from '../services/complaintService';
 import { ComplaintFilterParams } from '../services/api.interface';
 import { supabase } from '../services/supabaseClient';
 import { useAuthContext } from '../context/AuthContext';
+import { useOrganization } from '../context/OrganizationContext';
 
 import { JointActionRequest, JointActionResult, IncidentClusterRecord } from '../services/incidentGroupingEngine';
 
 export function useComplaints(initialFilters: ComplaintFilterParams = {}) {
   const { user, isAuthenticated } = useAuthContext();
+  const { organizationType, districtId, municipalCorporationId } = useOrganization();
   const [complaints, setComplaints] = useState<Complaint[]>([]);
   const [incidentClusters, setIncidentClusters] = useState<IncidentClusterRecord[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [filters, setFilters] = useState<ComplaintFilterParams>(initialFilters);
+  // Track org context to detect changes that require a re-fetch
+  const prevOrgRef = useRef<string>('');
 
   const fetchComplaints = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
+      const mergedFilters: ComplaintFilterParams = {
+        ...filters,
+        organizationType,
+        districtId: districtId || undefined,
+        corporationId: municipalCorporationId || undefined,
+      };
       const [data, clusters] = await Promise.all([
-        complaintService.getComplaints(filters),
+        complaintService.getComplaints(mergedFilters),
         complaintService.getIncidentClusters().catch(() => []),
       ]);
       setComplaints(data);
@@ -31,7 +41,16 @@ export function useComplaints(initialFilters: ComplaintFilterParams = {}) {
     } finally {
       setLoading(false);
     }
-  }, [filters, isAuthenticated, user?.id]);
+  }, [filters, isAuthenticated, user?.id, organizationType, districtId, municipalCorporationId]);
+
+  // Re-fetch when the org context changes (district/corporation switch)
+  useEffect(() => {
+    const orgKey = `${organizationType}::${districtId ?? 'null'}::${municipalCorporationId ?? 'null'}`;
+    if (orgKey !== prevOrgRef.current) {
+      prevOrgRef.current = orgKey;
+      fetchComplaints();
+    }
+  }, [organizationType, districtId, municipalCorporationId, fetchComplaints]);
 
   useEffect(() => {
     fetchComplaints();

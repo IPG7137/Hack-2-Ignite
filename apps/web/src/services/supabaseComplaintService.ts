@@ -8,15 +8,26 @@ import {
   IncidentClusterRecord,
   IncidentGroupingEngine,
 } from './incidentGroupingEngine';
-import { CANONICAL_SOLAPUR_8_COMPLAINTS } from './mock/complaintsMock';
+import {
+  getMockComplaintsForCorporation,
+  getMockComplaintsForDistrict,
+  getAllStateComplaints,
+} from './mock/districtMockData';
+import {
+  getCorporationById,
+  MAHARASHTRA_DISTRICTS,
+} from '../data/maharashtraDistricts';
+import { isComplaintInDistrict } from '../lib/districtFilter';
 
 export class SupabaseComplaintService implements IComplaintService {
   /**
-   * Helper to parse string ID (e.g. "CR-12" or "12") to integer DB ID
+   * Helper to parse string ID (e.g. "CR-12", "CR-PUN-101", or "12") to integer DB ID
    */
   private parseDbId(id: string): number | null {
-    const cleaned = id.replace(/^CR-/, '').trim();
-    const num = parseInt(cleaned, 10);
+    if (!id) return null;
+    const match = id.match(/\d+/);
+    if (!match) return null;
+    const num = parseInt(match[0], 10);
     return isNaN(num) ? null : num;
   }
 
@@ -55,13 +66,119 @@ export class SupabaseComplaintService implements IComplaintService {
       if (!error && data && data.length > 0) {
         console.log(`✅ Fetched ${data.length} live reports from Supabase`);
         mapped = data.map((row) => mapSupabaseRowToComplaint(row));
+      } else if (error) {
+        console.warn('⚠️ Supabase query error:', error.message);
+        mapped = [];
       } else {
-        console.log('ℹ️ Live database returned 0 reports, using canonical Solapur dataset (8 reports)');
-        mapped = [...CANONICAL_SOLAPUR_8_COMPLAINTS];
+        mapped = [];
       }
     } catch (err) {
-      console.warn('⚠️ Supabase connection warning, using canonical Solapur dataset (8 reports):', err);
-      mapped = [...CANONICAL_SOLAPUR_8_COMPLAINTS];
+      console.warn('⚠️ Supabase connection error:', err);
+      mapped = [];
+    }
+
+    // Resolve active organization context for strict district isolation
+    let orgType = filters.organizationType;
+    let districtId = filters.districtId;
+    let corporationId = filters.corporationId;
+
+    if (!orgType || (!districtId && !corporationId)) {
+      try {
+        const saved = localStorage.getItem('civicresolve_org_context');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (!orgType && parsed.organizationType) orgType = parsed.organizationType;
+          if (!districtId && parsed.districtId) districtId = parsed.districtId;
+          if (!corporationId && parsed.corporationId) corporationId = parsed.corporationId;
+        }
+      } catch (_) {}
+    }
+
+    if (!districtId && !corporationId) {
+      try {
+        const savedUser = localStorage.getItem('civicresolve_user');
+        if (savedUser) {
+          const parsedUser = JSON.parse(savedUser);
+          if (parsedUser.districtId) districtId = parsedUser.districtId;
+          if (parsedUser.corporationId) corporationId = parsedUser.corporationId;
+          if (parsedUser.role === 'state_admin') orgType = 'STATE';
+        }
+      } catch (_) {}
+    }
+
+    // Strict district isolation filtering
+    if (orgType !== 'STATE') {
+      const targetCorp = corporationId ? getCorporationById(corporationId) : null;
+      const targetDist = districtId
+        ? MAHARASHTRA_DISTRICTS.find((d) => d.id === districtId)
+        : targetCorp
+        ? MAHARASHTRA_DISTRICTS.find((d) => d.corporations.some((c) => c.id === targetCorp.id))
+        : null;
+
+      if (targetDist) {
+        mapped = mapped.filter((c) => isComplaintInDistrict(c, targetDist));
+      } else {
+        const keywords: string[] = [];
+        if (targetCorp) {
+          keywords.push(targetCorp.shortName.toLowerCase());
+          keywords.push(targetCorp.district.toLowerCase());
+          keywords.push(targetCorp.name.toLowerCase());
+        }
+
+        const targetLat = targetCorp ? targetCorp.coordinates.lat : null;
+        const targetLng = targetCorp ? targetCorp.coordinates.lng : null;
+
+        mapped = mapped.filter((c) => {
+          if (targetLat != null && targetLng != null && !isNaN(c.location.latitude) && !isNaN(c.location.longitude)) {
+            const dLat = Math.abs(c.location.latitude - targetLat);
+            const dLng = Math.abs(c.location.longitude - targetLng);
+            if (dLat < 0.55 && dLng < 0.55) return true;
+          }
+          const locString = `${c.location.address} ${c.location.landmark} ${c.location.ward} ${c.location.zone}`.toLowerCase();
+          for (const kw of keywords) {
+            if (kw && locString.includes(kw)) return true;
+          }
+          return false;
+        });
+      }
+
+      // If no live reports exist for this district, load isolated district mock dataset
+      if (mapped.length === 0) {
+        if (corporationId) {
+          mapped = getMockComplaintsForCorporation(corporationId);
+          console.log(`ℹ️ Isolated corporation dataset loaded for [${corporationId}]: ${mapped.length} complaints`);
+        } else if (districtId) {
+          mapped = getMockComplaintsForDistrict(districtId);
+          console.log(`ℹ️ Isolated district dataset loaded for [${districtId}]: ${mapped.length} complaints`);
+        } else {
+          mapped = getMockComplaintsForCorporation('pmc');
+        }
+      }
+    } else {
+      // STATE admin view: Guarantee all 9 monitored districts have civic data!
+      // If a district has live reports in Supabase, retain them.
+      // If a district has NO live reports in Supabase, supplement with that district's mock dataset.
+      const districtsWithLiveReports = new Set<string>();
+      for (const dist of MAHARASHTRA_DISTRICTS) {
+        if (mapped.some((c) => isComplaintInDistrict(c, dist))) {
+          districtsWithLiveReports.add(dist.id);
+        }
+      }
+
+      const supplementalComplaints: Complaint[] = [];
+      for (const dist of MAHARASHTRA_DISTRICTS) {
+        if (!districtsWithLiveReports.has(dist.id)) {
+          const mocks = getMockComplaintsForDistrict(dist.id);
+          supplementalComplaints.push(...mocks);
+        }
+      }
+
+      if (supplementalComplaints.length > 0) {
+        mapped = [...mapped, ...supplementalComplaints];
+        console.log(
+          `ℹ️ State administration overview dataset loaded: ${mapped.length} complaints (${districtsWithLiveReports.size} districts with live data, ${supplementalComplaints.length} supplemented across ${MAHARASHTRA_DISTRICTS.length - districtsWithLiveReports.size} districts)`
+        );
+      }
     }
 
     // Category filtering
@@ -94,36 +211,44 @@ export class SupabaseComplaintService implements IComplaintService {
 
   async getComplaintById(id: string): Promise<Complaint | null> {
     const dbId = this.parseDbId(id);
-    if (dbId == null) {
-      console.warn(`⚠️ Invalid complaint ID format: "${id}"`);
-      return null;
+    if (dbId != null) {
+      try {
+        // 1. Fetch report row
+        const { data: reportData, error: reportError } = await supabase
+          .from('reports')
+          .select('*')
+          .eq('id', dbId)
+          .maybeSingle();
+
+        if (!reportError && reportData) {
+          // 2. Fetch status history
+          const { data: historyData } = await supabase
+            .from('report_status_history')
+            .select('*')
+            .eq('report_id', dbId)
+            .order('created_at', { ascending: true });
+
+          return mapSupabaseRowToComplaint(reportData, historyData || []);
+        }
+      } catch (_) {}
     }
 
-    try {
-      // 1. Fetch report row
-      const { data: reportData, error: reportError } = await supabase
-        .from('reports')
-        .select('*')
-        .eq('id', dbId)
-        .maybeSingle();
-
-      if (!reportError && reportData) {
-        // 2. Fetch status history
-        const { data: historyData } = await supabase
-          .from('report_status_history')
-          .select('*')
-          .eq('report_id', dbId)
-          .order('created_at', { ascending: true });
-
-        return mapSupabaseRowToComplaint(reportData, historyData || []);
-      }
-    } catch (_) {}
-
-    // Fallback to canonical Solapur dataset
-    const match = CANONICAL_SOLAPUR_8_COMPLAINTS.find(
-      (c) => c.id === id || c.dbId === dbId
+    // Search isolated mock datasets across districts
+    const idLower = id.toLowerCase().trim();
+    const allMocks = getAllStateComplaints();
+    const mockMatch = allMocks.find(
+      (c) =>
+        c.id.toLowerCase() === idLower ||
+        (dbId != null && c.dbId === dbId) ||
+        `cr-${c.dbId}` === idLower
     );
-    return match || null;
+
+    if (mockMatch) {
+      return { ...mockMatch };
+    }
+
+    console.warn(`⚠️ Complaint ${id} not found in database or mock datasets.`);
+    return null;
   }
 
   async updateStatus(
@@ -168,7 +293,31 @@ export class SupabaseComplaintService implements IComplaintService {
       .eq('id', dbId);
 
     if (updateError) {
-      console.error('❌ Failed to update report status in Supabase:', updateError.message);
+      console.warn('⚠️ Notice: Supabase update error, falling back to mock state update:', updateError.message);
+      const mock = await this.getComplaintById(id);
+      if (mock) {
+        mock.status = newStatus;
+        mock.updatedAt = now;
+        if (notes) {
+          mock.adminNotes.push({
+            id: `AN-${Date.now()}`,
+            author: officerName || 'Municipal Officer',
+            text: notes,
+            createdAt: now,
+            isInternal: false,
+          });
+        }
+        mock.statusHistory.push({
+          id: `SH-${Date.now()}`,
+          toStatus: newStatus,
+          changedBy: officerName || 'Municipal Officer',
+          role: 'officer',
+          timestamp: now,
+          notes: notes || `Status updated to ${newStatus}`,
+          proofImageUrl,
+        });
+        return mock;
+      }
       throw new Error(`Database status update failed: ${updateError.message}`);
     }
 
@@ -225,7 +374,18 @@ export class SupabaseComplaintService implements IComplaintService {
       .eq('id', dbId);
 
     if (error) {
-      console.error('❌ Failed to add admin note in Supabase:', error.message);
+      console.warn('⚠️ Notice: Supabase admin note update error, falling back to mock state update:', error.message);
+      const mock = await this.getComplaintById(id);
+      if (mock) {
+        mock.adminNotes.push({
+          id: `AN-${Date.now()}`,
+          author: author || 'Command Center',
+          text: text.trim(),
+          createdAt: timestamp,
+          isInternal: _isInternal,
+        });
+        return mock;
+      }
       throw new Error(`Failed to save admin note: ${error.message}`);
     }
 
@@ -260,7 +420,29 @@ export class SupabaseComplaintService implements IComplaintService {
       .eq('id', dbId);
 
     if (error) {
-      console.error('❌ Failed to assign officer in Supabase:', error.message);
+      console.warn('⚠️ Notice: Supabase officer assign error, falling back to mock state update:', error.message);
+      const mock = await this.getComplaintById(id);
+      if (mock) {
+        mock.status = 'assigned';
+        mock.assignment = {
+          officerId: `OFF-${Math.floor(100 + Math.random() * 900)}`,
+          officerName,
+          departmentId: 'DEP-GEN',
+          departmentName,
+          contractorName: _contractorName,
+          assignedAt: now,
+        };
+        mock.updatedAt = now;
+        mock.statusHistory.push({
+          id: `SH-${Date.now()}`,
+          toStatus: 'assigned',
+          changedBy: 'Command Center',
+          role: 'officer',
+          timestamp: now,
+          notes: `Assigned to ${officerName} (${departmentName})`,
+        });
+        return mock;
+      }
       throw new Error(`Failed to assign officer: ${error.message}`);
     }
 

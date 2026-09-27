@@ -1,11 +1,15 @@
 import React, { useState, useMemo } from 'react';
+import { useOrganization } from '../context/OrganizationContext';
 import { CommandMap } from '../components/map/CommandMap';
 import { HotspotDetailInspector } from '../components/map/HotspotDetailInspector';
 import { JointActionModal } from '../components/incidents/JointActionModal';
 import { Complaint, IncidentCategory, ComplaintPriority, ComplaintStatus } from '../types/complaint';
 import { Card } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
+import { StatusBadge } from '../components/ui/StatusBadge';
+import { PriorityBadge } from '../components/ui/PriorityBadge';
 import { Button } from '../components/ui/Button';
+import { DEFAULT_MAP_CENTER } from '../lib/constants';
 import { hasValidCoordinates } from '../services/reportAdapter';
 import { useAuth } from '../hooks/useAuth';
 import {
@@ -81,6 +85,7 @@ export const LiveMap: React.FC<LiveMapProps> = ({
   onRefresh,
 }) => {
   const { user } = useAuth();
+  const { mapCenter } = useOrganization();
   const isMunicipalStaff =
     user?.role === 'municipal_admin' ||
     user?.role === 'super_admin' ||
@@ -285,18 +290,22 @@ export const LiveMap: React.FC<LiveMapProps> = ({
   return (
     <div className="space-y-3 h-[calc(100vh-5.5rem)] flex flex-col">
       {/* Top GIS Tactical Controls Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-2.5 p-2.5 rounded-lg bg-white border border-[#D9E2EC] shadow-xs shrink-0">
-        <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2.5 p-2.5 rounded-xl bg-white border border-slate-200 shadow-2xs shrink-0">
+        <div className="flex items-center gap-2 flex-wrap">
           <MapPin className="w-4 h-4 text-[#1769D2]" />
-          <h2 className="text-xs font-bold uppercase tracking-wider text-[#172B4D]">
-            {isMunicipalAdmin ? 'City-wide GIS Incident Matrix' : 'Zone 2 Incident & Response GIS Map'}
+          <h2 className="text-xs font-bold uppercase tracking-wider text-slate-900 flex items-center gap-1.5">
+            <span>Live Municipal Intelligence</span>
+            <span className="inline-flex items-center gap-1 text-[9px] font-mono font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.2 rounded-full">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
+              LIVE
+            </span>
           </h2>
           <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-blue-50 text-[#1769D2] border border-blue-200 font-semibold">
-            {filteredComplaints.length} PLOTTED ON MAP
+            {filteredComplaints.length} PLOTTED
           </span>
           {unplottableCount > 0 && (
-            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-100 text-[#526581] border border-slate-200">
-              {unplottableCount} WITHOUT GPS
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">
+              {unplottableCount} PENDING GPS
             </span>
           )}
           {activeFilterHotspotId && (
@@ -433,14 +442,75 @@ export const LiveMap: React.FC<LiveMapProps> = ({
             showIncidentClusters={showIncidentClusters}
             activeFilterHotspotId={activeFilterHotspotId}
             focusCoordinates={focusCoords}
+            orgCenter={mapCenter}
           />
+
+          {/* Floating Map Controls (Top Right) */}
+          <div className="absolute top-3 right-3 z-10 flex flex-col gap-1.5 pointer-events-auto">
+            <button
+              type="button"
+              onClick={() => setFocusCoords({ lat: mapCenter.lat, lng: mapCenter.lng })}
+              className="px-2.5 py-1.5 rounded-lg bg-white/95 backdrop-blur-xs border border-slate-200 text-slate-700 text-[11px] font-mono font-bold shadow-md hover:bg-slate-50 transition-colors flex items-center gap-1.5"
+              title="Reset center to current district HQ"
+            >
+              <Compass className="w-3.5 h-3.5 text-[#1769D2]" />
+              <span>Center HQ</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setFocusCoords(null)}
+              className="px-2.5 py-1.5 rounded-lg bg-white/95 backdrop-blur-xs border border-slate-200 text-slate-700 text-[11px] font-mono font-bold shadow-md hover:bg-slate-50 transition-colors flex items-center gap-1.5"
+              title="Fit all incidents on screen"
+            >
+              <Layers className="w-3.5 h-3.5 text-slate-600" />
+              <span>Fit All</span>
+            </button>
+          </div>
+
+          {/* Floating Tactical Marker Legend (Bottom Left) */}
+          <div className="absolute bottom-3 left-3 z-10 bg-white/95 backdrop-blur-xs border border-slate-200/90 rounded-xl p-2.5 shadow-md pointer-events-auto max-w-[280px]">
+            <div className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-500 mb-1.5 flex items-center justify-between">
+              <span>Map Telemetry Legend</span>
+              <span className="text-[9px] text-emerald-700 font-bold">● Active</span>
+            </div>
+            <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[10px] font-medium text-slate-700">
+              <div className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-red-600 shrink-0" />
+                <span>Critical / Urgent</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-orange-500 shrink-0" />
+                <span>High Priority</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
+                <span>Medium Priority</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-600 shrink-0" />
+                <span>Low Priority</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] leading-none shrink-0">🔥</span>
+                <span>500m Hotspot (3C)</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] leading-none shrink-0">⚡</span>
+                <span>3D Incident Group</span>
+              </div>
+              <div className="flex items-center gap-1.5 col-span-2 pt-0.5 border-t border-slate-100">
+                <span className="w-2 h-2 rounded-full border border-blue-500 bg-blue-100/50 shrink-0" />
+                <span>200m Duplicate Radius</span>
+              </div>
+            </div>
+          </div>
 
           {filteredComplaints.length === 0 && (
             <div className="absolute inset-0 bg-slate-900/10 backdrop-blur-[1px] flex items-center justify-center p-4 pointer-events-none">
-              <div className="bg-white/95 border border-[#D9E2EC] rounded-lg p-4 max-w-sm text-center shadow-lg pointer-events-auto">
+              <div className="bg-white/95 border border-slate-200 rounded-xl p-4 max-w-sm text-center shadow-lg pointer-events-auto">
                 <AlertTriangle className="w-6 h-6 text-amber-500 mx-auto mb-1.5" />
-                <div className="text-xs font-bold text-[#172B4D]">No Complaints Plotted</div>
-                <p className="text-[11px] text-[#526581] mt-1">
+                <div className="text-xs font-bold text-slate-900">No Complaints Plotted</div>
+                <p className="text-[11px] text-slate-600 mt-1">
                   {complaints.length === 0
                     ? 'The database currently contains zero complaint records.'
                     : 'No complaints match the selected filter criteria or have valid GPS coordinates.'}
@@ -614,14 +684,14 @@ export const LiveMap: React.FC<LiveMapProps> = ({
                 </Card>
               ) : selectedComplaint ? (
                 /* Single Complaint Pin Inspector */
-                <Card className="p-3.5 border-[#D9E2EC] bg-white shadow-sm space-y-3 flex flex-col shrink-0">
-                  <div className="flex items-center justify-between">
+                <Card className="p-4 border-slate-200 bg-white shadow-2xs space-y-3 flex flex-col shrink-0 rounded-xl">
+                  <div className="flex items-center justify-between gap-1 flex-wrap">
                     <span className="font-mono text-xs font-bold text-[#1769D2]">
                       #{selectedComplaint.id}
                     </span>
-                    <div className="flex items-center gap-1.5">
-                      <Badge priority={selectedComplaint.priority} />
-                      <Badge status={selectedComplaint.status} />
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <PriorityBadge priority={selectedComplaint.priority} />
+                      <StatusBadge status={selectedComplaint.status} />
                     </div>
                   </div>
 

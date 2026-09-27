@@ -62,18 +62,33 @@ Currently evaluating **${complaints.length} live municipal reports**. Click **"G
       timestamp: new Date().toISOString(),
       referencedComplaintIds: [],
       suggestedPrompts: [
-        "What are today's highest-priority complaints in Solapur?",
-        'Where are the emerging hotspots in Solapur?',
+        'Which critical issues need dispatch?',
+        'Show emerging hotspots.',
+        'Prepare a Ward briefing.',
+        'Which complaints are approaching SLA risk?',
         'Which complaints may belong to the same incident?',
         'Which resolved cases need verification?',
-        'Give me a briefing for the Solapur Municipal Commissioner',
+        'Give me an executive municipal briefing for the Municipal Commissioner',
       ],
     },
   ]);
 
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [loadingStep, setLoadingStep] = useState(0);
   const chatBottomRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    let interval: any;
+    if (loading) {
+      interval = setInterval(() => {
+        setLoadingStep((prev) => (prev + 1) % 2);
+      }, 1500);
+    } else {
+      setLoadingStep(0);
+    }
+    return () => clearInterval(interval);
+  }, [loading]);
 
   useEffect(() => {
     chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -359,9 +374,16 @@ Currently evaluating **${complaints.length} live municipal reports**. Click **"G
               })}
 
               {loading && (
-                <div className="flex items-center gap-2 p-3 bg-blue-50/80 border border-blue-200 rounded-lg text-xs text-[#1769D2] animate-pulse">
-                  <Sparkles className="w-4 h-4 animate-spin" />
-                  <span>Evaluating Phase 3A–3E deterministic engines & synthesizing grounded briefing...</span>
+                <div className="flex items-center gap-2.5 p-3.5 bg-blue-50/90 border border-blue-200 rounded-lg text-xs text-[#1769D2] shadow-xs">
+                  <Sparkles className="w-4 h-4 animate-spin text-[#1769D2] shrink-0" />
+                  <div className="flex flex-col">
+                    <span className="font-semibold text-[#172B4D]">
+                      {loadingStep === 0 ? 'Analyzing authorized municipal data...' : 'Preparing grounded response...'}
+                    </span>
+                    <span className="text-[10px] text-[#526581]">
+                      Evaluating Phase 3A–3E deterministic engines across active civic telemetry
+                    </span>
+                  </div>
                 </div>
               )}
 

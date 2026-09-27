@@ -22,6 +22,8 @@ interface CommandMapProps {
   showIncidentClusters?: boolean;
   activeFilterHotspotId?: string | null;
   focusCoordinates?: { lat: number; lng: number } | null;
+  /** Geographic center derived from the current org context (district/corporation) */
+  orgCenter?: { lat: number; lng: number; zoom: number } | null;
 }
 
 /**
@@ -59,6 +61,7 @@ export const CommandMap: React.FC<CommandMapProps> = ({
   showIncidentClusters = true,
   activeFilterHotspotId,
   focusCoordinates,
+  orgCenter,
 }) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
@@ -66,6 +69,8 @@ export const CommandMap: React.FC<CommandMapProps> = ({
   const hotspotMarkersRef = useRef<{ [key: string]: maplibregl.Marker }>({});
   const incidentMarkersRef = useRef<{ [key: string]: maplibregl.Marker }>({});
   const initialFitDone = useRef(false);
+  // Track org center to detect district/corp switches
+  const prevOrgCenterRef = useRef<string>('');
 
   // Initialize MapLibre
   useEffect(() => {
@@ -93,11 +98,13 @@ export const CommandMap: React.FC<CommandMapProps> = ({
       ],
     };
 
+    // Use the org-specific center if provided, otherwise Maharashtra center as fallback
+    const initCenter = orgCenter ?? DEFAULT_MAP_CENTER;
     const mapInstance = new maplibregl.Map({
       container: mapContainer.current,
       style: mapStyle,
-      center: [DEFAULT_MAP_CENTER.lng, DEFAULT_MAP_CENTER.lat],
-      zoom: DEFAULT_MAP_CENTER.zoom,
+      center: [initCenter.lng, initCenter.lat],
+      zoom: initCenter.zoom,
       attributionControl: false,
     });
 
@@ -117,7 +124,23 @@ export const CommandMap: React.FC<CommandMapProps> = ({
     };
   }, []);
 
-  // Handle external focus coordinate changes
+  // Re-center map when org context changes (district / corporation switch)
+  useEffect(() => {
+    if (!orgCenter || !map.current) return;
+    const key = `${orgCenter.lat},${orgCenter.lng},${orgCenter.zoom}`;
+    if (key === prevOrgCenterRef.current) return;
+    prevOrgCenterRef.current = key;
+    // Reset initial fit so the new district's data will be auto-fitted
+    initialFitDone.current = false;
+    map.current.flyTo({
+      center: [orgCenter.lng, orgCenter.lat],
+      zoom: orgCenter.zoom,
+      speed: 1.4,
+      essential: true,
+    });
+  }, [orgCenter]);
+
+  // Handle external focus coordinate changes (clicking a specific complaint)
   useEffect(() => {
     if (focusCoordinates && map.current) {
       map.current.flyTo({

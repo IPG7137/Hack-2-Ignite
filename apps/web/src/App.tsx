@@ -22,12 +22,15 @@ import { departmentService } from './services/departmentService';
 import { Department } from './types/department';
 import { ComplaintStatus } from './types/complaint';
 import { Button } from './components/ui/Button';
+import { StateDashboard } from './pages/StateDashboard';
+import { useOrganization } from './context/OrganizationContext';
 import { isComplaintInZone } from './lib/zoneFilter';
 
-const ALLOWED_MUNICIPAL_ROLES = ['officer', 'dept_admin', 'municipal_admin', 'super_admin'];
+const ALLOWED_MUNICIPAL_ROLES = ['officer', 'dept_admin', 'municipal_admin', 'super_admin', 'state_admin'];
 
 export function App() {
   const { user, isAuthenticated, loading: authLoading, signOut } = useAuthContext();
+  const { organizationType } = useOrganization();
   const [activePage, setActivePage] = useState<ActivePage>('dashboard');
   const [selectedComplaintId, setSelectedComplaintId] = useState<string | null>(null);
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -122,12 +125,13 @@ export function App() {
     );
   }
 
-  const isMunicipalAdmin = user.role === 'municipal_admin' || user.role === 'super_admin';
+  const isStateAdmin = organizationType === 'STATE' || user.role === 'state_admin';
+  const isMunicipalAdmin = isStateAdmin || user.role === 'municipal_admin' || user.role === 'super_admin';
   const isZoneAdmin = user.role === 'officer' || user.role === 'dept_admin';
 
-  // Zone 2 / Field Admin sees scoped complaints; Municipal Admin sees all city-wide complaints
+  // State Admin & Municipal Admin see statewide / city-wide complaints; Zone Officer sees scoped complaints
   const visibleComplaints = complaints.filter((c) => {
-    if (isMunicipalAdmin) return true;
+    if (isStateAdmin || isMunicipalAdmin) return true;
     return isComplaintInZone(c, user.ward || 'Zone 2');
   });
 
@@ -137,7 +141,7 @@ export function App() {
     <MainLayout
       activePage={activePage}
       onSelectPage={(page) => {
-        // Enforce role boundary: Only Municipal Admin can access system-wide configuration
+        // Enforce role boundary: Only Municipal/State Admin can access system-wide configuration
         if (!isMunicipalAdmin && (page === 'departments' || page === 'settings')) {
           setActivePage('dashboard');
           return;
@@ -148,24 +152,33 @@ export function App() {
         setActivePage(page);
       }}
       complaints={visibleComplaints}
+      selectedComplaintId={selectedComplaintId}
       onSelectComplaint={handleSelectComplaint}
       onRefresh={handleRefresh}
       isRefreshing={isRefreshing}
     >
       {activePage === 'dashboard' && (
-        <Dashboard
-          complaints={visibleComplaints}
-          kpis={kpis}
-          insights={insights}
-          departments={departments}
-          loading={complaintsLoading || kpisLoading}
-          error={complaintsError}
-          onSelectComplaint={handleSelectComplaint}
-          onNavigatePage={(p) => setActivePage(p)}
-          onAcknowledgeInsight={acknowledge}
-          onOpenCopilot={() => setActivePage('copilot')}
-          onRefresh={handleRefresh}
-        />
+        organizationType === 'STATE' ? (
+          <StateDashboard
+            complaints={complaints}
+            onSelectComplaint={handleSelectComplaint}
+            onNavigatePage={(p) => setActivePage(p)}
+          />
+        ) : (
+          <Dashboard
+            complaints={visibleComplaints}
+            kpis={kpis}
+            insights={insights}
+            departments={departments}
+            loading={complaintsLoading || kpisLoading}
+            error={complaintsError}
+            onSelectComplaint={handleSelectComplaint}
+            onNavigatePage={(p) => setActivePage(p)}
+            onAcknowledgeInsight={acknowledge}
+            onOpenCopilot={() => setActivePage('copilot')}
+            onRefresh={handleRefresh}
+          />
+        )
       )}
 
       {activePage === 'complaints' && (
