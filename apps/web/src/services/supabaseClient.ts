@@ -1,36 +1,56 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-const getEnvVar = (key: string, defaultValue: string): string => {
+const getEnvVar = (key: string): string => {
   if (typeof import.meta !== 'undefined' && (import.meta as any).env && (import.meta as any).env[key]) {
     return (import.meta as any).env[key];
   }
   if (typeof process !== 'undefined' && process.env && process.env[key]) {
     return process.env[key];
   }
-  return defaultValue;
+  return '';
 };
 
-const SUPABASE_URL = getEnvVar(
-  'VITE_SUPABASE_URL',
-  'https://qxiivlfecbklwtnfsnjg.supabase.co'
-);
+const SUPABASE_URL = getEnvVar('VITE_SUPABASE_URL');
+const SUPABASE_ANON_KEY = getEnvVar('VITE_SUPABASE_ANON_KEY');
 
-const SUPABASE_ANON_KEY = getEnvVar(
-  'VITE_SUPABASE_ANON_KEY',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF4aWl2bGZlY2JrbHd0bmZzbmpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg5Njk0OTIsImV4cCI6MjEwNDU0NTQ5Mn0.gZXjrzaMiYl_6JyozMfCbnjirQGerkliVEKC_xVCTbA'
-);
+export const isSupabaseConfigured: boolean = Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);
 
-export const supabase: SupabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-  },
-});
+if (!isSupabaseConfigured) {
+  const missing = [
+    !SUPABASE_URL ? 'VITE_SUPABASE_URL' : null,
+    !SUPABASE_ANON_KEY ? 'VITE_SUPABASE_ANON_KEY' : null,
+  ]
+    .filter(Boolean)
+    .join(', ');
+
+  console.error(
+    `❌ [CivicResolve Security Configuration Error]: Missing required Supabase environment configuration: ${missing}.\n` +
+    `Please configure VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your environment (.env).`
+  );
+}
+
+// In test/unconfigured mode, use safe placeholder that does not expose production credentials or leak tokens
+export const supabase: SupabaseClient = createClient(
+  SUPABASE_URL || 'https://unconfigured-civicresolve.supabase.co',
+  SUPABASE_ANON_KEY || 'unconfigured-anon-key',
+  {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+    },
+  }
+);
 
 /**
  * Health check helper for database connection
  */
 export async function checkSupabaseConnection(): Promise<boolean> {
+  if (!isSupabaseConfigured) {
+    console.error(
+      '❌ [CivicResolve Configuration Error]: Cannot connect to database because VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY is missing from environment.'
+    );
+    return false;
+  }
   try {
     const { data, error } = await supabase.from('reports').select('id').limit(1);
     if (error) {

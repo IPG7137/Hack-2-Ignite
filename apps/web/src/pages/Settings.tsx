@@ -6,7 +6,7 @@ import { Input } from '../components/ui/Input';
 
 export const Settings: React.FC = () => {
   const [supabaseUrl, setSupabaseUrl] = useState(
-    import.meta.env.VITE_SUPABASE_URL || 'https://qxiivlfecbklwtnfsnjg.supabase.co'
+    import.meta.env.VITE_SUPABASE_URL || ''
   );
   const [geminiStatus, setGeminiStatus] = useState<'connected' | 'untested'>('connected');
   const [dbStatus, setDbStatus] = useState<'connected' | 'testing'>('connected');

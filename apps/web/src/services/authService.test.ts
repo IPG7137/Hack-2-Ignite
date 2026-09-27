@@ -69,7 +69,7 @@ export async function runAuthServiceTests(): Promise<{ passed: number; failed: n
     assert(authAdmin.fullName === 'Municipal Commissioner', '2b. Maps commissioner name correctly');
   }
 
-  // 3. AuthUser mapping - Department Admin Heuristic
+  // 3. AuthUser mapping - Anti-Escalation Check (Strict Citizen Default)
   {
     const mockDeptUser: User = {
       id: 'usr-dept-02',
@@ -84,7 +84,7 @@ export async function runAuthServiceTests(): Promise<{ passed: number; failed: n
     };
 
     const authDept = AuthService.mapSupabaseUserToAuthUser(mockDeptUser);
-    assert(authDept.role === 'dept_admin', '3a. Heuristically infers dept_admin role from dept email');
+    assert(authDept.role === 'citizen', '3a. Unverified user with dept email defaults strictly to citizen without escalation');
   }
 
   // 4. AuthUser mapping - Citizen Role

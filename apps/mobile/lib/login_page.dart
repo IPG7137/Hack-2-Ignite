@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'language_service.dart';
@@ -604,32 +605,34 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
             ),
             const SizedBox(height: 12),
             
-            // Demo quick fill for Citizen
-            Align(
-              alignment: Alignment.centerLeft,
-              child: TextButton.icon(
-                onPressed: () {
-                  setState(() {
-                    _aadharController.text = '9999 8888 7777';
-                  });
-                },
-                icon: const Icon(Icons.flash_on, size: 16, color: Color(0xFF3B82F6)),
-                label: const Text(
-                  'Demo Citizen Fill',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF3B82F6),
+            // Demo quick fill for Citizen (Debug / Development only)
+            if (kDebugMode) ...[
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: () {
+                    setState(() {
+                      _aadharController.text = '9999 8888 7777';
+                    });
+                  },
+                  icon: const Icon(Icons.flash_on, size: 16, color: Color(0xFF3B82F6)),
+                  label: const Text(
+                    'Demo Citizen Fill',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF3B82F6),
+                    ),
+                  ),
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    backgroundColor: const Color(0xFFEFF6FF),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
                 ),
-                style: TextButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  backgroundColor: const Color(0xFFEFF6FF),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                ),
               ),
-            ),
-            const SizedBox(height: 16),
+              const SizedBox(height: 16),
+            ],
             
             _buildLoginButton(
               text: 'Login with Aadhaar',
@@ -684,32 +687,34 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
             ),
             const SizedBox(height: 8),
             
-            // Demo OTP quick fill
-            Align(
-              alignment: Alignment.centerLeft,
-              child: TextButton.icon(
-                onPressed: () {
-                  setState(() {
-                    _otpController.text = '123456';
-                  });
-                },
-                icon: const Icon(Icons.flash_on, size: 16, color: Color(0xFF3B82F6)),
-                label: const Text(
-                  'Demo OTP Fill (123456)',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF3B82F6),
+            // Demo OTP quick fill (Debug / Development only)
+            if (kDebugMode) ...[
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: () {
+                    setState(() {
+                      _otpController.text = '123456';
+                    });
+                  },
+                  icon: const Icon(Icons.flash_on, size: 16, color: Color(0xFF3B82F6)),
+                  label: const Text(
+                    'Demo OTP Fill (123456)',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF3B82F6),
+                    ),
+                  ),
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    backgroundColor: const Color(0xFFEFF6FF),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
                 ),
-                style: TextButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  backgroundColor: const Color(0xFFEFF6FF),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                ),
               ),
-            ),
-            const SizedBox(height: 12),
+              const SizedBox(height: 12),
+            ],
             
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -820,33 +825,35 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
           ),
           const SizedBox(height: 12),
 
-          // Demo quick fill for Officer
-          Align(
-            alignment: Alignment.centerLeft,
-            child: TextButton.icon(
-              onPressed: () {
-                setState(() {
-                  _publicServantIdController.text = 'demo.officer@civicresolve.gov';
-                  _passwordController.text = 'civic123456';
-                });
-              },
-              icon: const Icon(Icons.flash_on, size: 16, color: Color(0xFF3B82F6)),
-              label: const Text(
-                'Demo Field Officer Fill',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF3B82F6),
+          // Demo quick fill for Officer (Debug / Development only)
+          if (kDebugMode) ...[
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: () {
+                  setState(() {
+                    _publicServantIdController.text = 'demo.officer@civicresolve.gov';
+                    _passwordController.text = 'civic123456';
+                  });
+                },
+                icon: const Icon(Icons.flash_on, size: 16, color: Color(0xFF3B82F6)),
+                label: const Text(
+                  'Demo Field Officer Fill',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF3B82F6),
+                  ),
+                ),
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  backgroundColor: const Color(0xFFEFF6FF),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 ),
               ),
-              style: TextButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                backgroundColor: const Color(0xFFEFF6FF),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              ),
             ),
-          ),
-          const SizedBox(height: 16),
+            const SizedBox(height: 16),
+          ],
           
           _buildLoginButton(
             text: 'Log in as Field Officer',

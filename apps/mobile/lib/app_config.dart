@@ -1,10 +1,12 @@
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class AppConfig {
-  static const String _defaultSupabaseUrl = 'https://qxiivlfecbklwtnfsnjg.supabase.co';
-  static const String _defaultSupabaseAnonKey =
-      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF4aWl2bGZlY2JrbHd0bmZzbmpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg5Njk0OTIsImV4cCI6MjEwNDU0NTQ5Mn0.gZXjrzaMiYl_6JyozMfCbnjirQGerkliVEKC_xVCTbA';
+  static const String _defaultSupabaseUrl = '';
+  static const String _defaultSupabaseAnonKey = '';
   static const String _defaultGeminiApiKey = '';
+
+  /// Returns true if required backend Supabase parameters are present
+  static bool get isConfigured => supabaseUrl.isNotEmpty && supabaseAnonKey.isNotEmpty;
 
   /// Initialize environment variables
   static Future<void> initialize() async {
@@ -12,7 +14,13 @@ class AppConfig {
       await dotenv.load(fileName: ".env");
       print('✅ AppConfig: Loaded .env configuration successfully');
     } catch (e) {
-      print('⚠️ AppConfig: .env file not found or failed to load ($e), using environment/compile-time defaults');
+      print('ℹ️ AppConfig: Local .env asset not loaded, using compile-time environment flags (--dart-define / --dart-define-from-file)');
+    }
+
+    if (!isConfigured) {
+      print('⚠️ [CivicResolve Configuration Warning]: SUPABASE_URL or SUPABASE_ANON_KEY is missing from environment.\n'
+          'Please provide configuration via --dart-define=SUPABASE_URL=... --dart-define=SUPABASE_ANON_KEY=... '
+          'or --dart-define-from-file=.env');
     }
   }
 

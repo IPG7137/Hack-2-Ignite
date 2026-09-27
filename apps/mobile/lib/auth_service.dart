@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'app_preferences.dart';
@@ -110,22 +111,34 @@ class AuthService {
       String authPassword;
 
       if (isOfficerRequest) {
-        authEmail = emailOrId.contains('@') ? emailOrId.trim() : 'demo.officer@civicresolve.gov';
+        if (emailOrId.contains('@')) {
+          authEmail = emailOrId.trim();
+        } else if (kDebugMode) {
+          // Development/Debug mode only: convenient officer alias
+          authEmail = 'demo.officer@civicresolve.gov';
+        } else {
+          return AuthResult.error('Please enter a valid officer email address.');
+        }
         authPassword = password.trim();
       } else {
         // Citizen login
         final cleanId = emailOrId.replaceAll(' ', '').trim();
         final cleanOtp = password.trim();
 
-        // Hackathon Demo Citizen path: Map demo Aadhaar / demo OTP to the dedicated demo citizen account
-        // strictly using signInWithPassword to prevent email send rate limits (HTTP 429)
-        if (cleanId == '999988887777' ||
-            cleanId == 'demo.citizen@civicresolve.gov' ||
-            cleanOtp == '123456' ||
-            !cleanId.contains('@')) {
+        // Hackathon Demo Citizen path: ONLY active in debug/development builds (kDebugMode)
+        // In release/production builds, demo bypass is completely disabled at compile-time/runtime
+        if (kDebugMode &&
+            (cleanId == '999988887777' ||
+                cleanId == 'demo.citizen@civicresolve.gov' ||
+                cleanOtp == '123456' ||
+                !cleanId.contains('@'))) {
           authEmail = 'demo.citizen@civicresolve.gov';
           authPassword = 'civic123456';
         } else {
+          // Release / Production path: Strictly validate and authenticate real user identity
+          if (!cleanId.contains('@')) {
+            return AuthResult.error('Please enter a valid citizen email address.');
+          }
           authEmail = cleanId;
           authPassword = cleanOtp;
         }

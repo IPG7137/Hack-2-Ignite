@@ -80,18 +80,16 @@ export class AuthService {
     const meta = (user as any).user_metadata || (user as any).userMetadata || user.app_metadata || {};
     const email = user.email || dbProfile?.email || 'officer@civicresolve.gov';
     
-    // Priority: 1. DB-backed role, 2. Metadata role (validated), 3. Heuristic fallback
+    // Priority: 1. DB-backed verified role from public.user_roles (Canonical source of truth)
+    // 2. User metadata role ONLY if explicitly verified as a valid canonical role
+    // 3. Strict default for all unknown/unverified users: 'citizen' (Zero email text heuristics)
     let role: UserRole = 'citizen';
     if (dbRole && isValidRole(dbRole)) {
       role = dbRole;
     } else if (meta.role && isValidRole(meta.role)) {
       role = meta.role;
-    } else if (email.includes('admin') || meta.is_admin) {
-      role = 'municipal_admin';
-    } else if (email.includes('dept')) {
-      role = 'dept_admin';
-    } else if (email.includes('officer')) {
-      role = 'officer';
+    } else {
+      role = 'citizen';
     }
 
     return {
