@@ -32,6 +32,7 @@ import {
   Clock,
   Radio,
 } from 'lucide-react';
+import { SmartAlertEngine } from '../services/smartAlertEngine';
 
 interface DashboardProps {
   complaints: Complaint[];
@@ -224,7 +225,16 @@ export const Dashboard: React.FC<DashboardProps> = ({
         </div>
 
         {/* Quick Operational Directives */}
-        <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+        <div className="flex items-center gap-2 w-full sm:w-auto justify-end flex-wrap">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onNavigatePage('alerts')}
+            className="h-8 text-xs bg-white border-red-200 text-red-700 hover:bg-red-50 font-bold gap-1.5"
+          >
+            <ShieldAlert className="w-3.5 h-3.5 text-red-600" />
+            <span>Smart Alert Center</span>
+          </Button>
           <Button
             variant="outline"
             size="sm"

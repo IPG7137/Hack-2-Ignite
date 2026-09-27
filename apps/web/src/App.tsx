@@ -10,6 +10,7 @@ import { Analytics } from './pages/Analytics';
 import { AIInsights } from './pages/AIInsights';
 import { Departments } from './pages/Departments';
 import { FieldTeams } from './pages/FieldTeams';
+import { AlertCenter } from './pages/AlertCenter';
 import { SLA } from './pages/SLA';
 import { Copilot } from './pages/Copilot';
 import { Settings } from './pages/Settings';
@@ -269,6 +270,15 @@ export function App() {
 
       {activePage === 'field_teams' && (
         <FieldTeams complaints={visibleComplaints} onSelectComplaint={handleSelectComplaint} />
+      )}
+
+      {activePage === 'alerts' && (
+        <AlertCenter
+          complaints={visibleComplaints}
+          onSelectComplaint={handleSelectComplaint}
+          onNavigatePage={(p) => setActivePage(p as any)}
+          onRefresh={handleRefresh}
+        />
       )}
 
       {activePage === 'sla' && (

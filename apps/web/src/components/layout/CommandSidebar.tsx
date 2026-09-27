@@ -12,6 +12,7 @@ import {
   Settings,
   ChevronRight,
   Shield,
+  ShieldAlert,
   Trophy,
   Award,
   Layers,
@@ -27,6 +28,7 @@ export type ActivePage =
   | 'complaints'
   | 'complaint_details'
   | 'map'
+  | 'alerts'
   | 'analytics'
   | 'ai_insights'
   | 'departments'
@@ -41,6 +43,7 @@ interface CommandSidebarProps {
   onSelectPage: (page: ActivePage) => void;
   urgentCount?: number;
   openCount?: number;
+  alertCount?: number;
   mobileOpen?: boolean;
   onCloseMobile?: () => void;
 }
@@ -63,6 +66,7 @@ export const CommandSidebar: React.FC<CommandSidebarProps> = ({
   onSelectPage,
   urgentCount = 4,
   openCount = 18,
+  alertCount = 3,
   mobileOpen = false,
   onCloseMobile,
 }) => {
@@ -85,6 +89,13 @@ export const CommandSidebar: React.FC<CommandSidebarProps> = ({
       items: [
         { id: 'departments', label: 'Municipal Corporations', icon: Building2 },
         { id: 'complaints', label: 'State Grievances Queue', icon: FileText, badge: openCount },
+        {
+          id: 'alerts',
+          label: 'Smart Alert Center',
+          icon: ShieldAlert,
+          badge: alertCount,
+          badgeColor: 'bg-red-50 text-red-700 border-red-200',
+        },
         {
           id: 'sla',
           label: 'SLA Escalation Monitoring',
@@ -126,6 +137,13 @@ export const CommandSidebar: React.FC<CommandSidebarProps> = ({
     {
       title: 'OPERATIONS',
       items: [
+        {
+          id: 'alerts',
+          label: 'Smart Alert Center',
+          icon: ShieldAlert,
+          badge: alertCount,
+          badgeColor: 'bg-red-50 text-red-700 border-red-200',
+        },
         { id: 'complaints', label: 'Complaints Queue', icon: FileText, badge: openCount },
         {
           id: 'sla',

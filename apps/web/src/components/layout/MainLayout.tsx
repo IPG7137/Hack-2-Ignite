@@ -9,6 +9,8 @@ import { useAuth } from '../../hooks/useAuth';
 import { useOrganization } from '../../context/OrganizationContext';
 import { CopilotSecurityContext } from '../../services/copilotService';
 
+import { SmartAlertEngine } from '../../services/smartAlertEngine';
+
 interface MainLayoutProps {
   activePage: ActivePage;
   onSelectPage: (page: ActivePage) => void;
@@ -33,10 +35,17 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
   const [copilotOpen, setCopilotOpen] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const { user } = useAuth();
-  const { district, organizationType } = useOrganization();
+  const { district, districtId, municipalCorporationId, organizationType } = useOrganization();
 
   const urgentCount = complaints.filter((c) => c.priority === 'urgent' && c.status !== 'closed').length;
   const openCount = complaints.filter((c) => c.status !== 'closed' && c.status !== 'verified').length;
+
+  const smartAlerts = SmartAlertEngine.evaluateAlerts(
+    complaints,
+    districtId || (user as any)?.districtId || 'pune',
+    municipalCorporationId
+  );
+  const activeAlertCount = smartAlerts.filter((a) => a.status === 'ACTIVE').length;
 
   const securityContext: CopilotSecurityContext = {
     userId: user?.id,
@@ -65,6 +74,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
           onSelectPage={onSelectPage}
           urgentCount={urgentCount}
           openCount={openCount}
+          alertCount={activeAlertCount}
           mobileOpen={mobileSidebarOpen}
           onCloseMobile={() => setMobileSidebarOpen(false)}
         />

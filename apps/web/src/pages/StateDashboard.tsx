@@ -17,6 +17,10 @@ import {
   ChevronRight,
   Sparkles,
   BarChart3,
+  ShieldAlert,
+  Zap,
+  Timer,
+  AlertOctagon,
 } from 'lucide-react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -31,6 +35,7 @@ import {
 import { isComplaintInDistrict } from '../lib/districtFilter';
 import { useOrganization } from '../context/OrganizationContext';
 import { ActivePage } from '../components/layout/CommandSidebar';
+import { SmartAlertEngine } from '../services/smartAlertEngine';
 
 interface StateDashboardProps {
   complaints: Complaint[];
@@ -47,6 +52,15 @@ export const StateDashboard: React.FC<StateDashboardProps> = ({
   const [selectedCorp, setSelectedCorp] = useState<MunicipalCorporation | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterDivision, setFilterDivision] = useState<string>('all');
+
+  // Compute live statewide smart alerts from factual complaints data
+  const statewideAlerts = useMemo(() => {
+    return SmartAlertEngine.evaluateAlerts(complaints, null, null, Date.now());
+  }, [complaints]);
+
+  const alertStats = useMemo(() => {
+    return SmartAlertEngine.calculateSummary(statewideAlerts);
+  }, [statewideAlerts]);
 
   // Compute factual metrics from real available complaint data
   const totalReports = complaints.length;
@@ -234,6 +248,42 @@ export const StateDashboard: React.FC<StateDashboardProps> = ({
           <div className="text-2xl font-bold text-[#16803C] mt-1.5">{resolvedReports}</div>
           <div className="text-[10px] text-emerald-700 font-medium mt-0.5">Proof Verified</div>
         </Card>
+      </div>
+
+      {/* ==================================================
+          STATEWIDE SMART ALERTS & SLA ESCALATION RADAR
+          ================================================== */}
+      <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-2xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div className="flex items-center gap-3.5">
+          <div className="w-10 h-10 rounded-xl bg-red-50 border border-red-200 flex items-center justify-center text-red-600 shrink-0">
+            <ShieldAlert className="w-5 h-5 animate-pulse" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-900">
+                Statewide Tactical Alert Radar
+              </h3>
+              <span className="text-[10px] font-mono px-2 py-0.2 rounded-full bg-red-50 text-red-700 border border-red-200 font-bold">
+                {alertStats.totalActive} Active Alerts
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-500 mt-0.5">
+              Live automated monitoring across 36 districts: <strong>{alertStats.criticalCount}</strong> Critical, <strong>{alertStats.slaBreaches}</strong> SLA Breaches, <strong>{alertStats.geographicClusters}</strong> Spatial Clusters.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 self-end md:self-center shrink-0">
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={() => onNavigatePage('alerts')}
+            className="h-8 text-xs bg-[#1769D2] hover:bg-[#123B6D] text-white font-bold gap-1.5 shadow-xs"
+          >
+            <span>Open State Alert Center</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </Button>
+        </div>
       </div>
 
       {/* ==================================================
