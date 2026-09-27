@@ -1,11 +1,10 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:google_generative_ai/google_generative_ai.dart';
-import 'app_config.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-/// Strongly-typed model representing structured civic issue triage from Gemini AI
+/// Strongly-typed model representing structured civic issue triage from CivicResolve AI
 class AiTriageResult {
   final String category;
   final String severity; // Low, Medium, High, Critical
@@ -87,84 +86,44 @@ class AiTriageResult {
 }
 
 class ImageAnalysisService {
-  static GenerativeModel? _model;
-  
-  static GenerativeModel get _geminiModel {
-    final apiKey = AppConfig.geminiApiKey;
-    _model ??= GenerativeModel(
-      model: 'gemini-1.5-flash',
-      apiKey: apiKey,
-      generationConfig: GenerationConfig(
-        responseMimeType: 'application/json',
-        temperature: 0.1,
-        topK: 30,
-        topP: 0.9,
-        maxOutputTokens: 1024,
-      ),
-      safetySettings: [
-        SafetySetting(HarmCategory.harassment, HarmBlockThreshold.none),
-        SafetySetting(HarmCategory.hateSpeech, HarmBlockThreshold.none),
-        SafetySetting(HarmCategory.sexuallyExplicit, HarmBlockThreshold.none),
-        SafetySetting(HarmCategory.dangerousContent, HarmBlockThreshold.none),
-      ],
-    );
-    return _model!;
-  }
-
-  /// Full structured AI triage analysis with JSON enforcement from raw bytes
+  /// Full structured AI triage analysis routed through authenticated Supabase Edge Function.
+  /// Security Enforcement: Gemini API key exists ONLY on the backend server / Supabase secrets.
+  /// Zero Gemini API keys are bundled or stored in the mobile client.
   static Future<AiTriageResult> analyzeImageBytes(Uint8List imageBytes, {String? description}) async {
     try {
-      print('🔍 Starting structured Gemini AI Triage analysis...');
-      final prompt = _buildStructuredPrompt(description);
-      final content = [
-        Content.multi([
-          TextPart(prompt),
-          DataPart('image/jpeg', imageBytes),
-        ])
-      ];
+      debugPrint('🔍 Invoking secure server-side AI triage via Supabase Edge Function...');
 
-      String? rawResponse;
-      for (int attempt = 1; attempt <= 3; attempt++) {
-        try {
-          final response = await _geminiModel.generateContent(content);
-          if (response.text != null && response.text!.isNotEmpty) {
-            rawResponse = response.text!;
-            break;
-          }
-        } catch (e) {
-          print('❌ Gemini attempt $attempt failed: $e');
-          if (attempt == 3) rethrow;
-          await Future.delayed(Duration(milliseconds: 500 * attempt));
+      final client = Supabase.instance.client;
+      final session = client.auth.currentSession;
+
+      // Invoke server-side 'ai-triage' function with user auth credentials
+      final response = await client.functions.invoke(
+        'ai-triage',
+        headers: session != null
+            ? {'Authorization': 'Bearer ${session.accessToken}'}
+            : null,
+        body: {
+          'description': description ?? '',
+          'image_base64': base64Encode(imageBytes),
+          'mime_type': 'image/jpeg',
+        },
+      );
+
+      if (response.status == 200 && response.data != null) {
+        final data = response.data;
+        final triagePayload = data is Map<String, dynamic> ? (data['data'] ?? data) : null;
+        if (triagePayload is Map<String, dynamic>) {
+          final result = AiTriageResult.fromJson(triagePayload);
+          debugPrint('✅ Server AI Triage successful: Category=${result.category}, Severity=${result.severity}');
+          return result;
         }
       }
-
-      if (rawResponse == null) {
-        throw Exception('Empty response from Gemini API');
-      }
-
-      print('🤖 Gemini Raw JSON Response: $rawResponse');
-
-      // Strip markdown backticks if model wrapped JSON
-      String cleanJson = rawResponse.trim();
-      if (cleanJson.startsWith('```json')) {
-        cleanJson = cleanJson.substring(7);
-      }
-      if (cleanJson.startsWith('```')) {
-        cleanJson = cleanJson.substring(3);
-      }
-      if (cleanJson.endsWith('```')) {
-        cleanJson = cleanJson.substring(0, cleanJson.length - 3);
-      }
-      cleanJson = cleanJson.trim();
-
-      final decoded = jsonDecode(cleanJson) as Map<String, dynamic>;
-      final result = AiTriageResult.fromJson(decoded);
-      print('✅ AI Triage complete: Category=${result.category}, Severity=${result.severity}, Dept=${result.suggestedDepartment}');
-      return result;
     } catch (e) {
-      print('⚠️ Structured AI analysis encountered error: $e. Using intelligent fallback triage.');
-      return _fallbackTriage(description);
+      debugPrint('ℹ️ Server-side AI triage unavailable ($e), falling back to deterministic triage.');
     }
+
+    // Deterministic rule-based fallback when offline or during headless tests
+    return _fallbackTriage(description);
   }
 
   /// Full structured AI triage analysis with JSON enforcement
@@ -173,7 +132,7 @@ class ImageAnalysisService {
       final Uint8List imageBytes = await imageFile.readAsBytes();
       return await analyzeImageBytes(imageBytes, description: description);
     } catch (e) {
-      print('⚠️ Structured AI analysis encountered error reading file: $e. Using intelligent fallback triage.');
+      debugPrint('⚠️ Error reading image file for analysis: $e. Using fallback triage.');
       return _fallbackTriage(description);
     }
   }
@@ -182,36 +141,6 @@ class ImageAnalysisService {
   static Future<String> analyzeImageForPriority(File imageFile, {String? description}) async {
     final result = await analyzeImage(imageFile, description: description);
     return result.severity;
-  }
-
-  static String _buildStructuredPrompt(String? description) {
-    return '''
-You are an expert Municipal Infrastructure and Civic Safety Triage AI for CivicResolve.
-Analyze the provided image and description to categorize and prioritize the civic issue accurately.
-
-Context / Citizen Description:
-${description?.isNotEmpty == true ? description : 'No additional description provided.'}
-
-Instructions:
-1. Examine visual evidence for hazard level, structural risk, public health threat, or traffic disruption.
-2. Accurately assign:
-   - "category": One of ["Roads", "Waste", "Water", "Drainage", "Streetlights", "Public Safety", "Other"]
-   - "severity": One of ["Critical", "High", "Medium", "Low"]
-     - "Critical": Life-threatening hazards, open manholes, active fires, electrical shocks, bridge collapse.
-     - "High": Major road blockages, severe water contamination, flooding, large garbage mounds near residential areas.
-     - "Medium": Non-urgent potholes, broken street lights, missed trash pickup, minor leaks.
-     - "Low": Faded road markings, aesthetic graffiti, minor roadside debris.
-   - "suggested_department": Responsible municipal department.
-   - "reasoning": 1-2 sentence concise explanation of findings.
-
-Return ONLY a valid JSON object strictly matching this schema:
-{
-  "category": "Roads | Waste | Water | Drainage | Streetlights | Public Safety | Other",
-  "severity": "Low | Medium | High | Critical",
-  "suggested_department": "string",
-  "reasoning": "string"
-}
-''';
   }
 
   static AiTriageResult _fallbackTriage(String? description) {

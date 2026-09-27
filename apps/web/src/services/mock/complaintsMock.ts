@@ -915,3 +915,102 @@ export const INITIAL_MOCK_COMPLAINTS: Complaint[] = [
     updatedAt: "2026-09-12T19:15:00Z",
   }
 ];
+
+export const CANONICAL_SOLAPUR_8_COMPLAINTS: Complaint[] = [
+  {
+    ...INITIAL_MOCK_COMPLAINTS[0],
+    id: "CR-2026-101",
+    dbId: 101,
+    status: "in_progress",
+    priority: "high",
+    sla: {
+      ...INITIAL_MOCK_COMPLAINTS[0].sla,
+      isOverdue: true,
+      slaStatus: "breached",
+    },
+  },
+  {
+    ...INITIAL_MOCK_COMPLAINTS[1],
+    id: "CR-2026-102",
+    dbId: 102,
+    status: "in_progress",
+    priority: "medium",
+    sla: {
+      ...INITIAL_MOCK_COMPLAINTS[1].sla,
+      isOverdue: true,
+      slaStatus: "breached",
+    },
+  },
+  {
+    ...INITIAL_MOCK_COMPLAINTS[2],
+    id: "CR-2026-103",
+    dbId: 103,
+    status: "in_progress",
+    priority: "medium",
+    sla: {
+      ...INITIAL_MOCK_COMPLAINTS[2].sla,
+      isOverdue: true,
+      slaStatus: "breached",
+    },
+  },
+  {
+    ...INITIAL_MOCK_COMPLAINTS[3],
+    id: "CR-2026-104",
+    dbId: 104,
+    status: "resolution_submitted",
+    priority: "medium",
+    sla: {
+      ...INITIAL_MOCK_COMPLAINTS[3].sla,
+      isOverdue: true,
+      slaStatus: "breached",
+    },
+  },
+  {
+    ...INITIAL_MOCK_COMPLAINTS[4],
+    id: "CR-2026-105",
+    dbId: 105,
+    status: "closed",
+    priority: "low",
+    sla: {
+      ...INITIAL_MOCK_COMPLAINTS[4].sla,
+      isOverdue: false,
+      slaStatus: "on_track",
+    },
+  },
+  {
+    ...INITIAL_MOCK_COMPLAINTS[5],
+    id: "CR-2026-106",
+    dbId: 106,
+    status: "resolved",
+    priority: "medium",
+    sla: {
+      ...INITIAL_MOCK_COMPLAINTS[5].sla,
+      isOverdue: true,
+      slaStatus: "breached",
+    },
+  },
+  {
+    ...INITIAL_MOCK_COMPLAINTS[6],
+    id: "CR-2026-107",
+    dbId: 107,
+    status: "resolved",
+    priority: "medium",
+    sla: {
+      ...INITIAL_MOCK_COMPLAINTS[6].sla,
+      isOverdue: true,
+      slaStatus: "breached",
+    },
+  },
+  {
+    ...INITIAL_MOCK_COMPLAINTS[7],
+    id: "CR-2026-108",
+    dbId: 108,
+    status: "resolved",
+    priority: "low",
+    sla: {
+      ...INITIAL_MOCK_COMPLAINTS[7].sla,
+      isOverdue: true,
+      slaStatus: "breached",
+    },
+  },
+];

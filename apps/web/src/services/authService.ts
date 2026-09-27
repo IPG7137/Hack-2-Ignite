@@ -80,17 +80,13 @@ export class AuthService {
     const meta = (user as any).user_metadata || (user as any).userMetadata || user.app_metadata || {};
     const email = user.email || dbProfile?.email || 'officer@civicresolve.gov';
     
-    // Priority: 1. DB-backed verified role from public.user_roles (Canonical source of truth)
-    // 2. User metadata role ONLY if explicitly verified as a valid canonical role
-    // 3. Strict default for all unknown/unverified users: 'citizen' (Zero email text heuristics)
-    let role: UserRole = 'citizen';
-    if (dbRole && isValidRole(dbRole)) {
-      role = dbRole;
-    } else if (meta.role && isValidRole(meta.role)) {
-      role = meta.role;
-    } else {
-      role = 'citizen';
-    }
+    // Security Model:
+    // 1. The database role (from public.user_roles) is the ONLY source for privileged roles.
+    // 2. Privileged roles (officer, dept_admin, municipal_admin, super_admin) are NEVER determined
+    //    from email address, email text, user metadata, meta.role, meta.is_admin, or meta.is_verified.
+    // 3. If a valid database role exists, use it.
+    // 4. If no valid database role exists, default strictly to 'citizen'.
+    const role: UserRole = dbRole && isValidRole(dbRole) ? dbRole : 'citizen';
 
     return {
       id: user.id,
@@ -100,7 +96,9 @@ export class AuthService {
       departmentId: dbProfile?.department_id || meta.department_id || 'DEP-GEN',
       departmentName: dbProfile?.department_name || meta.department_name || 'General Municipal Command',
       ward: dbProfile?.ward || meta.ward || 'Zone 2 Command',
-      isVerified: Boolean(user.email_confirmed_at || meta.is_verified || true),
+      // Authoritative Supabase verification state: strictly check email_confirmed_at.
+      // Never use '|| true' fallback and do not trust client-controlled user metadata (meta.is_verified).
+      isVerified: Boolean(user.email_confirmed_at),
     };
   }
 
@@ -204,21 +202,28 @@ export class AuthService {
   }
 
   /**
-   * Signs up a new municipal or citizen user with Supabase Auth
+   * Signs up a new citizen user with Supabase Auth.
+   * Security Requirement:
+   * Public registration MUST strictly enforce role: 'citizen'.
+   * Privileged roles (officer, dept_admin, municipal_admin, super_admin) must NEVER
+   * be assignable through public client registration metadata.
    */
   public static async signUp(
     email: string,
     password: string,
-    metadata?: { fullName?: string; role?: UserRole; departmentName?: string; ward?: string }
+    metadata?: { fullName?: string; departmentName?: string; ward?: string }
   ): Promise<{ user: AuthUser | null; error: string | null }> {
     try {
+      // Hardcoded strictly to 'citizen' - client can never self-assign privileged roles
+      const publicRole: UserRole = 'citizen';
+
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: {
             full_name: metadata?.fullName || email.split('@')[0],
-            role: metadata?.role || 'citizen',
+            role: publicRole,
             department_name: metadata?.departmentName || 'General Municipal Command',
             ward: metadata?.ward || 'Zone 2 Command',
           },
@@ -230,7 +235,7 @@ export class AuthService {
       }
 
       if (data.user) {
-        return { user: this.mapSupabaseUserToAuthUser(data.user), error: null };
+        return { user: this.mapSupabaseUserToAuthUser(data.user, null, null), error: null };
       }
 
       return { user: null, error: 'Registration succeeded but no user data returned.' };

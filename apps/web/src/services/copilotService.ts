@@ -7,8 +7,8 @@ import { ResolutionVerificationEngine, ResolutionVerificationResult } from './re
 import { SimilarityEngine } from './similarityEngine';
 import { AIInsightsService } from './aiInsightsService';
 import { GroundingSecurityGuard } from './groundingSecurityGuard';
-
 import { UserRole } from './authService';
+import { supabase } from './supabaseClient';
 
 export type CopilotIntent =
   | 'PRIORITY_ATTENTION'
@@ -755,104 +755,62 @@ export class CopilotService {
     ];
     const uniqueReferencedIds = Array.from(new Set(referencedIds));
 
-    // 3. Try Gemini API invocation if API key is present
+    // 3. Try Gemini API invocation via secure server-side Supabase Edge Function
     let geminiResponseText: string | null = null;
-    const apiKey =
-      (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_GEMINI_API_KEY) ||
-      (typeof process !== 'undefined' && process.env && (process.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY));
 
-    if (apiKey && apiKey !== 'undefined' && apiKey.length > 5) {
-      try {
-        const payload = {
-          telemetryTimestamp: new Date().toISOString(),
-          metrics,
-          topCriticalCases: topCriticalCases.slice(0, 5).map((s) => ({
-            id: s.complaint.id,
-            title: s.complaint.title,
-            category: s.complaint.categoryLabel,
-            score: s.priorityAnalysis.scoreDisplay,
-            drivers: s.priorityAnalysis.topDrivers,
-            address: s.complaint.location.address,
-            isOverdue: s.complaint.sla.isOverdue,
-          })),
-          overdueComplaints: overdue.slice(0, 4).map((c) => ({
-            id: c.id,
-            title: c.title,
-            category: c.categoryLabel,
-            status: c.status,
-          })),
-          emergingHotspots: detectedHotspots.slice(0, 3).map((h) => ({
-            id: h.id,
-            category: h.categoryLabel,
-            score: h.scoreDisplay,
-            surgeMultiplier: `${h.increaseRatio.toFixed(1)}x`,
-            countIn24h: h.currentWindowCount,
-            totalInZone: h.complaintCount,
-            centerLat: h.centerLatitude,
-            centerLng: h.centerLongitude,
-            reasons: h.explainableReasons,
-          })),
-          potentialIncidents: detectedIncidents.slice(0, 3).map((inc) => ({
-            id: inc.incidentId,
-            title: inc.incidentLabel,
-            category: inc.primaryCategoryLabel,
-            confidence: inc.confidenceDisplay,
-            complaintCount: inc.complaintCount,
-          })),
-          resolutionQuality: {
-            auditedTotal: auditCases.length,
-            flaggedNeedsReview: pendingVerification.length,
-          },
-        };
+    try {
+      const payload = {
+        telemetryTimestamp: new Date().toISOString(),
+        metrics,
+        topCriticalCases: topCriticalCases.slice(0, 5).map((s) => ({
+          id: s.complaint.id,
+          title: s.complaint.title,
+          category: s.complaint.categoryLabel,
+          score: s.priorityAnalysis.scoreDisplay,
+          drivers: s.priorityAnalysis.topDrivers,
+          address: s.complaint.location.address,
+          isOverdue: s.complaint.sla.isOverdue,
+        })),
+        overdueComplaints: overdue.slice(0, 4).map((c) => ({
+          id: c.id,
+          title: c.title,
+          category: c.categoryLabel,
+          status: c.status,
+        })),
+        emergingHotspots: detectedHotspots.slice(0, 3).map((h) => ({
+          id: h.id,
+          category: h.categoryLabel,
+          score: h.scoreDisplay,
+          surgeMultiplier: `${h.increaseRatio.toFixed(1)}x`,
+          countIn24h: h.currentWindowCount,
+          totalInZone: h.complaintCount,
+          centerLat: h.centerLatitude,
+          centerLng: h.centerLongitude,
+          reasons: h.explainableReasons,
+        })),
+        potentialIncidents: detectedIncidents.slice(0, 3).map((inc) => ({
+          id: inc.incidentId,
+          title: inc.incidentLabel,
+          category: inc.primaryCategoryLabel,
+          confidence: inc.confidenceDisplay,
+          complaintCount: inc.complaintCount,
+        })),
+        resolutionQuality: {
+          auditedTotal: auditCases.length,
+          flaggedNeedsReview: pendingVerification.length,
+        },
+      };
 
-        const systemPrompt = `You are the CivicResolve Grounded Municipal AI Copilot generating an authoritative executive briefing for municipal commissioners and department directors.
-STRICT GROUNDING RULES:
-1. You MUST strictly use the provided JSON telemetry payload.
-2. NEVER invent, fabricate, extrapolate, or hallucinate numeric figures, counts, percentages, locations, or statuses. Every number in your briefing MUST originate from the payload.
-3. Structure your response into EXACTLY these 6 numbered sections:
-   1. Overall Workload & Status Distribution
-   2. High-Priority Unresolved Incidents
-   3. SLA Health & Overdue Escalations
-   4. 3C Emerging Spatio-Temporal Hotspots
-   5. 3D Potential Incident Clusters (Common Root Causes)
-   6. Recommended Operational Focus Areas (clearly labeled as AI decision-support advice)
-4. For 3D grouped clusters, ALWAYS use "potential incident" terminology.
-5. NEVER disclose citizen PII (no private phone numbers, Aadhaar, citizen personal identities).
-6. Be crisp, executive-ready, and highly structured with Markdown headings and bullet points.`;
+      const { data, error } = await supabase.functions.invoke('ai-briefing', {
+        body: payload,
+      });
 
-        const response = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contents: [
-                {
-                  role: 'user',
-                  parts: [
-                    { text: `${systemPrompt}\n\nGROUNDED TELEMETRY PAYLOAD:\n${JSON.stringify(payload, null, 2)}` },
-                  ],
-                },
-              ],
-              generationConfig: {
-                temperature: 0.1,
-                topK: 20,
-                maxOutputTokens: 1500,
-              },
-            }),
-          }
-        );
-
-        if (response.ok) {
-          const data = await response.json();
-          const generatedText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (generatedText && generatedText.trim().length > 100) {
-            geminiResponseText = GroundingSecurityGuard.maskPII(generatedText);
-          }
-        }
-      } catch (geminiErr) {
-        console.warn('⚠️ Gemini API invocation unavailable, falling back to deterministic 3A-3E generator:', geminiErr);
+      const briefingResult = data?.briefingText || data?.briefing;
+      if (!error && briefingResult && typeof briefingResult === 'string') {
+        geminiResponseText = GroundingSecurityGuard.maskPII(briefingResult);
       }
+    } catch (edgeErr) {
+      console.warn('⚠️ Server-side AI briefing invocation unavailable, falling back to deterministic 3A-3E generator:', edgeErr);
     }
 
     if (geminiResponseText) {

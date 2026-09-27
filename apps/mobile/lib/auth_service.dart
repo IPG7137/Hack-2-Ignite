@@ -60,12 +60,10 @@ class AuthService {
           _isLoggedIn = true;
           _userId = session.user.id;
           _userEmail = session.user.email;
-          _userFullName = session.user.userMetadata?['full_name']?.toString();
-          final metaRole = session.user.userMetadata?['role']?.toString();
-          if (metaRole != null) {
-            _userRole = metaRole;
-            _isAdmin = metaRole == 'admin' || metaRole == 'contractor' || metaRole == 'officer';
-          }
+          // Security Model: Privileged roles must NEVER be inferred from client metadata.
+          // Role authorization strictly relies on database verification via _syncDatabaseProfileAndRole.
+          _userRole = 'citizen';
+          _isAdmin = false;
           _syncDatabaseProfileAndRole(session.user.id);
         }
       });
@@ -189,6 +187,8 @@ class AuthService {
   }
 
   /// Register new user strictly with Supabase Auth
+  /// Security Requirement: Public registration MUST strictly enforce role: 'citizen'.
+  /// Privileged roles can never be self-assigned via client-provided parameters.
   Future<AuthResult> register({
     required String email,
     required String password,
@@ -198,8 +198,8 @@ class AuthService {
     String role = 'citizen',
   }) async {
     try {
-      final isOfficerRequest = role.toLowerCase().trim() == 'contractor' || role.toLowerCase().trim() == 'officer';
-      final canonicalRole = isOfficerRequest ? 'officer' : 'citizen';
+      // Hardcoded strictly to 'citizen' - client can never self-assign privileged roles
+      const canonicalRole = 'citizen';
 
       final res = await Supabase.instance.client.auth.signUp(
         email: email,
@@ -221,7 +221,7 @@ class AuthService {
       _userEmail = email;
       _userFullName = fullName;
       _userRole = canonicalRole;
-      _isAdmin = isOfficerRequest;
+      _isAdmin = false;
 
       await AppPreferences.setUserRole(_userRole);
       await _saveLoginState();

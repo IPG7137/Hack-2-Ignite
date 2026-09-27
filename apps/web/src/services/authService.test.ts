@@ -1,5 +1,7 @@
 import { AuthService, AuthUser, UserRole } from './authService';
 import { User } from '@supabase/supabase-js';
+import { supabase } from './supabaseClient';
+import { GroundingSecurityGuard } from './groundingSecurityGuard';
 
 export async function runAuthServiceTests(): Promise<{ passed: number; failed: number; errors: string[] }> {
   let passed = 0;
@@ -39,12 +41,15 @@ export async function runAuthServiceTests(): Promise<{ passed: number; failed: n
       updated_at: new Date().toISOString(),
     };
 
-    const authUser = AuthService.mapSupabaseUserToAuthUser(mockUser);
+    const authUser = AuthService.mapSupabaseUserToAuthUser(mockUser, null, 'officer');
     assert(authUser.id === 'usr-officer-01', '1a. Maps Supabase user ID correctly');
     assert(authUser.email === 'officer.patil@civicresolve.gov', '1b. Maps user email correctly');
-    assert(authUser.role === 'officer', '1c. Maps officer role correctly');
+    assert(authUser.role === 'officer', '1c. Maps verified DB officer role correctly');
     assert(authUser.fullName === 'Rajesh Patil', '1d. Maps full name correctly');
     assert(authUser.ward === 'Zone 2 Command', '1e. Maps ward assignment correctly');
+
+    const unverifiedOfficer = AuthService.mapSupabaseUserToAuthUser(mockUser, null, null);
+    assert(unverifiedOfficer.role === 'citizen', '1f. Metadata officer role ignored without DB role; strictly defaults to citizen');
   }
 
   // 2. AuthUser mapping - Municipal Admin
@@ -64,9 +69,12 @@ export async function runAuthServiceTests(): Promise<{ passed: number; failed: n
       updated_at: new Date().toISOString(),
     };
 
-    const authAdmin = AuthService.mapSupabaseUserToAuthUser(mockAdmin);
-    assert(authAdmin.role === 'municipal_admin', '2a. Maps municipal_admin role correctly');
+    const authAdmin = AuthService.mapSupabaseUserToAuthUser(mockAdmin, null, 'municipal_admin');
+    assert(authAdmin.role === 'municipal_admin', '2a. Maps verified DB municipal_admin role correctly');
     assert(authAdmin.fullName === 'Municipal Commissioner', '2b. Maps commissioner name correctly');
+
+    const unverifiedAdmin = AuthService.mapSupabaseUserToAuthUser(mockAdmin, null, null);
+    assert(unverifiedAdmin.role === 'citizen', '2c. Metadata admin role ignored without DB role; strictly defaults to citizen');
   }
 
   // 3. AuthUser mapping - Anti-Escalation Check (Strict Citizen Default)
@@ -166,6 +174,137 @@ export async function runAuthServiceTests(): Promise<{ passed: number; failed: n
     assert(typeof AuthService.signOut === 'function', '9a. AuthService exposes signOut API');
     assert(typeof AuthService.signInWithPassword === 'function', '9b. AuthService exposes signInWithPassword API');
     assert(typeof AuthService.signUp === 'function', '9c. AuthService exposes signUp API');
+  }
+
+  // 10. Public Signup Role Escalation Prevention
+  {
+    const originalSignUp = supabase.auth.signUp.bind(supabase.auth);
+    let capturedOptions: any = null;
+    (supabase.auth as any).signUp = async (params: any) => {
+      capturedOptions = params;
+      return {
+        data: {
+          user: {
+            id: 'usr-new-registered-citizen',
+            email: params.email,
+            user_metadata: params.options?.data,
+            app_metadata: {},
+            aud: 'authenticated',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          },
+          session: null,
+        },
+        error: null,
+      };
+    };
+
+    try {
+      const res = await AuthService.signUp('attacker@example.com', 'secretPassword123', {
+        fullName: 'Attacker User',
+        // Attempt client-side privileged role escalation
+        ...({ role: 'super_admin', is_admin: true } as any),
+      });
+
+      assert(res.error === null, '10a. Public signup executes successfully without network error');
+      assert(
+        capturedOptions?.options?.data?.role === 'citizen',
+        '10b. Privileged role self-assignment is overridden to "citizen" in Supabase Auth data payload'
+      );
+      assert(
+        res.user?.role === 'citizen',
+        '10c. Authenticated user returned from public signup strictly resolves to "citizen"'
+      );
+    } finally {
+      (supabase.auth as any).signUp = originalSignUp;
+    }
+  }
+
+  // 11. Authoritative User Verification Status (isVerified)
+  {
+    const verifiedUser: User = {
+      id: 'usr-verified-01',
+      app_metadata: {},
+      user_metadata: {},
+      aud: 'authenticated',
+      created_at: new Date().toISOString(),
+      email: 'citizen.confirmed@example.com',
+      email_confirmed_at: '2026-09-27T10:00:00Z',
+      phone: '',
+      role: 'authenticated',
+      updated_at: new Date().toISOString(),
+    };
+
+    const unconfirmedUser: User = {
+      id: 'usr-unconfirmed-01',
+      app_metadata: {},
+      user_metadata: {},
+      aud: 'authenticated',
+      created_at: new Date().toISOString(),
+      email: 'citizen.unconfirmed@example.com',
+      email_confirmed_at: undefined,
+      phone: '',
+      role: 'authenticated',
+      updated_at: new Date().toISOString(),
+    };
+
+    const spoofedMetadataUser: User = {
+      id: 'usr-spoofed-01',
+      app_metadata: {},
+      user_metadata: {
+        is_verified: true, // Spoofed client metadata
+      },
+      aud: 'authenticated',
+      created_at: new Date().toISOString(),
+      email: 'citizen.spoofed@example.com',
+      email_confirmed_at: undefined,
+      phone: '',
+      role: 'authenticated',
+      updated_at: new Date().toISOString(),
+    };
+
+    const authVerified = AuthService.mapSupabaseUserToAuthUser(verifiedUser);
+    const authUnconfirmed = AuthService.mapSupabaseUserToAuthUser(unconfirmedUser);
+    const authSpoofed = AuthService.mapSupabaseUserToAuthUser(spoofedMetadataUser);
+
+    assert(authVerified.isVerified === true, '11a. User with valid email_confirmed_at resolves to isVerified: true');
+    assert(authUnconfirmed.isVerified === false, '11b. User without email_confirmed_at resolves to isVerified: false');
+    assert(authSpoofed.isVerified === false, '11c. Spoofed meta.is_verified is untrusted and rejected when email_confirmed_at is missing');
+  }
+
+  // 12. Supabase Client Configuration & Zero Hardcoded Credential Fallback
+  {
+    const hasUrl = Boolean(
+      (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_SUPABASE_URL) ||
+        process.env.VITE_SUPABASE_URL
+    );
+    const hasKey = Boolean(
+      (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_SUPABASE_ANON_KEY) ||
+        process.env.VITE_SUPABASE_ANON_KEY
+    );
+    assert(hasUrl, '12a. VITE_SUPABASE_URL environment variable is actively configured');
+    assert(hasKey, '12b. VITE_SUPABASE_ANON_KEY environment variable is actively configured');
+
+    const activeUrl =
+      ((typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_SUPABASE_URL) ||
+        process.env.VITE_SUPABASE_URL ||
+        '') as string;
+    assert(!activeUrl.includes('qxiivlfecbklwtnfsnjg'), '12c. Production project ref qxiivlfecbklwtnfsnjg is not used as a fallback');
+  }
+
+  // 13. Phase 6: Gemini API Key Client Isolation & PII Output Guard
+  {
+    const clientGeminiKey =
+      (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_GEMINI_API_KEY) ||
+      process.env.VITE_GEMINI_API_KEY;
+
+    assert(!clientGeminiKey, '13a. VITE_GEMINI_API_KEY is not exposed to client-side bundle or environment');
+
+    const sampleAiOutput = 'Alert: Contact citizen at 9876543210 or citizen@civic.in regarding Aadhaar 1234 5678 9012.';
+    const masked = GroundingSecurityGuard.maskPII(sampleAiOutput);
+    assert(!masked.includes('9876543210'), '13b. AI output guard redacts mobile phone numbers');
+    assert(!masked.includes('citizen@civic.in'), '13c. AI output guard redacts citizen email addresses');
+    assert(!masked.includes('1234 5678 9012'), '13d. AI output guard redacts Aadhaar numbers');
   }
 
   console.log(`✅ Phase 9B Authentication Tests Finished: ${passed} passed, ${failed} failed`);

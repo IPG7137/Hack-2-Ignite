@@ -1,3 +1,4 @@
+import './testEnvSetup';
 import { runSimilarityTests } from './similarityEngine.test';
 import { runPriorityTests } from './priorityEngine.test';
 import { runEmergingProblemTests } from './emergingProblemEngine.test';

@@ -42,10 +42,11 @@ export const MunicipalAuthScreen: React.FC = () => {
     await signIn(email, password);
   };
 
-  const handleDemoFill = (demoEmail: string, demoPass: string) => {
+  const handleDemoLogin = async (demoEmail: string, demoPass: string) => {
     clearError();
     setEmail(demoEmail);
     setPassword(demoPass);
+    await signIn(demoEmail, demoPass);
   };
 
   return (
@@ -237,7 +238,7 @@ export const MunicipalAuthScreen: React.FC = () => {
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       type="button"
-                      onClick={() => handleDemoFill(DEMO_CREDENTIALS.officer.email, DEMO_CREDENTIALS.officer.password)}
+                      onClick={() => handleDemoLogin(DEMO_CREDENTIALS.officer.email, DEMO_CREDENTIALS.officer.password)}
                       className="p-2 rounded-lg bg-[#F8FAFC] hover:bg-blue-50 border border-[#D9E2EC] hover:border-blue-300 text-left transition-all group cursor-pointer"
                     >
                       <div className="text-[11px] font-bold text-[#123B6D] group-hover:text-[#1769D2]">
@@ -250,11 +251,11 @@ export const MunicipalAuthScreen: React.FC = () => {
 
                     <button
                       type="button"
-                      onClick={() => handleDemoFill(DEMO_CREDENTIALS.admin.email, DEMO_CREDENTIALS.admin.password)}
+                      onClick={() => handleDemoLogin(DEMO_CREDENTIALS.admin.email, DEMO_CREDENTIALS.admin.password)}
                       className="p-2 rounded-lg bg-[#F8FAFC] hover:bg-blue-50 border border-[#D9E2EC] hover:border-blue-300 text-left transition-all group cursor-pointer"
                     >
                       <div className="text-[11px] font-bold text-[#123B6D] group-hover:text-[#1769D2]">
-                        Municipal Admin
+                        Municipal Admin (1-Click)
                       </div>
                       <div className="text-[10px] text-[#718096] font-mono truncate">
                         {DEMO_CREDENTIALS.admin.email}
@@ -262,7 +263,7 @@ export const MunicipalAuthScreen: React.FC = () => {
                     </button>
                   </div>
                   <p className="text-[10px] text-[#718096] mt-2 leading-tight">
-                    ⚡ <em>Clicking fills demo credentials into the form. Authentication executes via live Supabase Auth.</em>
+                    ⚡ <em>Click to instantly enter the Municipal Command Center with authenticated session.</em>
                   </p>
                 </div>
               </div>

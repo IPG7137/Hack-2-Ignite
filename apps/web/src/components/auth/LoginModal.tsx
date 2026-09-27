@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { Shield, Lock, Mail, User, Building, MapPin, X, AlertCircle, CheckCircle2, ArrowRight } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { Button } from '../ui/Button';
-import { UserRole } from '../../services/authService';
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -21,7 +20,6 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
   const [signupEmail, setSignupEmail] = useState('');
   const [signupPassword, setSignupPassword] = useState('');
   const [fullName, setFullName] = useState('');
-  const [role, setRole] = useState<UserRole>('officer');
   const [departmentName, setDepartmentName] = useState('Public Works & Infrastructure');
   const [ward, setWard] = useState('Zone 2 Command');
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -48,7 +46,6 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
 
     const res = await signUp(signupEmail, signupPassword, {
       fullName,
-      role,
       departmentName,
       ward,
     });
@@ -253,17 +250,14 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-xs font-bold text-[#172B4D] mb-1">Assigned Role</label>
-                  <select
-                    value={role}
-                    onChange={(e) => setRole(e.target.value as UserRole)}
-                    className="w-full rounded-lg border border-[#D9E2EC] bg-slate-50/50 px-2 py-2 text-xs text-[#172B4D] focus:border-[#1769D2] focus:bg-white focus:outline-hidden focus:ring-1 focus:ring-[#1769D2]"
-                  >
-                    <option value="officer">Field Officer</option>
-                    <option value="dept_admin">Dept Admin</option>
-                    <option value="municipal_admin">Municipal Admin</option>
-                    <option value="citizen">Citizen</option>
-                  </select>
+                  <label className="block text-xs font-bold text-[#172B4D] mb-1">Account Role</label>
+                  <input
+                    type="text"
+                    readOnly
+                    disabled
+                    value="Citizen (Public Account)"
+                    className="w-full rounded-lg border border-[#D9E2EC] bg-slate-100 px-2 py-2 text-xs text-[#526581] cursor-not-allowed select-none"
+                  />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-[#172B4D] mb-1">Ward / Command</label>

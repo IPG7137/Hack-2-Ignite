@@ -1,56 +1,57 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class AppConfig {
-  static const String _defaultSupabaseUrl = '';
-  static const String _defaultSupabaseAnonKey = '';
-  static const String _defaultGeminiApiKey = '';
+  // Compile-time environment configuration via --dart-define or --dart-define-from-file
+  static const String _envSupabaseUrl = String.fromEnvironment('SUPABASE_URL');
+  static const String _envSupabaseAnonKey = String.fromEnvironment('SUPABASE_ANON_KEY');
 
   /// Returns true if required backend Supabase parameters are present
   static bool get isConfigured => supabaseUrl.isNotEmpty && supabaseAnonKey.isNotEmpty;
 
-  /// Initialize environment variables
+  /// Initialize environment configuration
   static Future<void> initialize() async {
-    try {
-      await dotenv.load(fileName: ".env");
-      print('✅ AppConfig: Loaded .env configuration successfully');
-    } catch (e) {
-      print('ℹ️ AppConfig: Local .env asset not loaded, using compile-time environment flags (--dart-define / --dart-define-from-file)');
+    // Priority 1: Compile-time environment flags (--dart-define / --dart-define-from-file)
+    if (_envSupabaseUrl.isNotEmpty && _envSupabaseAnonKey.isNotEmpty) {
+      if (kDebugMode) {
+        debugPrint('✅ AppConfig: Initialized using compile-time environment flags (--dart-define / --dart-define-from-file)');
+      }
+      return;
     }
 
-    if (!isConfigured) {
-      print('⚠️ [CivicResolve Configuration Warning]: SUPABASE_URL or SUPABASE_ANON_KEY is missing from environment.\n'
-          'Please provide configuration via --dart-define=SUPABASE_URL=... --dart-define=SUPABASE_ANON_KEY=... '
-          'or --dart-define-from-file=.env');
+    // Optional debug fallback: load local .env if present (only in debug mode)
+    if (kDebugMode) {
+      try {
+        await dotenv.load(fileName: ".env");
+        debugPrint('ℹ️ AppConfig: Loaded development .env file');
+      } catch (_) {
+        // .env asset is intentionally not packaged in production releases for security
+      }
+    }
+
+    if (!isConfigured && kDebugMode) {
+      debugPrint('⚠️ [CivicResolve Configuration Warning]: SUPABASE_URL or SUPABASE_ANON_KEY is missing.\n'
+          'Please provide configuration at compile time:\n'
+          '  flutter run --dart-define-from-file=.env\n'
+          '  or --dart-define=SUPABASE_URL=... --dart-define=SUPABASE_ANON_KEY=...');
     }
   }
 
-  /// Supabase project URL
+  /// Supabase project URL (reads compile-time define, then optional debug dotenv)
   static String get supabaseUrl {
+    if (_envSupabaseUrl.isNotEmpty) return _envSupabaseUrl;
     if (dotenv.isInitialized && (dotenv.env['SUPABASE_URL']?.isNotEmpty ?? false)) {
       return dotenv.env['SUPABASE_URL']!;
     }
-    const envUrl = String.fromEnvironment('SUPABASE_URL');
-    if (envUrl.isNotEmpty) return envUrl;
-    return _defaultSupabaseUrl;
+    return '';
   }
 
-  /// Supabase Anonymous JWT Key
+  /// Supabase Anonymous JWT Key (public client-side key governed by PostgreSQL RLS)
   static String get supabaseAnonKey {
+    if (_envSupabaseAnonKey.isNotEmpty) return _envSupabaseAnonKey;
     if (dotenv.isInitialized && (dotenv.env['SUPABASE_ANON_KEY']?.isNotEmpty ?? false)) {
       return dotenv.env['SUPABASE_ANON_KEY']!;
     }
-    const envKey = String.fromEnvironment('SUPABASE_ANON_KEY');
-    if (envKey.isNotEmpty) return envKey;
-    return _defaultSupabaseAnonKey;
-  }
-
-  /// Google Gemini AI API Key (Dev / Prototype direct integration)
-  static String get geminiApiKey {
-    if (dotenv.isInitialized && (dotenv.env['GEMINI_API_KEY']?.isNotEmpty ?? false)) {
-      return dotenv.env['GEMINI_API_KEY']!;
-    }
-    const envKey = String.fromEnvironment('GEMINI_API_KEY');
-    if (envKey.isNotEmpty) return envKey;
-    return _defaultGeminiApiKey;
+    return '';
   }
 }
