@@ -26,6 +26,10 @@ export interface IComplaintService {
   updateStatus(id: string, newStatus: ComplaintStatus, officerName: string, notes?: string, proofImageUrl?: string): Promise<Complaint>;
   addAdminNote(id: string, author: string, text: string, isInternal?: boolean): Promise<Complaint>;
   assignOfficer(id: string, officerName: string, departmentName: string, contractorName?: string): Promise<Complaint>;
+  changePriority(id: string, newPriority: ComplaintPriority, actorName: string, reason?: string): Promise<Complaint>;
+  submitResolution(id: string, officerName: string, resolutionNotes: string, proofImageUrl?: string): Promise<Complaint>;
+  submitCitizenVerification(id: string, satisfied: boolean, comment?: string, reopenReason?: string, proofPhotoUrl?: string): Promise<Complaint>;
+  reopenComplaint(id: string, actorName: string, reason: string, proofUrl?: string): Promise<Complaint>;
   createJointAction(req: JointActionRequest): Promise<JointActionResult>;
   getIncidentClusters(): Promise<IncidentClusterRecord[]>;
 }

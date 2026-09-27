@@ -17,18 +17,24 @@ import {
   Flame,
   Activity,
   Layers,
+  Eye,
+  RotateCcw,
+  CheckSquare,
+  TrendingUp,
 } from 'lucide-react';
-import { Complaint, ComplaintStatus } from '../types/complaint';
+import { Complaint, ComplaintStatus, ComplaintPriority } from '../types/complaint';
 import { StatusStepper } from '../components/complaints/StatusStepper';
 import { BeforeAfterInspector } from '../components/complaints/BeforeAfterInspector';
 import { RelatedComplaintsPanel } from '../components/complaints/RelatedComplaintsPanel';
+import { CitizenVerificationActionBox } from '../components/complaints/CitizenVerificationActionBox';
+import { CitizenComplaintTrackerModal } from '../components/complaints/CitizenComplaintTrackerModal';
 import { Badge } from '../components/ui/Badge';
 import { StatusBadge } from '../components/ui/StatusBadge';
 import { PriorityBadge } from '../components/ui/PriorityBadge';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { Input } from '../components/ui/Input';
-import { NEXT_VALID_STATUS, COMPLAINT_STATUS_CONFIG } from '../lib/constants';
+import { NEXT_VALID_STATUS, COMPLAINT_STATUS_CONFIG, ALLOWED_STATUS_TRANSITIONS } from '../lib/constants';
 import { formatDateTime } from '../lib/utils';
 import { supabase } from '../services/supabaseClient';
 import { complaintService } from '../services/complaintService';
@@ -53,6 +59,29 @@ interface ComplaintDetailsProps {
     departmentName: string,
     contractorName?: string
   ) => Promise<any>;
+  onChangePriority?: (
+    id: string,
+    newPriority: ComplaintPriority,
+    reason?: string
+  ) => Promise<any>;
+  onSubmitResolution?: (
+    id: string,
+    officerName: string,
+    resolutionNotes: string,
+    proofImageUrl?: string
+  ) => Promise<any>;
+  onCitizenVerify?: (
+    id: string,
+    satisfied: boolean,
+    comment?: string,
+    reopenReason?: string,
+    proofPhotoUrl?: string
+  ) => Promise<any>;
+  onReopenComplaint?: (
+    id: string,
+    reason: string,
+    proofUrl?: string
+  ) => Promise<any>;
   onAddNote: (id: string, text: string) => Promise<any>;
   onRefresh?: () => Promise<void>;
   loading?: boolean;
@@ -65,6 +94,10 @@ export const ComplaintDetails: React.FC<ComplaintDetailsProps> = ({
   onBack,
   onAdvanceStatus,
   onAssignOfficer,
+  onChangePriority,
+  onSubmitResolution,
+  onCitizenVerify,
+  onReopenComplaint,
   onAddNote,
   onRefresh,
   loading = false,
@@ -79,6 +112,23 @@ export const ComplaintDetails: React.FC<ComplaintDetailsProps> = ({
   const [selectedNextStatus, setSelectedNextStatus] = useState<ComplaintStatus | null>(null);
   const [showAdvanceModal, setShowAdvanceModal] = useState(false);
   const [showAssignModal, setShowAssignModal] = useState(false);
+  const [showTrackerModal, setShowTrackerModal] = useState(false);
+  const [showPriorityModal, setShowPriorityModal] = useState(false);
+  const [showResolutionModal, setShowResolutionModal] = useState(false);
+  const [showReopenModal, setShowReopenModal] = useState(false);
+
+  // Priority form state
+  const [targetPriority, setTargetPriority] = useState<ComplaintPriority>('high');
+  const [priorityReason, setPriorityReason] = useState('');
+
+  // Resolution form state
+  const [resolutionOfficerName, setResolutionOfficerName] = useState('');
+  const [resolutionNotesInput, setResolutionNotesInput] = useState('');
+  const [resolutionProofUrlInput, setResolutionProofUrlInput] = useState('');
+
+  // Reopen form state
+  const [reopenReasonInput, setReopenReasonInput] = useState('');
+  const [reopenProofUrlInput, setReopenProofUrlInput] = useState('');
 
   // Assignment form state
   const [officerName, setOfficerName] = useState('');
@@ -267,21 +317,151 @@ export const ComplaintDetails: React.FC<ComplaintDetailsProps> = ({
     }
   };
 
-  const handleLogNote = async () => {
-    if (!noteText.trim()) return;
+  const handlePriorityConfirm = async () => {
     try {
       setActionLoading(true);
-      await onAddNote(complaint.id, noteText.trim());
-      setNoteText('');
+      setFeedbackMessage(null);
+      if (onChangePriority) {
+        await onChangePriority(complaint.id, targetPriority, priorityReason.trim() || undefined);
+      } else {
+        await complaintService.changePriority(complaint.id, targetPriority, 'Executive Duty Officer', priorityReason.trim() || undefined);
+      }
+      setShowPriorityModal(false);
+      setPriorityReason('');
       setFeedbackMessage({
         type: 'success',
-        text: 'Internal administrative note logged successfully.',
+        text: `Priority successfully updated to ${targetPriority.toUpperCase()}`,
       });
+      await loadFullDossier(complaint.id);
       if (onRefresh) await onRefresh();
     } catch (err: any) {
       setFeedbackMessage({
         type: 'error',
-        text: err.message || 'Failed to save note',
+        text: err.message || 'Failed to update priority',
+      });
+    } finally {
+      setActionLoading(false);
+      setTimeout(() => setFeedbackMessage(null), 4000);
+    }
+  };
+
+  const handleResolutionConfirm = async () => {
+    if (!resolutionNotesInput.trim()) {
+      alert('Please enter resolution remarks describing the completed work.');
+      return;
+    }
+    try {
+      setActionLoading(true);
+      setFeedbackMessage(null);
+      const officer = resolutionOfficerName.trim() || complaint.assignment?.officerName || 'Field Duty Officer';
+      if (onSubmitResolution) {
+        await onSubmitResolution(complaint.id, officer, resolutionNotesInput.trim(), resolutionProofUrlInput.trim() || undefined);
+      } else {
+        await complaintService.submitResolution(complaint.id, officer, resolutionNotesInput.trim(), resolutionProofUrlInput.trim() || undefined);
+      }
+      setShowResolutionModal(false);
+      setResolutionNotesInput('');
+      setResolutionProofUrlInput('');
+      setFeedbackMessage({
+        type: 'success',
+        text: 'Resolution evidence recorded. Awaiting citizen verification.',
+      });
+      await loadFullDossier(complaint.id);
+      if (onRefresh) await onRefresh();
+    } catch (err: any) {
+      setFeedbackMessage({
+        type: 'error',
+        text: err.message || 'Failed to submit resolution',
+      });
+    } finally {
+      setActionLoading(false);
+      setTimeout(() => setFeedbackMessage(null), 4000);
+    }
+  };
+
+  const handleReopenConfirm = async () => {
+    if (!reopenReasonInput.trim()) {
+      alert('Please enter a valid reason for reopening this grievance.');
+      return;
+    }
+    try {
+      setActionLoading(true);
+      setFeedbackMessage(null);
+      if (onReopenComplaint) {
+        await onReopenComplaint(complaint.id, reopenReasonInput.trim(), reopenProofUrlInput.trim() || undefined);
+      } else {
+        await complaintService.reopenComplaint(complaint.id, 'Municipal Administrator', reopenReasonInput.trim(), reopenProofUrlInput.trim() || undefined);
+      }
+      setShowReopenModal(false);
+      setReopenReasonInput('');
+      setReopenProofUrlInput('');
+      setFeedbackMessage({
+        type: 'success',
+        text: 'Grievance reopened for municipal field team intervention.',
+      });
+      await loadFullDossier(complaint.id);
+      if (onRefresh) await onRefresh();
+    } catch (err: any) {
+      setFeedbackMessage({
+        type: 'error',
+        text: err.message || 'Failed to reopen grievance',
+      });
+    } finally {
+      setActionLoading(false);
+      setTimeout(() => setFeedbackMessage(null), 4000);
+    }
+  };
+
+  const handleCitizenVerify = async (
+    satisfied: boolean,
+    comment?: string,
+    reopenReason?: string,
+    proofPhotoUrl?: string
+  ) => {
+    try {
+      setActionLoading(true);
+      setFeedbackMessage(null);
+      if (onCitizenVerify) {
+        await onCitizenVerify(complaint.id, satisfied, comment, reopenReason, proofPhotoUrl);
+      } else {
+        await complaintService.submitCitizenVerification(complaint.id, satisfied, comment, reopenReason, proofPhotoUrl);
+      }
+      setFeedbackMessage({
+        type: 'success',
+        text: satisfied
+          ? 'Resolution verified by citizen. Grievance closed!'
+          : 'Citizen rejected resolution. Grievance reopened for work.',
+      });
+      await loadFullDossier(complaint.id);
+      if (onRefresh) await onRefresh();
+    } catch (err: any) {
+      setFeedbackMessage({
+        type: 'error',
+        text: err.message || 'Failed to process citizen verification',
+      });
+    } finally {
+      setActionLoading(false);
+      setTimeout(() => setFeedbackMessage(null), 4000);
+    }
+  };
+
+  const handleLogNote = async () => {
+    if (!noteText.trim()) return;
+    try {
+      setActionLoading(true);
+      setFeedbackMessage(null);
+      await onAddNote(complaint.id, noteText.trim());
+      setNoteText('');
+      setFeedbackMessage({
+        type: 'success',
+        text: 'Internal administrative note logged in audit ledger.',
+      });
+      await loadFullDossier(complaint.id);
+      if (onRefresh) await onRefresh();
+    } catch (err: any) {
+      setFeedbackMessage({
+        type: 'error',
+        text: err.message || 'Failed to record administrative note',
       });
     } finally {
       setActionLoading(false);
@@ -311,7 +491,7 @@ export const ComplaintDetails: React.FC<ComplaintDetailsProps> = ({
 
       {/* Top Bar: Back & Action */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-2 border-b border-[#D9E2EC]">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <Button
             variant="outline"
             size="sm"
@@ -332,7 +512,34 @@ export const ComplaintDetails: React.FC<ComplaintDetailsProps> = ({
         </div>
 
         {/* Action Buttons */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Dedicated Citizen Tracker Modal Launcher */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowTrackerModal(true)}
+            className="h-8 text-xs bg-teal-50 border-teal-200 text-teal-800 hover:bg-teal-100 font-semibold gap-1.5 shadow-2xs"
+          >
+            <Eye className="w-3.5 h-3.5 text-teal-700" />
+            <span>Citizen Tracker View</span>
+          </Button>
+
+          {/* Change Priority Button */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setTargetPriority(complaint.priority);
+              setPriorityReason('');
+              setShowPriorityModal(true);
+            }}
+            className="h-8 text-xs bg-white border-[#D9E2EC] text-[#172B4D] hover:bg-slate-50"
+          >
+            <TrendingUp className="w-3.5 h-3.5 mr-1 text-[#526581]" />
+            <span>Escalate Priority</span>
+          </Button>
+
+          {/* Assign Officer Button */}
           <Button
             variant="outline"
             size="sm"
@@ -348,6 +555,42 @@ export const ComplaintDetails: React.FC<ComplaintDetailsProps> = ({
             <span>{complaint.assignment ? 'Reassign' : 'Assign Officer'}</span>
           </Button>
 
+          {/* Direct Mark Resolved Action */}
+          {(complaint.status === 'in_progress' || complaint.status === 'assigned' || complaint.status === 'reopened') && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setResolutionOfficerName(complaint.assignment?.officerName || '');
+                setResolutionNotesInput('');
+                setResolutionProofUrlInput('');
+                setShowResolutionModal(true);
+              }}
+              className="h-8 text-xs bg-emerald-50 border-emerald-300 text-emerald-800 hover:bg-emerald-100 font-semibold"
+            >
+              <CheckSquare className="w-3.5 h-3.5 mr-1 text-emerald-700" />
+              <span>Mark Resolved</span>
+            </Button>
+          )}
+
+          {/* Reopen Action (If closed or rejected) */}
+          {(complaint.status === 'closed' || complaint.status === 'rejected') && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setReopenReasonInput('');
+                setReopenProofUrlInput('');
+                setShowReopenModal(true);
+              }}
+              className="h-8 text-xs bg-rose-50 border-rose-300 text-rose-800 hover:bg-rose-100 font-semibold"
+            >
+              <RotateCcw className="w-3.5 h-3.5 mr-1 text-rose-700" />
+              <span>Reopen Grievance</span>
+            </Button>
+          )}
+
+          {/* Standard Status Stepping Button */}
           <Button
             variant="primary"
             size="sm"
@@ -434,6 +677,13 @@ export const ComplaintDetails: React.FC<ComplaintDetailsProps> = ({
               </div>
             </div>
           </Card>
+
+          {/* Citizen Verification Action Box (If in verification, closed, or reopened stage) */}
+          <CitizenVerificationActionBox
+            complaint={complaint}
+            onVerify={handleCitizenVerify}
+            loading={actionLoading}
+          />
 
           {/* Before & After Photographic Evidence Inspector */}
           <BeforeAfterInspector
@@ -1042,6 +1292,230 @@ export const ComplaintDetails: React.FC<ComplaintDetailsProps> = ({
           </div>
         </div>
       )}
+
+      {/* Escalate Priority Modal */}
+      {showPriorityModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+          <div className="bg-white border border-[#D9E2EC] rounded-lg p-5 max-w-md w-full space-y-4 shadow-2xl">
+            <div>
+              <h3 className="text-sm font-bold text-[#123B6D] uppercase tracking-wider flex items-center gap-1.5">
+                <TrendingUp className="w-4 h-4 text-orange-600" />
+                <span>Escalate Grievance Priority</span>
+              </h3>
+              <p className="text-xs text-[#526581] mt-1">
+                Adjust statutory SLA urgency for grievance #{complaint.id}.
+              </p>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="text-[10px] font-mono text-[#526581] uppercase font-semibold block mb-1">
+                  Target Priority Level
+                </label>
+                <select
+                  value={targetPriority}
+                  onChange={(e) => setTargetPriority(e.target.value as ComplaintPriority)}
+                  className="w-full p-2 rounded border border-[#D9E2EC] bg-white text-xs font-semibold text-[#172B4D]"
+                >
+                  <option value="urgent">🔴 Urgent / Critical (12h SLA)</option>
+                  <option value="high">🟠 High (24h SLA)</option>
+                  <option value="medium">🟡 Medium (48h SLA)</option>
+                  <option value="low">🔵 Low (72h SLA)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-[10px] font-mono text-[#526581] uppercase font-semibold block mb-1">
+                  Reason for Priority Change
+                </label>
+                <Input
+                  value={priorityReason}
+                  onChange={(e) => setPriorityReason(e.target.value)}
+                  placeholder="e.g. Flooding risking nearby hospital entrance..."
+                  className="bg-white border-[#D9E2EC] text-[#172B4D]"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#E8EEF5]">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowPriorityModal(false)}
+                disabled={actionLoading}
+                className="text-[#526581] hover:text-[#172B4D]"
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={handlePriorityConfirm}
+                disabled={actionLoading}
+                className="bg-[#1769D2] hover:bg-[#123B6D] text-white"
+              >
+                {actionLoading ? 'Updating...' : 'Confirm Priority Escalation'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Submit Resolution Evidence Modal */}
+      {showResolutionModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+          <div className="bg-white border border-[#D9E2EC] rounded-lg p-5 max-w-md w-full space-y-4 shadow-2xl">
+            <div>
+              <h3 className="text-sm font-bold text-emerald-800 uppercase tracking-wider flex items-center gap-1.5">
+                <CheckSquare className="w-4 h-4 text-emerald-600" />
+                <span>Submit Resolution Evidence</span>
+              </h3>
+              <p className="text-xs text-[#526581] mt-1">
+                Upload proof of work completion for grievance #{complaint.id}. This requests citizen sign-off.
+              </p>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="text-[10px] font-mono text-[#526581] uppercase font-semibold block mb-1">
+                  Remediating Officer / Engineer Name
+                </label>
+                <Input
+                  value={resolutionOfficerName}
+                  onChange={(e) => setResolutionOfficerName(e.target.value)}
+                  placeholder="e.g. Er. S. Patil (Junior Engineer)"
+                  className="bg-white border-[#D9E2EC] text-[#172B4D]"
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] font-mono text-[#526581] uppercase font-semibold block mb-1">
+                  Resolution Remarks & Actions Taken *
+                </label>
+                <textarea
+                  rows={3}
+                  required
+                  value={resolutionNotesInput}
+                  onChange={(e) => setResolutionNotesInput(e.target.value)}
+                  placeholder="e.g. Asphalt patch layered and compacted; drainage cleared of silt; verified water flow..."
+                  className="w-full p-2.5 rounded border border-[#D9E2EC] bg-white text-xs text-[#172B4D] focus:outline-none focus:border-emerald-600"
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] font-mono text-[#526581] uppercase font-semibold block mb-1">
+                  After-Remediation Photo Proof URL (Optional)
+                </label>
+                <Input
+                  value={resolutionProofUrlInput}
+                  onChange={(e) => setResolutionProofUrlInput(e.target.value)}
+                  placeholder="https://... geotagged photo proof of completed work"
+                  className="bg-white border-[#D9E2EC] text-[#172B4D]"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#E8EEF5]">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowResolutionModal(false)}
+                disabled={actionLoading}
+                className="text-[#526581] hover:text-[#172B4D]"
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={handleResolutionConfirm}
+                disabled={actionLoading || !resolutionNotesInput.trim()}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
+              >
+                {actionLoading ? 'Recording...' : 'Confirm Resolution'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reopen Grievance Modal */}
+      {showReopenModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+          <div className="bg-white border border-[#D9E2EC] rounded-lg p-5 max-w-md w-full space-y-4 shadow-2xl">
+            <div>
+              <h3 className="text-sm font-bold text-rose-800 uppercase tracking-wider flex items-center gap-1.5">
+                <RotateCcw className="w-4 h-4 text-rose-600" />
+                <span>Reopen Grievance</span>
+              </h3>
+              <p className="text-xs text-[#526581] mt-1">
+                Reopen grievance #{complaint.id} and dispatch municipal field teams.
+              </p>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="text-[10px] font-mono text-[#526581] uppercase font-semibold block mb-1">
+                  Reason for Reopening *
+                </label>
+                <textarea
+                  rows={3}
+                  required
+                  value={reopenReasonInput}
+                  onChange={(e) => setReopenReasonInput(e.target.value)}
+                  placeholder="e.g. Citizen reported recurrence within 48h; on-site inspection confirmed defective patch..."
+                  className="w-full p-2.5 rounded border border-[#D9E2EC] bg-white text-xs text-[#172B4D] focus:outline-none focus:border-rose-600"
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] font-mono text-[#526581] uppercase font-semibold block mb-1">
+                  Inspection Proof URL (Optional)
+                </label>
+                <Input
+                  value={reopenProofUrlInput}
+                  onChange={(e) => setReopenProofUrlInput(e.target.value)}
+                  placeholder="https://... photo link of ongoing defect"
+                  className="bg-white border-[#D9E2EC] text-[#172B4D]"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#E8EEF5]">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowReopenModal(false)}
+                disabled={actionLoading}
+                className="text-[#526581] hover:text-[#172B4D]"
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={handleReopenConfirm}
+                disabled={actionLoading || !reopenReasonInput.trim()}
+                className="bg-rose-600 hover:bg-rose-700 text-white font-bold"
+              >
+                {actionLoading ? 'Reopening...' : 'Confirm Reopen'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Citizen Complaint Tracker Modal */}
+      <CitizenComplaintTrackerModal
+        complaint={complaint}
+        isOpen={showTrackerModal}
+        onClose={() => setShowTrackerModal(false)}
+        onVerifyResolution={handleCitizenVerify}
+        onRefresh={async () => {
+          await loadFullDossier(complaint.id);
+          if (onRefresh) await onRefresh();
+        }}
+      />
     </div>
   );
 };

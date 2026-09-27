@@ -48,6 +48,10 @@ export function App() {
     updateStatus,
     assignOfficer,
     addAdminNote,
+    changePriority,
+    submitResolution,
+    submitCitizenVerification,
+    reopenComplaint,
     createJointAction,
   } = useComplaints();
 
@@ -204,6 +208,18 @@ export function App() {
           onAdvanceStatus={handleAdvanceStatus}
           onAssignOfficer={async (id, officer, dept, contractor) => {
             await assignOfficer(id, officer, dept, contractor);
+          }}
+          onChangePriority={async (id, newPriority, reason) => {
+            await changePriority(id, newPriority, user?.fullName || 'Executive Duty Officer', reason);
+          }}
+          onSubmitResolution={async (id, officer, resNotes, proofUrl) => {
+            await submitResolution(id, officer, resNotes, proofUrl);
+          }}
+          onCitizenVerify={async (id, sat, com, reop, photo) => {
+            await submitCitizenVerification(id, sat, com, reop, photo);
+          }}
+          onReopenComplaint={async (id, reason, proofUrl) => {
+            await reopenComplaint(id, user?.fullName || 'Municipal Administrator', reason, proofUrl);
           }}
           onAddNote={async (id, text) => {
             await addAdminNote(id, text);

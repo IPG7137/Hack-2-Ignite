@@ -7,6 +7,8 @@ import {
   FileCheck,
   CheckCircle2,
   XCircle,
+  HelpCircle,
+  RotateCcw,
   LucideIcon,
 } from 'lucide-react';
 import { ComplaintStatus } from '../../types/complaint';
@@ -61,7 +63,7 @@ export const STATUS_STYLE_MAP: Record<ComplaintStatus, StatusStyleConfig> = {
     dotColor: '#D97706',
   },
   resolution_submitted: {
-    label: 'Resolution Submitted',
+    label: 'Resolution Evidence',
     icon: FileCheck,
     bg: 'bg-cyan-50',
     border: 'border-cyan-200',
@@ -76,8 +78,16 @@ export const STATUS_STYLE_MAP: Record<ComplaintStatus, StatusStyleConfig> = {
     text: 'text-emerald-700',
     dotColor: '#059669',
   },
+  citizen_verification: {
+    label: 'Citizen Verification',
+    icon: HelpCircle,
+    bg: 'bg-teal-50',
+    border: 'border-teal-200',
+    text: 'text-teal-700',
+    dotColor: '#0D9488',
+  },
   verified: {
-    label: 'Verified',
+    label: 'Verified & Closed',
     icon: CheckCircle2,
     bg: 'bg-emerald-50',
     border: 'border-emerald-200',
@@ -91,6 +101,14 @@ export const STATUS_STYLE_MAP: Record<ComplaintStatus, StatusStyleConfig> = {
     border: 'border-slate-300',
     text: 'text-slate-700',
     dotColor: '#64748B',
+  },
+  reopened: {
+    label: 'Reopened',
+    icon: RotateCcw,
+    bg: 'bg-red-50',
+    border: 'border-red-200',
+    text: 'text-red-700',
+    dotColor: '#DC2626',
   },
   rejected: {
     label: 'Rejected',

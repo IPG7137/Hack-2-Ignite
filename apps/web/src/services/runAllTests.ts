@@ -13,10 +13,11 @@ import { runRLSSecurityTests } from './rlsSecurity.test';
 import { runAIAuthorizationTests } from './aiAuthorization.test';
 import { runIntegrationContractTests } from './integrationContract.test';
 import { runCommandCenterAuthAndQueueTests } from './commandCenterAuthAndQueue.test';
+import { runComplaintLifecycleTests } from './complaintLifecycle.test';
 
 async function main() {
   console.log('===========================================================');
-  console.log('🚀 CIVICRESOLVE TEST SUITE: INTELLIGENCE + SECURITY + RLS');
+  console.log('🚀 CIVICRESOLVE TEST SUITE: INTELLIGENCE + SECURITY + RLS + LIFECYCLE');
   console.log('===========================================================\n');
 
   let totalPassed = 0;
@@ -95,6 +96,12 @@ async function main() {
   totalFailed += res9EF.failed;
   allErrors.push(...res9EF.errors);
 
+  // Phase 11: Statutory Complaint Lifecycle & Citizen Verification
+  const res11 = runComplaintLifecycleTests();
+  totalPassed += res11.passed;
+  totalFailed += res11.failed;
+  allErrors.push(...res11.errors);
+
   // Phase 13: Live Integration Contracts
   const res13 = await runIntegrationContractTests();
   totalPassed += res13.passed;
@@ -121,6 +128,7 @@ async function main() {
   console.log(`   9C Profiles & Roles:       ${res9C.passed}/${res9C.passed + res9C.failed}`);
   console.log(`   9D Secure RLS:             ${res9D.passed}/${res9D.passed + res9D.failed}`);
   console.log(`   9E/9F AI Auth & Security:  ${res9EF.passed}/${res9EF.passed + res9EF.failed}`);
+  console.log(`   11 Lifecycle & Verify:     ${res11.passed}/${res11.passed + res11.failed}`);
   console.log(`   13 Live Integration:       ${res13.passed}/${res13.passed + res13.failed}`);
   console.log(`   14 Auth Gate & Queue:      ${res14.passed}/${res14.passed + res14.failed}`);
   console.log('-----------------------------------------------------------');

@@ -5,8 +5,10 @@ export type ComplaintStatus =
   | 'in_progress'
   | 'resolution_submitted'
   | 'resolved'
+  | 'citizen_verification'
   | 'verified'
   | 'closed'
+  | 'reopened'
   | 'rejected';
 
 export const CANONICAL_STATUS_LIST: readonly ComplaintStatus[] = [
@@ -16,8 +18,10 @@ export const CANONICAL_STATUS_LIST: readonly ComplaintStatus[] = [
   'in_progress',
   'resolution_submitted',
   'resolved',
+  'citizen_verification',
   'verified',
   'closed',
+  'reopened',
   'rejected',
 ];
 
@@ -62,15 +66,35 @@ export interface StatusHistoryItem {
   fromStatus?: ComplaintStatus;
   toStatus: ComplaintStatus;
   changedBy: string;
-  role: 'citizen' | 'officer' | 'contractor' | 'system';
+  role: 'citizen' | 'officer' | 'contractor' | 'system' | 'admin';
   timestamp: string;
+  action?: string;
   notes?: string;
+  reason?: string;
   proofImageUrl?: string;
 }
 
 export interface ComplaintImageEvidence {
   before: string[];
   after?: string[];
+}
+
+export interface ResolutionDetails {
+  resolvedAt: string;
+  resolvedBy: string;
+  resolutionNote: string;
+  proofImageUrl?: string;
+  locationVerified?: boolean;
+}
+
+export interface CitizenVerificationDetails {
+  verifiedAt?: string;
+  satisfied: boolean;
+  comment?: string;
+  reopenReason?: string;
+  verificationPhotoUrl?: string;
+  verifiedByCitizen: boolean;
+  reopenCount?: number;
 }
 
 export interface AIClassification {
@@ -124,6 +148,8 @@ export interface Complaint {
   updatedAt: string;
   resolvedAt?: string;
   closedAt?: string;
+  resolutionDetails?: ResolutionDetails;
+  citizenVerification?: CitizenVerificationDetails;
   citizenFeedback?: {
     rating: number; // 1-5
     comment: string;

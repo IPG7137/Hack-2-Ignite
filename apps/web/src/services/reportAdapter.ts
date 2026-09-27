@@ -112,6 +112,8 @@ export function normalizeStatus(rawStatus?: string): ComplaintStatus {
       return 'submitted';
     case 'under_review':
     case 'review':
+    case 'verified_by_system':
+    case 'system_verified':
       return 'under_review';
     case 'assigned':
       return 'assigned';
@@ -122,8 +124,15 @@ export function normalizeStatus(rawStatus?: string): ComplaintStatus {
       return 'resolution_submitted';
     case 'resolved':
       return 'resolved';
+    case 'citizen_verification':
+    case 'verification':
+    case 'awaiting_citizen_verification':
+      return 'citizen_verification';
     case 'verified':
-      return 'verified';
+      return 'citizen_verification';
+    case 'reopened':
+    case 'verification_failed':
+      return 'reopened';
     case 'closed':
       return 'closed';
     case 'rejected':
@@ -350,7 +359,33 @@ export function mapSupabaseRowToComplaint(
     });
   }
 
-  // 10. Citizen Feedback
+  // 10. Resolution Details
+  let resolutionDetails: Complaint['resolutionDetails'] = undefined;
+  if (row.resolution_notes || row.resolution_image_url || row.completion_date) {
+    resolutionDetails = {
+      resolvedAt: row.completion_date || updatedAt,
+      resolvedBy: row.assigned_to || row.assigned_officer_name || 'Assigned Municipal Officer',
+      resolutionNote: row.resolution_notes || 'Grievance remediated and confirmed on-site.',
+      proofImageUrl: row.resolution_image_url || undefined,
+      locationVerified: true,
+    };
+  }
+
+  // 11. Citizen Verification Details
+  let citizenVerification: Complaint['citizenVerification'] = undefined;
+  if (row.citizen_verification_status || row.citizen_feedback || row.rating || row.reopen_reason) {
+    citizenVerification = {
+      verifiedAt: row.verified_at || (row.rating ? updatedAt : undefined),
+      satisfied: row.rating ? row.rating >= 3 : row.citizen_verification_status === 'verified',
+      comment: row.citizen_feedback || undefined,
+      reopenReason: row.reopen_reason || undefined,
+      verificationPhotoUrl: row.verification_photo_url || undefined,
+      verifiedByCitizen: !!(row.citizen_verification_status || row.citizen_feedback || row.rating),
+      reopenCount: row.reopen_count || 0,
+    };
+  }
+
+  // 12. Citizen Feedback
   let citizenFeedback: Complaint['citizenFeedback'] = undefined;
   if (row.citizen_feedback || row.rating) {
     citizenFeedback = {
@@ -360,7 +395,7 @@ export function mapSupabaseRowToComplaint(
     };
   }
 
-  // 11. Joint Action / Incident Linking
+  // 13. Joint Action / Incident Linking
   let jointIncidentId: string | undefined = row.incident_id || undefined;
   let jointIncidentTitle: string | undefined = undefined;
   if (!jointIncidentId && row.admin_notes) {
@@ -401,6 +436,8 @@ export function mapSupabaseRowToComplaint(
     updatedAt,
     resolvedAt: row.completion_date || undefined,
     closedAt: status === 'closed' ? updatedAt : undefined,
+    resolutionDetails,
+    citizenVerification,
     citizenFeedback,
   };
 }

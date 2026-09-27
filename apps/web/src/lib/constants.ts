@@ -37,7 +37,7 @@ export const COMPLAINT_STATUS_CONFIG: Record<
     stepIndex: 4,
   },
   resolution_submitted: {
-    label: 'Resolution Submitted',
+    label: 'Resolution Evidence',
     color: '#2563EB',
     badgeBg: 'bg-sky-50',
     badgeBorder: 'border-sky-200',
@@ -50,15 +50,23 @@ export const COMPLAINT_STATUS_CONFIG: Record<
     badgeBg: 'bg-emerald-50',
     badgeBorder: 'border-emerald-200',
     badgeText: 'text-emerald-800',
+    stepIndex: 5,
+  },
+  citizen_verification: {
+    label: 'Citizen Verification',
+    color: '#0D9488',
+    badgeBg: 'bg-teal-50',
+    badgeBorder: 'border-teal-200',
+    badgeText: 'text-teal-800',
     stepIndex: 6,
   },
   verified: {
-    label: 'Verified',
-    color: '#16803C',
-    badgeBg: 'bg-emerald-50',
-    badgeBorder: 'border-emerald-200',
-    badgeText: 'text-emerald-800',
-    stepIndex: 6,
+    label: 'Verified & Closed',
+    color: '#0D9488',
+    badgeBg: 'bg-teal-50',
+    badgeBorder: 'border-teal-200',
+    badgeText: 'text-teal-800',
+    stepIndex: 7,
   },
   closed: {
     label: 'Closed',
@@ -67,6 +75,14 @@ export const COMPLAINT_STATUS_CONFIG: Record<
     badgeBorder: 'border-slate-300',
     badgeText: 'text-slate-700',
     stepIndex: 7,
+  },
+  reopened: {
+    label: 'Reopened / In Progress',
+    color: '#DC2626',
+    badgeBg: 'bg-red-50',
+    badgeBorder: 'border-red-200',
+    badgeText: 'text-red-800',
+    stepIndex: 4,
   },
   rejected: {
     label: 'Rejected',
@@ -83,11 +99,27 @@ export const NEXT_VALID_STATUS: Record<ComplaintStatus, ComplaintStatus | null> 
   under_review: 'assigned',
   assigned: 'in_progress',
   in_progress: 'resolution_submitted',
-  resolution_submitted: 'resolved',
-  resolved: 'verified',
+  resolution_submitted: 'citizen_verification',
+  resolved: 'citizen_verification',
+  citizen_verification: 'closed',
   verified: 'closed',
   closed: null,
+  reopened: 'in_progress',
   rejected: null,
+};
+
+export const ALLOWED_STATUS_TRANSITIONS: Record<ComplaintStatus, ComplaintStatus[]> = {
+  submitted: ['under_review', 'assigned', 'rejected'],
+  under_review: ['assigned', 'in_progress', 'rejected'],
+  assigned: ['in_progress', 'under_review'],
+  in_progress: ['resolution_submitted', 'resolved', 'assigned'],
+  resolution_submitted: ['citizen_verification', 'resolved', 'in_progress'],
+  resolved: ['citizen_verification', 'closed', 'in_progress', 'reopened'],
+  citizen_verification: ['closed', 'reopened', 'in_progress'],
+  verified: ['closed', 'reopened'],
+  closed: ['reopened'],
+  reopened: ['in_progress', 'assigned'],
+  rejected: ['submitted', 'under_review'],
 };
 
 export const PRIORITY_CONFIG: Record<

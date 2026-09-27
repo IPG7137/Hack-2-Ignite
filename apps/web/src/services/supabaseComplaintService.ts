@@ -1,7 +1,9 @@
-import { Complaint, ComplaintStatus } from '../types/complaint';
+import { Complaint, ComplaintStatus, ComplaintPriority } from '../types/complaint';
 import { IComplaintService, ComplaintFilterParams } from './api.interface';
 import { supabase } from './supabaseClient';
 import { mapSupabaseRowToComplaint } from './reportAdapter';
+import { ALLOWED_STATUS_TRANSITIONS } from '../lib/constants';
+import { CivicRewardsService } from './civicRewardsService';
 import {
   JointActionRequest,
   JointActionResult,
@@ -20,6 +22,7 @@ import {
 import { isComplaintInDistrict } from '../lib/districtFilter';
 
 export class SupabaseComplaintService implements IComplaintService {
+  private rewardsService = new CivicRewardsService();
   /**
    * Helper to parse string ID (e.g. "CR-12", "CR-PUN-101", or "12") to integer DB ID
    */
@@ -263,13 +266,23 @@ export class SupabaseComplaintService implements IComplaintService {
       throw new Error(`Cannot update status: Invalid complaint ID "${id}"`);
     }
 
+    const current = await this.getComplaintById(id);
+    if (current) {
+      const allowed = ALLOWED_STATUS_TRANSITIONS[current.status] || [];
+      if (!allowed.includes(newStatus) && current.status !== newStatus) {
+        console.warn(
+          `⚠️ Controlled transition notice: moving from ${current.status} to ${newStatus}. Allowed: ${allowed.join(', ')}`
+        );
+      }
+    }
+
     const now = new Date().toISOString();
 
-    // Map web2 status to database status column
-    const dbStatus =
-      newStatus === 'verified'
-        ? 'resolved'
-        : newStatus;
+    // Map web status to database status column
+    let dbStatus: string = newStatus;
+    if (newStatus === 'citizen_verification') {
+      dbStatus = 'resolved';
+    }
 
     const updatePayload: Record<string, any> = {
       status: dbStatus,
@@ -282,11 +295,11 @@ export class SupabaseComplaintService implements IComplaintService {
     if (proofImageUrl) {
       updatePayload.resolution_image_url = proofImageUrl;
     }
-    if (newStatus === 'verified' || newStatus === 'closed' || newStatus === 'resolution_submitted') {
+    if (newStatus === 'resolved' || newStatus === 'citizen_verification' || newStatus === 'closed' || newStatus === 'resolution_submitted') {
       updatePayload.completion_date = now;
     }
 
-    // 1. Update report
+    // 1. Update report in Supabase
     const { error: updateError } = await supabase
       .from('reports')
       .update(updatePayload)
@@ -296,6 +309,7 @@ export class SupabaseComplaintService implements IComplaintService {
       console.warn('⚠️ Notice: Supabase update error, falling back to mock state update:', updateError.message);
       const mock = await this.getComplaintById(id);
       if (mock) {
+        const fromStatus = mock.status;
         mock.status = newStatus;
         mock.updatedAt = now;
         if (notes) {
@@ -307,13 +321,17 @@ export class SupabaseComplaintService implements IComplaintService {
             isInternal: false,
           });
         }
+        if (proofImageUrl) {
+          mock.evidence.after = [proofImageUrl];
+        }
         mock.statusHistory.push({
           id: `SH-${Date.now()}`,
+          fromStatus,
           toStatus: newStatus,
           changedBy: officerName || 'Municipal Officer',
           role: 'officer',
           timestamp: now,
-          notes: notes || `Status updated to ${newStatus}`,
+          notes: notes || `Status transitioned from ${fromStatus} to ${newStatus}`,
           proofImageUrl,
         });
         return mock;
@@ -326,6 +344,7 @@ export class SupabaseComplaintService implements IComplaintService {
       .from('report_status_history')
       .insert({
         report_id: dbId,
+        old_status: current?.status,
         status: dbStatus,
         new_status: dbStatus,
         changed_by: officerName || 'Municipal Officer',
@@ -342,6 +361,384 @@ export class SupabaseComplaintService implements IComplaintService {
       throw new Error(`Complaint #${id} updated but could not be re-fetched.`);
     }
     return fresh;
+  }
+
+  /**
+   * Change Complaint Priority with required audit trail logging
+   */
+  async changePriority(
+    id: string,
+    newPriority: ComplaintPriority,
+    actorName: string,
+    reason?: string
+  ): Promise<Complaint> {
+    const dbId = this.parseDbId(id);
+    if (dbId == null) {
+      throw new Error(`Cannot change priority: Invalid complaint ID "${id}"`);
+    }
+
+    const now = new Date().toISOString();
+    const current = await this.getComplaintById(id);
+    const oldPriority = current?.priority || 'medium';
+    const auditNote = `Priority escalated from ${oldPriority.toUpperCase()} to ${newPriority.toUpperCase()}.${reason ? ` Reason: ${reason}` : ''}`;
+
+    const { error } = await supabase
+      .from('reports')
+      .update({
+        priority: newPriority,
+        updated_at: now,
+      })
+      .eq('id', dbId);
+
+    if (error) {
+      console.warn('⚠️ Notice: Supabase priority update error, falling back to mock state update:', error.message);
+      const mock = await this.getComplaintById(id);
+      if (mock) {
+        mock.priority = newPriority;
+        mock.updatedAt = now;
+        mock.adminNotes.push({
+          id: `AN-${Date.now()}`,
+          author: actorName || 'Municipal Dispatcher',
+          text: auditNote,
+          createdAt: now,
+          isInternal: false,
+        });
+        mock.statusHistory.push({
+          id: `SH-${Date.now()}`,
+          toStatus: mock.status,
+          changedBy: actorName || 'Municipal Dispatcher',
+          role: 'officer',
+          timestamp: now,
+          action: 'priority_changed',
+          notes: auditNote,
+        });
+        return mock;
+      }
+      throw new Error(`Failed to change priority: ${error.message}`);
+    }
+
+    await this.addAdminNote(id, actorName || 'Municipal Dispatcher', auditNote, false);
+
+    const fresh = await this.getComplaintById(id);
+    return fresh || current!;
+  }
+
+  /**
+   * Submits Field Resolution Evidence (After photo, resolution note, and timestamp)
+   */
+  async submitResolution(
+    id: string,
+    officerName: string,
+    resolutionNotes: string,
+    proofImageUrl?: string
+  ): Promise<Complaint> {
+    const dbId = this.parseDbId(id);
+    if (dbId == null) {
+      throw new Error(`Cannot submit resolution: Invalid complaint ID "${id}"`);
+    }
+
+    const now = new Date().toISOString();
+
+    const { error } = await supabase
+      .from('reports')
+      .update({
+        status: 'resolved',
+        resolution_notes: resolutionNotes,
+        resolution_image_url: proofImageUrl || null,
+        completion_date: now,
+        updated_at: now,
+      })
+      .eq('id', dbId);
+
+    if (error) {
+      console.warn('⚠️ Notice: Supabase resolution update error, falling back to mock state update:', error.message);
+      const mock = await this.getComplaintById(id);
+      if (mock) {
+        const fromStatus = mock.status;
+        mock.status = 'citizen_verification';
+        mock.updatedAt = now;
+        mock.resolvedAt = now;
+        if (proofImageUrl) {
+          mock.evidence.after = [proofImageUrl];
+        }
+        mock.resolutionDetails = {
+          resolvedAt: now,
+          resolvedBy: officerName,
+          resolutionNote: resolutionNotes,
+          proofImageUrl,
+          locationVerified: true,
+        };
+        mock.adminNotes.push({
+          id: `AN-${Date.now()}`,
+          author: officerName,
+          text: `[Resolution Evidence Submitted]: ${resolutionNotes}`,
+          createdAt: now,
+          isInternal: false,
+        });
+        mock.statusHistory.push({
+          id: `SH-${Date.now()}`,
+          fromStatus,
+          toStatus: 'citizen_verification',
+          changedBy: officerName,
+          role: 'officer',
+          timestamp: now,
+          action: 'resolution_submitted',
+          notes: resolutionNotes,
+          proofImageUrl,
+        });
+        return mock;
+      }
+      throw new Error(`Failed to submit resolution: ${error.message}`);
+    }
+
+    // Record status history
+    await supabase.from('report_status_history').insert({
+      report_id: dbId,
+      status: 'resolved',
+      new_status: 'resolved',
+      changed_by: officerName,
+      notes: `Resolution evidence uploaded: ${resolutionNotes}`,
+      created_at: now,
+    });
+
+    const fresh = await this.getComplaintById(id);
+    return fresh!;
+  }
+
+  /**
+   * Citizen Verification Workflow:
+   * - If satisfied == true: Marks complaint CLOSED, logs audit event, awards civic points.
+   * - If satisfied == false: Reopens complaint to REOPENED with reason and photo.
+   */
+  async submitCitizenVerification(
+    id: string,
+    satisfied: boolean,
+    comment?: string,
+    reopenReason?: string,
+    proofPhotoUrl?: string
+  ): Promise<Complaint> {
+    const dbId = this.parseDbId(id);
+    if (dbId == null) {
+      throw new Error(`Cannot verify complaint: Invalid complaint ID "${id}"`);
+    }
+
+    const now = new Date().toISOString();
+    const current = await this.getComplaintById(id);
+    const citizenName = current?.reporter?.name || 'Citizen';
+
+    if (satisfied) {
+      // Citizen Confirmed: Move to CLOSED
+      const { error } = await supabase
+        .from('reports')
+        .update({
+          status: 'closed',
+          citizen_verification_status: 'verified',
+          citizen_feedback: comment || 'Citizen confirmed grievance resolved successfully.',
+          rating: 5,
+          updated_at: now,
+        })
+        .eq('id', dbId);
+
+      if (error) {
+        console.warn('⚠️ Notice: Supabase citizen verification error, falling back to mock state update:', error.message);
+        const mock = await this.getComplaintById(id);
+        if (mock) {
+          mock.status = 'closed';
+          mock.closedAt = now;
+          mock.updatedAt = now;
+          mock.citizenVerification = {
+            verifiedAt: now,
+            satisfied: true,
+            comment: comment || 'Confirmed resolved by citizen.',
+            verifiedByCitizen: true,
+            reopenCount: mock.citizenVerification?.reopenCount || 0,
+          };
+          mock.citizenFeedback = {
+            rating: 5,
+            comment: comment || 'Confirmed resolved by citizen.',
+            satisfied: true,
+          };
+          mock.statusHistory.push({
+            id: `SH-${Date.now()}`,
+            fromStatus: 'citizen_verification',
+            toStatus: 'closed',
+            changedBy: citizenName,
+            role: 'citizen',
+            timestamp: now,
+            action: 'citizen_verified_close',
+            notes: comment || 'Citizen verified on-site resolution. Grievance closed.',
+          });
+          return mock;
+        }
+      }
+
+      await supabase.from('report_status_history').insert({
+        report_id: dbId,
+        status: 'closed',
+        new_status: 'closed',
+        changed_by: citizenName,
+        notes: comment || 'Citizen verified resolution. Complaint closed.',
+        created_at: now,
+      });
+
+      // Award Civic Score points to citizen
+      try {
+        if (current?.reporter?.name) {
+          await this.rewardsService.recordContribution({
+            userId: current.reporter.name,
+            districtId: 'pune',
+            complaintId: id,
+            contributionType: 'resolution_verification',
+            customNotes: 'Civic points awarded for verifying municipal resolution.',
+          });
+        }
+      } catch (_) {}
+
+    } else {
+      // Citizen Rejected: Reopen Issue
+      const reasonText = reopenReason || comment || 'Citizen reported issue remains unresolved.';
+      const currentReopenCount = (current?.citizenVerification?.reopenCount || 0) + 1;
+
+      const { error } = await supabase
+        .from('reports')
+        .update({
+          status: 'progress',
+          citizen_verification_status: 'reopened',
+          reopen_reason: reasonText,
+          reopen_count: currentReopenCount,
+          verification_photo_url: proofPhotoUrl || null,
+          updated_at: now,
+        })
+        .eq('id', dbId);
+
+      if (error) {
+        console.warn('⚠️ Notice: Supabase citizen rejection error, falling back to mock state update:', error.message);
+        const mock = await this.getComplaintById(id);
+        if (mock) {
+          mock.status = 'reopened';
+          mock.updatedAt = now;
+          mock.citizenVerification = {
+            verifiedAt: now,
+            satisfied: false,
+            reopenReason: reasonText,
+            verificationPhotoUrl: proofPhotoUrl,
+            verifiedByCitizen: true,
+            reopenCount: currentReopenCount,
+          };
+          mock.adminNotes.push({
+            id: `AN-${Date.now()}`,
+            author: `${citizenName} (Citizen)`,
+            text: `[Verification Rejected - Case Reopened #${currentReopenCount}]: ${reasonText}`,
+            createdAt: now,
+            isInternal: false,
+          });
+          mock.statusHistory.push({
+            id: `SH-${Date.now()}`,
+            fromStatus: 'citizen_verification',
+            toStatus: 'reopened',
+            changedBy: citizenName,
+            role: 'citizen',
+            timestamp: now,
+            action: 'citizen_rejected_reopen',
+            notes: `Citizen rejected resolution: ${reasonText}`,
+            proofImageUrl: proofPhotoUrl,
+          });
+          return mock;
+        }
+      }
+
+      await supabase.from('report_status_history').insert({
+        report_id: dbId,
+        status: 'progress',
+        new_status: 'reopened',
+        changed_by: citizenName,
+        notes: `Citizen rejected resolution (Reopened): ${reasonText}`,
+        created_at: now,
+      });
+
+      await this.addAdminNote(
+        id,
+        `${citizenName} (Citizen)`,
+        `[Citizen Verification Rejected - Case Reopened]: ${reasonText}`,
+        false
+      );
+    }
+
+    const fresh = await this.getComplaintById(id);
+    return fresh || current!;
+  }
+
+  /**
+   * Reopen Complaint with mandatory reason
+   */
+  async reopenComplaint(
+    id: string,
+    actorName: string,
+    reason: string,
+    proofUrl?: string
+  ): Promise<Complaint> {
+    const dbId = this.parseDbId(id);
+    if (dbId == null) {
+      throw new Error(`Cannot reopen complaint: Invalid complaint ID "${id}"`);
+    }
+
+    const now = new Date().toISOString();
+    const current = await this.getComplaintById(id);
+    const reopenNote = `Complaint Reopened by ${actorName}. Reason: ${reason}`;
+
+    const { error } = await supabase
+      .from('reports')
+      .update({
+        status: 'progress',
+        citizen_verification_status: 'reopened',
+        reopen_reason: reason,
+        updated_at: now,
+      })
+      .eq('id', dbId);
+
+    if (error) {
+      console.warn('⚠️ Notice: Supabase reopen error, falling back to mock state update:', error.message);
+      const mock = await this.getComplaintById(id);
+      if (mock) {
+        const fromStatus = mock.status;
+        mock.status = 'reopened';
+        mock.updatedAt = now;
+        mock.adminNotes.push({
+          id: `AN-${Date.now()}`,
+          author: actorName,
+          text: `[Reopened]: ${reason}`,
+          createdAt: now,
+          isInternal: false,
+        });
+        mock.statusHistory.push({
+          id: `SH-${Date.now()}`,
+          fromStatus,
+          toStatus: 'reopened',
+          changedBy: actorName,
+          role: 'officer',
+          timestamp: now,
+          action: 'complaint_reopened',
+          notes: reopenNote,
+          proofImageUrl: proofUrl,
+        });
+        return mock;
+      }
+      throw new Error(`Failed to reopen complaint: ${error.message}`);
+    }
+
+    await supabase.from('report_status_history').insert({
+      report_id: dbId,
+      status: 'progress',
+      new_status: 'reopened',
+      changed_by: actorName,
+      notes: reopenNote,
+      created_at: now,
+    });
+
+    await this.addAdminNote(id, actorName, `[Complaint Reopened]: ${reason}`, false);
+
+    const fresh = await this.getComplaintById(id);
+    return fresh || current!;
   }
 
   async addAdminNote(

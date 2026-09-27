@@ -110,12 +110,13 @@ export const ComplaintFilters: React.FC<ComplaintFiltersProps> = ({
           >
             <option value="all">All Statuses</option>
             <option value="submitted">1. Submitted</option>
-            <option value="under_review">2. Under Review</option>
+            <option value="under_review">2. Under Review / Verified</option>
             <option value="assigned">3. Assigned</option>
             <option value="in_progress">4. In Progress</option>
-            <option value="resolution_submitted">5. Resolution Submitted</option>
-            <option value="verified">6. Verified</option>
+            <option value="resolution_submitted">5. Resolution Evidence</option>
+            <option value="citizen_verification">6. Citizen Verification</option>
             <option value="closed">7. Closed</option>
+            <option value="reopened">8. Reopened</option>
           </select>
         </div>
 

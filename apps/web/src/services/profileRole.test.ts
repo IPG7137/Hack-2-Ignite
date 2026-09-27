@@ -30,12 +30,13 @@ export async function runProfileRoleTests(): Promise<{ passed: number; failed: n
 
   // 1. Valid Role Vocabulary
   {
-    assert(VALID_ROLES.length === 5, '1a. Exactly 5 canonical roles defined');
+    assert(VALID_ROLES.length === 6, '1a. Exactly 6 canonical roles defined (including state_admin)');
     assert(VALID_ROLES.includes('citizen'), '1b. Canonical role citizen present');
     assert(VALID_ROLES.includes('officer'), '1c. Canonical role officer present');
     assert(VALID_ROLES.includes('dept_admin'), '1d. Canonical role dept_admin present');
     assert(VALID_ROLES.includes('municipal_admin'), '1e. Canonical role municipal_admin present');
     assert(VALID_ROLES.includes('super_admin'), '1f. Canonical role super_admin present');
+    assert(VALID_ROLES.includes('state_admin'), '1g. Canonical role state_admin present');
   }
 
   // 2. Invalid Role Rejection

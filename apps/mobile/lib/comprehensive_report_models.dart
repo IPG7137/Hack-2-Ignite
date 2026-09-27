@@ -154,6 +154,10 @@ class ComprehensiveReportModel {
     this.parentReportId,
     this.resolutionNotes,
     this.resolutionImageUrl,
+    this.citizenVerificationStatus,
+    this.reopenReason,
+    this.reopenCount = 0,
+    this.verificationPhotoUrl,
     this.userName,
     this.userEmail,
     this.userPhone,
@@ -241,6 +245,10 @@ class ComprehensiveReportModel {
       parentReportId: json['parent_report_id']?.toString(),
       resolutionNotes: json['resolution_notes'],
       resolutionImageUrl: json['resolution_image_url'],
+      citizenVerificationStatus: json['citizen_verification_status'],
+      reopenReason: json['reopen_reason'],
+      reopenCount: json['reopen_count'] is int ? json['reopen_count'] : int.tryParse(json['reopen_count']?.toString() ?? '0') ?? 0,
+      verificationPhotoUrl: json['verification_photo_url'],
       // Display fields from view
       userName: json['user_name'],
       userEmail: json['user_email'],
@@ -278,6 +286,10 @@ class ComprehensiveReportModel {
       'assigned_officer_id': assignedOfficerId,
       'resolution_notes': resolutionNotes,
       'resolution_image_url': resolutionImageUrl,
+      'citizen_verification_status': citizenVerificationStatus,
+      'reopen_reason': reopenReason,
+      'reopen_count': reopenCount,
+      'verification_photo_url': verificationPhotoUrl,
       'assigned_officer_name': assignedOfficerName,
       'admin_notes': adminNotes,
       'estimated_completion_date': estimatedCompletionDate?.toIso8601String(),
@@ -291,10 +303,14 @@ class ComprehensiveReportModel {
   static String _mapStatusToDisplay(String status) {
     switch (status) {
       case 'submitted': return 'Submitted';
-      case 'review': return 'Review';
+      case 'review': return 'Under Review';
       case 'assigned': return 'Assigned';
-      case 'progress': return 'Progress';
+      case 'progress': return 'In Progress';
+      case 'resolution_submitted': return 'Resolution Submitted';
       case 'resolved': return 'Resolved';
+      case 'citizen_verification': return 'Citizen Verification';
+      case 'reopened': return 'Reopened';
+      case 'closed': return 'Closed';
       default: return status;
     }
   }
@@ -317,8 +333,10 @@ enum ReportStatus {
   inProgress,
   resolutionSubmitted,
   resolved,
+  citizenVerification,
   verified,
   closed,
+  reopened,
   rejected,
 }
 
@@ -341,10 +359,14 @@ extension ReportStatusExtension on ReportStatus {
         return 'resolution_submitted';
       case ReportStatus.resolved:
         return 'resolved';
+      case ReportStatus.citizenVerification:
+        return 'citizen_verification';
       case ReportStatus.verified:
         return 'verified';
       case ReportStatus.closed:
         return 'closed';
+      case ReportStatus.reopened:
+        return 'reopened';
       case ReportStatus.rejected:
         return 'rejected';
     }
@@ -365,10 +387,15 @@ extension ReportStatusExtension on ReportStatus {
       case ReportStatus.resolutionSubmitted:
         return 'resolution_submitted';
       case ReportStatus.resolved:
+        return 'resolved';
+      case ReportStatus.citizenVerification:
+        return 'citizen_verification';
       case ReportStatus.verified:
         return 'verified';
       case ReportStatus.closed:
         return 'closed';
+      case ReportStatus.reopened:
+        return 'reopened';
       case ReportStatus.rejected:
         return 'rejected';
     }
@@ -390,10 +417,14 @@ extension ReportStatusExtension on ReportStatus {
         return 'Resolution Submitted';
       case ReportStatus.resolved:
         return 'Resolved';
+      case ReportStatus.citizenVerification:
+        return 'Citizen Verification';
       case ReportStatus.verified:
         return 'Verified';
       case ReportStatus.closed:
         return 'Closed';
+      case ReportStatus.reopened:
+        return 'Reopened';
       case ReportStatus.rejected:
         return 'Rejected';
     }
@@ -419,10 +450,17 @@ extension ReportStatusExtension on ReportStatus {
         return ReportStatus.resolutionSubmitted;
       case 'resolved':
         return ReportStatus.resolved;
+      case 'citizen_verification':
+      case 'awaiting_citizen_verification':
+      case 'citizen_verification_pending':
+        return ReportStatus.citizenVerification;
       case 'verified':
         return ReportStatus.verified;
       case 'closed':
         return ReportStatus.closed;
+      case 'reopened':
+      case 'verification_failed':
+        return ReportStatus.reopened;
       case 'rejected':
         return ReportStatus.rejected;
       default:

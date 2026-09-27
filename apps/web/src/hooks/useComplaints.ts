@@ -131,6 +131,51 @@ export function useComplaints(initialFilters: ComplaintFilterParams = {}) {
     return result;
   };
 
+  const changePriority = async (
+    id: string,
+    newPriority: import('../types/complaint').ComplaintPriority,
+    actorName = 'Executive Duty Officer',
+    reason?: string
+  ) => {
+    const updated = await complaintService.changePriority(id, newPriority, actorName, reason);
+    setComplaints((prev) => prev.map((c) => (c.id === id ? updated : c)));
+    return updated;
+  };
+
+  const submitResolution = async (
+    id: string,
+    officerName: string,
+    resolutionNotes: string,
+    proofImageUrl?: string
+  ) => {
+    const updated = await complaintService.submitResolution(id, officerName, resolutionNotes, proofImageUrl);
+    setComplaints((prev) => prev.map((c) => (c.id === id ? updated : c)));
+    return updated;
+  };
+
+  const submitCitizenVerification = async (
+    id: string,
+    satisfied: boolean,
+    comment?: string,
+    reopenReason?: string,
+    proofPhotoUrl?: string
+  ) => {
+    const updated = await complaintService.submitCitizenVerification(id, satisfied, comment, reopenReason, proofPhotoUrl);
+    setComplaints((prev) => prev.map((c) => (c.id === id ? updated : c)));
+    return updated;
+  };
+
+  const reopenComplaint = async (
+    id: string,
+    actorName: string,
+    reason: string,
+    proofUrl?: string
+  ) => {
+    const updated = await complaintService.reopenComplaint(id, actorName, reason, proofUrl);
+    setComplaints((prev) => prev.map((c) => (c.id === id ? updated : c)));
+    return updated;
+  };
+
   const getComplaintById = async (id: string): Promise<Complaint | null> => {
     return await complaintService.getComplaintById(id);
   };
@@ -146,6 +191,10 @@ export function useComplaints(initialFilters: ComplaintFilterParams = {}) {
     updateStatus,
     assignOfficer,
     addAdminNote,
+    changePriority,
+    submitResolution,
+    submitCitizenVerification,
+    reopenComplaint,
     createJointAction,
     getComplaintById,
   };

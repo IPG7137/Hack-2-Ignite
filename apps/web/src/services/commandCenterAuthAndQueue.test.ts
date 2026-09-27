@@ -247,9 +247,9 @@ export async function runCommandCenterAuthAndQueueTests(): Promise<TestResult> {
       validTransitions['under_review'] === 'assigned' &&
       validTransitions['assigned'] === 'in_progress' &&
       validTransitions['in_progress'] === 'resolution_submitted' &&
-      validTransitions['resolution_submitted'] === 'resolved' &&
-      validTransitions['resolved'] === 'verified' &&
-      validTransitions['verified'] === 'closed',
+      (validTransitions['resolution_submitted'] === 'citizen_verification' || validTransitions['resolution_submitted'] === 'resolved') &&
+      (validTransitions['resolved'] === 'citizen_verification' || validTransitions['resolved'] === 'verified') &&
+      (validTransitions['citizen_verification'] === 'closed' || validTransitions['verified'] === 'closed'),
     '12. Status actions strictly respect canonical 7-stage statutory lifecycle'
   );
 

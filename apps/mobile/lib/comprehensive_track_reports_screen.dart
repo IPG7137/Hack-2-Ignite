@@ -1652,6 +1652,12 @@ class _ReportDetailsBottomSheetState extends State<_ReportDetailsBottomSheet> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // 0. Reopened Notice Banner (if reopened)
+                      if (report.status == ReportStatus.reopened) ...[
+                        _buildReopenedBanner(report),
+                        const SizedBox(height: 16),
+                      ],
+
                       // 1. Complaint Summary Card
                       _buildSummaryCard(report),
                       const SizedBox(height: 16),
@@ -1662,19 +1668,36 @@ class _ReportDetailsBottomSheetState extends State<_ReportDetailsBottomSheet> {
                         const SizedBox(height: 16),
                       ],
 
-                      // 3. Official Status Timeline
+                      // 3. Official Status Timeline (7-Stage)
                       _buildLifecycleTimeline(report),
                       const SizedBox(height: 16),
 
-                      // 3. Resolution Details (if resolved)
-                      if (report.status == ReportStatus.resolved) ...[
+                      // 4. Resolution Proof & Audit Evidence (if resolution submitted / resolved / closed)
+                      if (report.status == ReportStatus.resolved ||
+                          report.status == ReportStatus.citizenVerification ||
+                          report.status == ReportStatus.resolutionSubmitted ||
+                          report.status == ReportStatus.closed ||
+                          (report.resolutionImageUrl != null && report.resolutionImageUrl!.isNotEmpty)) ...[
                         _buildResolutionSection(report),
                         const SizedBox(height: 16),
+                      ],
+
+                      // 5. Citizen Verification Decision Box
+                      if (report.status == ReportStatus.resolved ||
+                          report.status == ReportStatus.citizenVerification ||
+                          report.status == ReportStatus.resolutionSubmitted ||
+                          (report.resolutionImageUrl != null && report.status != ReportStatus.closed && report.citizenVerificationStatus != 'verified')) ...[
+                        _buildCitizenVerificationBox(report),
+                        const SizedBox(height: 16),
+                      ],
+
+                      // 6. Citizen Resolution Feedback & Rating (if closed/verified)
+                      if (report.status == ReportStatus.closed || report.citizenVerificationStatus == 'verified') ...[
                         _buildCitizenFeedbackSection(report),
                         const SizedBox(height: 16),
                       ],
 
-                      // 4. Submitted Evidence (Photos)
+                      // 7. Submitted Citizen Initial Evidence (Photos)
                       if (report.imageUrls.isNotEmpty) ...[
                         _buildEvidenceSection(report),
                         const SizedBox(height: 16),
@@ -2147,6 +2170,9 @@ class _ReportDetailsBottomSheetState extends State<_ReportDetailsBottomSheet> {
   }
 
   Widget _buildResolutionSection(ComprehensiveReportModel report) {
+    final hasBeforeImage = report.imageUrls.isNotEmpty;
+    final hasAfterImage = report.resolutionImageUrl != null && report.resolutionImageUrl!.isNotEmpty;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -2157,16 +2183,29 @@ class _ReportDetailsBottomSheetState extends State<_ReportDetailsBottomSheet> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
-              Icon(Icons.verified, color: Color(0xFF059669), size: 20),
-              SizedBox(width: 8),
-              Text(
-                'Resolution Confirmed',
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF065F46),
+              const Icon(Icons.verified, color: Color(0xFF059669), size: 20),
+              const SizedBox(width: 8),
+              const Expanded(
+                child: Text(
+                  'Resolution Evidence & Audit Proof',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF065F46),
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFD1FAE5),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: const Text(
+                  'FIELD PROOF',
+                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF065F46)),
                 ),
               ),
             ],
@@ -2175,10 +2214,10 @@ class _ReportDetailsBottomSheetState extends State<_ReportDetailsBottomSheet> {
           Text(
             report.completionDate != null
                 ? 'Completed on: ${_formatDateTime(report.completionDate!)}'
-                : 'Marked resolved by municipal authorities.',
+                : 'Remediation completed by municipal response unit.',
             style: const TextStyle(fontSize: 12, color: Color(0xFF047857)),
           ),
-          if (report.adminNotes != null && report.adminNotes!.isNotEmpty) ...[
+          if (report.resolutionNotes != null && report.resolutionNotes!.isNotEmpty) ...[
             const SizedBox(height: 8),
             Container(
               padding: const EdgeInsets.all(10),
@@ -2200,13 +2239,365 @@ class _ReportDetailsBottomSheetState extends State<_ReportDetailsBottomSheet> {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    report.adminNotes!,
+                    report.resolutionNotes!,
                     style: const TextStyle(fontSize: 12, color: Color(0xFF1E293B)),
                   ),
                 ],
               ),
             ),
           ],
+
+          // Before & After Visual Comparison Evidence
+          if (hasBeforeImage || hasAfterImage) ...[
+            const SizedBox(height: 12),
+            const Text(
+              'Before & After Photographic Evidence:',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF065F46)),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                // BEFORE
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFEF4444),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: const Text(
+                          'BEFORE (Citizen)',
+                          style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: hasBeforeImage
+                            ? Image.network(
+                                report.imageUrls.first,
+                                height: 110,
+                                width: double.infinity,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => Container(
+                                  height: 110,
+                                  color: Colors.grey.shade200,
+                                  child: const Icon(Icons.broken_image, color: Colors.grey),
+                                ),
+                              )
+                            : Container(
+                                height: 110,
+                                color: Colors.grey.shade200,
+                                alignment: Alignment.center,
+                                child: const Text('No photo', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                              ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                // AFTER
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF10B981),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: const Text(
+                          'AFTER (Municipal)',
+                          style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: hasAfterImage
+                            ? Image.network(
+                                report.resolutionImageUrl!,
+                                height: 110,
+                                width: double.infinity,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => Container(
+                                  height: 110,
+                                  color: Colors.grey.shade200,
+                                  child: const Icon(Icons.broken_image, color: Colors.grey),
+                                ),
+                              )
+                            : Container(
+                                height: 110,
+                                color: Colors.grey.shade200,
+                                alignment: Alignment.center,
+                                child: const Text('Evidence pending', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                              ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCitizenVerificationBox(ComprehensiveReportModel report) {
+    if (report.citizenVerificationStatus == 'verified' || report.status == ReportStatus.closed) {
+      return Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF0FDF4),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFF86EFAC)),
+        ),
+        child: const Row(
+          children: [
+            Icon(Icons.verified_user, color: Color(0xFF16A34A), size: 22),
+            SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Citizen Verification Confirmed',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF15803D)),
+                  ),
+                  SizedBox(height: 2),
+                  Text(
+                    'Resolution signed off by citizen. +15 Civic Score awarded.',
+                    style: TextStyle(fontSize: 11, color: Color(0xFF166534)),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEFF6FF),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF93C5FD), width: 1.5),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.help_outline, color: Color(0xFF1D4ED8), size: 20),
+              SizedBox(width: 8),
+              Text(
+                'Citizen Verification Required',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1E3A8A),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'The municipal department has marked this issue as resolved. Is this issue actually resolved on the ground?',
+            style: TextStyle(fontSize: 13, color: Color(0xFF1E293B), height: 1.3),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: _isSubmittingFeedback ? null : () => _confirmCitizenResolved(),
+                  icon: const Icon(Icons.check_circle_outline, size: 16),
+                  label: const Text('Yes, issue resolved', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF059669),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _isSubmittingFeedback ? null : () => _showReopenDialog(),
+                  icon: const Icon(Icons.highlight_off, size: 16),
+                  label: const Text('No, still unresolved', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFFDC2626),
+                    side: const BorderSide(color: Color(0xFFDC2626)),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildReopenedBanner(ComprehensiveReportModel report) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFFBEB),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFFCD34D), width: 1.5),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.replay_circle_filled, color: Color(0xFFD97706), size: 20),
+              const SizedBox(width: 8),
+              const Text(
+                'Complaint Reopened by Citizen',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF92400E)),
+              ),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFDE68A),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  'REOPEN #${report.reopenCount}',
+                  style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF92400E)),
+                ),
+              ),
+            ],
+          ),
+          if (report.reopenReason != null && report.reopenReason!.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(
+              'Reason: "${report.reopenReason}"',
+              style: const TextStyle(fontSize: 12, color: Color(0xFF78350F), fontStyle: FontStyle.italic),
+            ),
+          ],
+          const SizedBox(height: 4),
+          const Text(
+            'This complaint has been returned to the municipal maintenance division for immediate inspection.',
+            style: TextStyle(fontSize: 11, color: Color(0xFFB45309)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _confirmCitizenResolved() async {
+    setState(() => _isSubmittingFeedback = true);
+    try {
+      final success = await widget.databaseService.submitCitizenVerification(
+        reportId: widget.report.id,
+        isResolved: true,
+        rating: _selectedRating,
+        feedback: _feedbackController.text.trim(),
+      );
+
+      if (success && mounted) {
+        setState(() {
+          _feedbackSubmitted = true;
+          _isSubmittingFeedback = false;
+        });
+        widget.onFeedbackSubmitted();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Verification confirmed! +15 Civic Score awarded to your profile.'),
+            backgroundColor: Color(0xFF059669),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) setState(() => _isSubmittingFeedback = false);
+    }
+  }
+
+  Future<void> _showReopenDialog() async {
+    final reasonController = TextEditingController();
+    await showDialog(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.report_problem, color: Color(0xFFDC2626), size: 20),
+            SizedBox(width: 8),
+            Text('Reopen Complaint', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Please provide a reason why this civic problem remains unresolved on-site:',
+              style: TextStyle(fontSize: 13),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: reasonController,
+              maxLines: 3,
+              decoration: InputDecoration(
+                hintText: 'e.g., Pothole filled with loose gravel only, debris still blocking drain...',
+                hintStyle: const TextStyle(fontSize: 12, color: Colors.grey),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                filled: true,
+                fillColor: const Color(0xFFF8FAFC),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final reason = reasonController.text.trim();
+              if (reason.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Please state why the issue is unresolved.')),
+                );
+                return;
+              }
+              Navigator.pop(dialogCtx);
+              setState(() => _isSubmittingFeedback = true);
+              final success = await widget.databaseService.submitCitizenVerification(
+                reportId: widget.report.id,
+                isResolved: false,
+                reason: reason,
+              );
+              if (success && mounted) {
+                setState(() => _isSubmittingFeedback = false);
+                widget.onFeedbackSubmitted();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Complaint reopened and escalated to municipal team.'),
+                    backgroundColor: Color(0xFFD97706),
+                  ),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFDC2626),
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Confirm Reopen'),
+          ),
         ],
       ),
     );

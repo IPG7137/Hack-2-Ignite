@@ -915,6 +915,106 @@ class ComprehensiveDatabaseService {
     }
   }
 
+  /// Submit statutory citizen verification for resolved civic complaint
+  Future<bool> submitCitizenVerification({
+    required String reportId,
+    required bool isResolved,
+    String? reason,
+    String? photoUrl,
+    int? rating,
+    String? feedback,
+  }) async {
+    try {
+      final now = DateTime.now().toIso8601String();
+      final user = _supabase.auth.currentUser;
+      final userId = user?.id;
+
+      if (isResolved) {
+        // Confirmation: mark as CLOSED, citizen_verification_status = verified
+        await _supabase
+            .from('reports')
+            .update({
+              'status': 'closed',
+              'citizen_verification_status': 'verified',
+              'completion_date': now,
+              'updated_at': now,
+              if (rating != null) 'rating': rating,
+              if (feedback != null && feedback.isNotEmpty) 'citizen_feedback': feedback.trim(),
+            })
+            .eq('id', reportId);
+
+        // Record audit event
+        try {
+          await _supabase.from('complaint_events').insert({
+            'complaint_id': reportId,
+            'actor_user_id': userId,
+            'actor_name': user?.email ?? 'Citizen',
+            'actor_role': 'citizen',
+            'event_type': 'citizen_verified',
+            'previous_status': 'resolved',
+            'new_status': 'closed',
+            'note': feedback ?? 'Citizen confirmed resolution quality on mobile.',
+          });
+        } catch (_) {}
+
+        // Award Civic Score / Credits (+15 pts for confirming resolution)
+        if (userId != null) {
+          try {
+            await CreditService.addCredits(15);
+          } catch (_) {}
+        }
+      } else {
+        // Reopen: mark as REOPENED with reason and optional proof photo
+        // Fetch current reopen count
+        int currentReopenCount = 0;
+        try {
+          final existing = await _supabase
+              .from('reports')
+              .select('reopen_count')
+              .eq('id', reportId)
+              .maybeSingle();
+          if (existing != null && existing['reopen_count'] != null) {
+            currentReopenCount = int.tryParse(existing['reopen_count'].toString()) ?? 0;
+          }
+        } catch (_) {}
+
+        final newReopenCount = currentReopenCount + 1;
+
+        await _supabase
+            .from('reports')
+            .update({
+              'status': 'reopened',
+              'citizen_verification_status': 'reopened',
+              'reopen_reason': reason?.trim() ?? 'Citizen reported issue is unresolved.',
+              'reopen_count': newReopenCount,
+              if (photoUrl != null && photoUrl.isNotEmpty) 'verification_photo_url': photoUrl,
+              'updated_at': now,
+            })
+            .eq('id', reportId);
+
+        // Record audit event
+        try {
+          await _supabase.from('complaint_events').insert({
+            'complaint_id': reportId,
+            'actor_user_id': userId,
+            'actor_name': user?.email ?? 'Citizen',
+            'actor_role': 'citizen',
+            'event_type': 'reopened',
+            'previous_status': 'resolved',
+            'new_status': 'reopened',
+            'note': 'Reopen reason: ${reason ?? "Issue still unresolved"}. Reopen count: $newReopenCount',
+          });
+        } catch (_) {}
+      }
+
+      debugPrint('✅ Citizen verification submitted for report #$reportId (Resolved: $isResolved)');
+      return true;
+    } catch (e) {
+      debugPrint('❌ Error submitting citizen verification: $e');
+      return false;
+    }
+  }
+
   // ========================================
   // CATEGORIES MANAGEMENT
   // ========================================
