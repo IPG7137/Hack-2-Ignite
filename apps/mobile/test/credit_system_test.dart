@@ -4,9 +4,9 @@ import 'package:civic_resolve/credit_service.dart';
 void main() {
   group('Credit System Tests', () {
     test('CreditService constants are properly defined', () {
-      expect(CreditService.CREDITS_PER_REPORT, 10);
-      expect(CreditService.CREDITS_PER_RESOLVED_REPORT, 5);
-      expect(CreditService.CREDITS_PER_QUALITY_REPORT, 15);
+      expect(CreditService.creditsPerReport, 10);
+      expect(CreditService.creditsPerResolvedReport, 5);
+      expect(CreditService.creditsPerQualityReport, 15);
     });
 
     test('CreditModel can be created from JSON', () {
@@ -82,9 +82,9 @@ void main() {
   group('Credit Integration Tests', () {
     test('Credit earning scenarios are properly defined', () {
       // Test that different earning scenarios have appropriate credit values
-      expect(CreditService.CREDITS_PER_REPORT > 0, true);
-      expect(CreditService.CREDITS_PER_RESOLVED_REPORT > 0, true);
-      expect(CreditService.CREDITS_PER_QUALITY_REPORT > CreditService.CREDITS_PER_REPORT, true);
+      expect(CreditService.creditsPerReport > 0, true);
+      expect(CreditService.creditsPerResolvedReport > 0, true);
+      expect(CreditService.creditsPerQualityReport > CreditService.creditsPerReport, true);
     });
 
     test('Coupon templates have reasonable credit costs', () {

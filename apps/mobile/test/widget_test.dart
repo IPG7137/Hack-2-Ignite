@@ -34,11 +34,11 @@ void main() {
     test('ReportStatus and ReportPriority enums map correctly', () {
       expect(ReportStatusExtension.fromString('submitted'), ReportStatus.submitted);
       expect(ReportStatusExtension.fromString('review'), ReportStatus.review);
-      expect(ReportStatusExtension.fromString('under_review'), ReportStatus.under_review);
+      expect(ReportStatusExtension.fromString('under_review'), ReportStatus.underReview);
       expect(ReportStatusExtension.fromString('assigned'), ReportStatus.assigned);
       expect(ReportStatusExtension.fromString('progress'), ReportStatus.progress);
-      expect(ReportStatusExtension.fromString('in_progress'), ReportStatus.in_progress);
-      expect(ReportStatusExtension.fromString('resolution_submitted'), ReportStatus.resolution_submitted);
+      expect(ReportStatusExtension.fromString('in_progress'), ReportStatus.inProgress);
+      expect(ReportStatusExtension.fromString('resolution_submitted'), ReportStatus.resolutionSubmitted);
       expect(ReportStatusExtension.fromString('resolved'), ReportStatus.resolved);
       expect(ReportStatusExtension.fromString('verified'), ReportStatus.verified);
       expect(ReportStatusExtension.fromString('closed'), ReportStatus.closed);
@@ -2055,16 +2055,16 @@ void main() {
       const warningColor = Color(0xFFF79009);
       const criticalColor = Color(0xFFD92D20);
 
-      expect(primaryBlue.value, 0xFF155EEF);
-      expect(deepNavy.value, 0xFF123B63);
-      expect(background.value, 0xFFF7F9FC);
-      expect(cardWhite.value, 0xFFFFFFFF);
-      expect(primaryText.value, 0xFF172B4D);
-      expect(secondaryText.value, 0xFF667085);
-      expect(borderColor.value, 0xFFE4E7EC);
-      expect(successColor.value, 0xFF12B76A);
-      expect(warningColor.value, 0xFFF79009);
-      expect(criticalColor.value, 0xFFD92D20);
+      expect(primaryBlue.toARGB32(), 0xFF155EEF);
+      expect(deepNavy.toARGB32(), 0xFF123B63);
+      expect(background.toARGB32(), 0xFFF7F9FC);
+      expect(cardWhite.toARGB32(), 0xFFFFFFFF);
+      expect(primaryText.toARGB32(), 0xFF172B4D);
+      expect(secondaryText.toARGB32(), 0xFF667085);
+      expect(borderColor.toARGB32(), 0xFFE4E7EC);
+      expect(successColor.toARGB32(), 0xFF12B76A);
+      expect(warningColor.toARGB32(), 0xFFF79009);
+      expect(criticalColor.toARGB32(), 0xFFD92D20);
     });
 
     test('2. Step workflow progression is exactly 3 steps', () {

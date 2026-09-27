@@ -267,7 +267,7 @@ class _AdminActionsScreenState extends State<AdminActionsScreen> {
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<ReportStatus>(
-              value: _selectedStatus,
+              initialValue: _selectedStatus,
               decoration: const InputDecoration(
                 labelText: 'Report Status',
                 border: OutlineInputBorder(),
@@ -348,7 +348,7 @@ class _AdminActionsScreenState extends State<AdminActionsScreen> {
               children: [
                 Expanded(
                   child: DropdownButtonFormField<AdminNoteType>(
-                    value: _selectedNoteType,
+                    initialValue: _selectedNoteType,
                     decoration: const InputDecoration(
                       labelText: 'Note Type',
                       border: OutlineInputBorder(),
@@ -571,14 +571,14 @@ class _AdminActionsScreenState extends State<AdminActionsScreen> {
       case ReportStatus.submitted:
         return Colors.blue;
       case ReportStatus.review:
-      case ReportStatus.under_review:
+      case ReportStatus.underReview:
         return Colors.indigo;
       case ReportStatus.assigned:
         return Colors.purple;
       case ReportStatus.progress:
-      case ReportStatus.in_progress:
+      case ReportStatus.inProgress:
         return Colors.amber;
-      case ReportStatus.resolution_submitted:
+      case ReportStatus.resolutionSubmitted:
         return Colors.cyan;
       case ReportStatus.resolved:
       case ReportStatus.verified:

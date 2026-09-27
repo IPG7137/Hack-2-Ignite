@@ -165,7 +165,7 @@ class _ConfirmationScreenState extends State<ConfirmationScreen>
             final dataUrl = 'data:image/jpeg;base64,$base64String';
             imageDataUrls.add(dataUrl);
           } catch (e) {
-            print('⚠️ Error encoding image $i: $e');
+            debugPrint('⚠️ Error encoding image $i: $e');
           }
         }
 
@@ -214,7 +214,7 @@ class _ConfirmationScreenState extends State<ConfirmationScreen>
           throw Exception(result.message);
         }
       } catch (e) {
-        print('❌ Submission error: $e');
+        debugPrint('❌ Submission error: $e');
         final errStr = e.toString();
         if (errStr.contains('User ID') || errStr.contains('Authentication') || errStr.contains('JWT') || errStr.contains('sign in')) {
           if (mounted) {
@@ -227,7 +227,7 @@ class _ConfirmationScreenState extends State<ConfirmationScreen>
         }
 
         retryCount++;
-        print('❌ Submission attempt $retryCount failed: $e');
+        debugPrint('❌ Submission attempt $retryCount failed: $e');
 
         if (retryCount >= maxRetries) {
           if (mounted) {

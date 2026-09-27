@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'permission_service.dart';
 import 'welcome_onboarding_page.dart';
@@ -96,6 +95,7 @@ class _PermissionScreenState extends State<PermissionScreen> with TickerProvider
 
     try {
       final results = await PermissionService.requestFirstLaunchPermissions();
+      if (!mounted) return;
       
       setState(() {
         _permissionResults = results;
@@ -132,6 +132,7 @@ class _PermissionScreenState extends State<PermissionScreen> with TickerProvider
         );
       }
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _isRequesting = false;
       });

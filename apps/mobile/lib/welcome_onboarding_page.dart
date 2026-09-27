@@ -13,7 +13,7 @@ class WelcomeOnboardingPage extends StatefulWidget {
 class _WelcomeOnboardingPageState extends State<WelcomeOnboardingPage>
     with TickerProviderStateMixin {
   
-  PageController _pageController = PageController();
+  final PageController _pageController = PageController();
   int _currentPage = 0;
   
   late AnimationController _animationController;

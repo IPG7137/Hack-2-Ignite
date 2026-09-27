@@ -104,6 +104,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
     if (mounted) {
       // Check if this is first launch for permissions
       final isFirstLaunch = await PermissionService.isFirstLaunch();
+      if (!mounted) return;
       
       if (isFirstLaunch) {
         // First time app launch - show permission screen first
@@ -143,6 +144,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
     // Check if user has seen onboarding/welcome screens
     final hasSeenOnboarding = await AppPreferences.instance.hasSeenOnboarding();
     final hasSeenWelcome = await AppPreferences.instance.hasSeenWelcome();
+    if (!mounted) return;
     
     Widget nextScreen;
     if (!hasSeenWelcome || !hasSeenOnboarding) {

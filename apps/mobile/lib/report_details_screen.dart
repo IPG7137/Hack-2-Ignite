@@ -201,7 +201,7 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> with TickerPr
         _syncMapLayers();
       }
     } catch (e) {
-      print('Note: Could not load initial nearby reports: $e');
+      debugPrint('Note: Could not load initial nearby reports: $e');
     }
   }
 
@@ -226,10 +226,10 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> with TickerPr
           _syncMapLayers();
         }
       }, onError: (e) {
-        print('Realtime nearby reports stream note: $e');
+        debugPrint('Realtime nearby reports stream note: $e');
       });
     } catch (e) {
-      print('Realtime subscription note: $e');
+      debugPrint('Realtime subscription note: $e');
     }
   }
 
@@ -239,7 +239,7 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> with TickerPr
         final geoJsonStr = GeospatialGeoJsonService.reportsToFeatureCollection(_nearbyReports).toJsonString();
         _webViewController!.runJavaScript('updateMapLayers($geoJsonStr, null);');
       } catch (e) {
-        print('Error syncing map layers: $e');
+        debugPrint('Error syncing map layers: $e');
       }
     }
   }
@@ -250,12 +250,12 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> with TickerPr
     });
     
     try {
-      print('🔄 Starting location detection...');
+      debugPrint('🔄 Starting location detection...');
       
       // Check if location services are enabled
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
-        print('❌ Location services are disabled');
+        debugPrint('❌ Location services are disabled');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -274,7 +274,7 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> with TickerPr
         throw Exception('Location services are disabled.');
       }
 
-      print('✅ Getting current position...');
+      debugPrint('✅ Getting current position...');
       
       // Get the current position with timeout
       Position position = await Geolocator.getCurrentPosition(
@@ -282,12 +282,12 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> with TickerPr
         timeLimit: const Duration(seconds: 30),
       );
       
-      print('📍 Position obtained: ${position.latitude}, ${position.longitude}');
-      print('🔄 Getting address from coordinates...');
+      debugPrint('📍 Position obtained: ${position.latitude}, ${position.longitude}');
+      debugPrint('🔄 Getting address from coordinates...');
       
       // Get real address from coordinates
       final address = await _reverseGeocode(position.latitude, position.longitude);
-      print('🏠 Address resolved: $address');
+      debugPrint('🏠 Address resolved: $address');
       
       setState(() {
         currentLocation = address;
@@ -330,7 +330,7 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> with TickerPr
         );
       }
     } catch (e) {
-      print('❌ Location detection failed: $e');
+      debugPrint('❌ Location detection failed: $e');
       
       // Fallback to default location (Solapur)
       const mockLatitude = _defaultLatitude;
@@ -412,7 +412,7 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> with TickerPr
         }
       }
     } catch (e) {
-      print('Reverse geocoding note: $e');
+      debugPrint('Reverse geocoding note: $e');
     }
     
     // Clean fallback to exact coordinates without fake street names
@@ -451,7 +451,7 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> with TickerPr
       });
       _checkNearbyDuplicates();
     } catch (e) {
-      print('Failed to get address: $e');
+      debugPrint('Failed to get address: $e');
     }
   }
 
@@ -534,7 +534,6 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> with TickerPr
         ? '${_duplicateDistance!.toStringAsFixed(0)}m away' 
         : 'nearby (within 200m)';
     final issueTitle = _duplicateReport?['title'] ?? 'Complaint #${_duplicateParentId ?? ""}';
-    final isHighConfidence = _duplicateAnalysisResult?.classification == SimilarityClassification.highConfidenceDuplicate;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -778,50 +777,6 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> with TickerPr
     );
   }
 
-  Widget _buildAddImageButton({
-    required IconData icon,
-    required String label,
-    required Color color,
-    required VoidCallback? onTap,
-  }) {
-    final isEnabled = onTap != null;
-    
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-        decoration: BoxDecoration(
-          color: isEnabled ? color.withValues(alpha: 0.1) : Colors.grey[100],
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isEnabled ? color.withValues(alpha: 0.3) : Colors.grey[300]!,
-            width: 1.5,
-          ),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              icon,
-              color: isEnabled ? color : Colors.grey[400],
-              size: 24,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(
-                color: isEnabled ? color : Colors.grey[500],
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   void _removeImage(int index) {
     setState(() {
       selectedImages.removeAt(index);
@@ -952,7 +907,7 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> with TickerPr
                 _onLocationChangedFromMap(lat, lng);
               }
             } catch (e) {
-              print('Error parsing location data: $e');
+              debugPrint('Error parsing location data: $e');
             }
           },
         )
@@ -1024,7 +979,7 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> with TickerPr
         );
       }
     } catch (e) {
-      print('Error picking image: $e');
+      debugPrint('Error picking image: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -1098,12 +1053,12 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> with TickerPr
               explanation += '\nNote: ${pythonResult['error']}';
             }
             
-            print('🐍 Python Classification Success: $detectedPriority');
+            debugPrint('🐍 Python Classification Success: $detectedPriority');
           } else {
             throw Exception('Python classifier failed: ${pythonResult['error']}');
           }
         } catch (pythonError) {
-          print('⚠️ Python classifier unavailable, falling back to Flutter AI: $pythonError');
+          debugPrint('⚠️ Python classifier unavailable, falling back to Flutter AI: $pythonError');
           
           // Fallback to Flutter AI analysis
           detectedPriority = await ImageAnalysisService.analyzeImageForPriority(

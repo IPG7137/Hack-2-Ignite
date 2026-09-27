@@ -68,7 +68,7 @@ class PermissionService {
           await _storePermissionStatus('location', true);
           return true;
         } catch (e) {
-          print('Web location permission denied or error: $e');
+          debugPrint('Web location permission denied or error: $e');
           await _storePermissionStatus('location', false);
           return false;
         }
@@ -93,7 +93,7 @@ class PermissionService {
       await _storePermissionStatus('location', granted);
       return granted;
     } catch (e) {
-      print('Error requesting location permission: $e');
+      debugPrint('Error requesting location permission: $e');
       await _storePermissionStatus('location', false);
       return false;
     }
@@ -113,7 +113,7 @@ class PermissionService {
       await _storePermissionStatus('camera', granted);
       return granted;
     } catch (e) {
-      print('Error requesting camera permission: $e');
+      debugPrint('Error requesting camera permission: $e');
       await _storePermissionStatus('camera', false);
       return false;
     }
@@ -143,7 +143,7 @@ class PermissionService {
         return granted;
       }
     } catch (e) {
-      print('Error requesting media permission: $e');
+      debugPrint('Error requesting media permission: $e');
       await _storePermissionStatus('media', false);
       return false;
     }
@@ -343,6 +343,7 @@ class PermissionService {
     }
 
     if (hasPermission) return true;
+    if (!context.mounted) return false;
 
     // Show rationale dialog
     final shouldRequest = await showPermissionDialog(

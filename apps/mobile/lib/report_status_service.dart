@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'database_service.dart';
 import 'notification_service.dart';
 import 'notifications_screen.dart';
@@ -17,7 +18,7 @@ class ReportStatusService {
 
   // Start monitoring status changes for a user
   void startStatusMonitoring(String userId) {
-    print('🔔 Starting status monitoring for user: $userId');
+    debugPrint('🔔 Starting status monitoring for user: $userId');
     
     // Cancel any existing subscription
     _statusSubscription?.cancel();
@@ -28,14 +29,14 @@ class ReportStatusService {
         _checkForStatusChanges(reports);
       },
       onError: (error) {
-        print('❌ Status monitoring error: $error');
+        debugPrint('❌ Status monitoring error: $error');
       },
     );
   }
 
   // Stop monitoring status changes
   void stopStatusMonitoring() {
-    print('🛑 Stopping status monitoring');
+    debugPrint('🛑 Stopping status monitoring');
     _statusSubscription?.cancel();
     _statusSubscription = null;
   }
@@ -48,7 +49,7 @@ class ReportStatusService {
       final previousStatus = _previousStatuses[reportId];
       
       if (previousStatus != null && previousStatus != currentStatus) {
-        print('🔔 Status change detected for report $reportId: $previousStatus → $currentStatus');
+        debugPrint('🔔 Status change detected for report $reportId: $previousStatus → $currentStatus');
         _sendStatusChangeNotification(report, previousStatus, currentStatus);
       }
       
@@ -62,7 +63,7 @@ class ReportStatusService {
     final reportId = report.id;
     final categoryName = _getCategoryDisplayName(report.category);
     
-    print('📢 Sending notification for status change: $currentStatus');
+    debugPrint('📢 Sending notification for status change: $currentStatus');
     
     switch (currentStatus.toLowerCase()) {
       case 'submitted':
@@ -175,7 +176,7 @@ class ReportStatusService {
       final reports = await _databaseService.getUserReports(userId);
       _checkForStatusChanges(reports);
     } catch (e) {
-      print('❌ Error checking status updates: $e');
+      debugPrint('❌ Error checking status updates: $e');
     }
   }
 
@@ -186,9 +187,9 @@ class ReportStatusService {
       for (final report in reports) {
         _previousStatuses[report.id] = report.status;
       }
-      print('✅ Initialized status tracking for ${reports.length} reports');
+      debugPrint('✅ Initialized status tracking for ${reports.length} reports');
     } catch (e) {
-      print('❌ Error initializing status tracking: $e');
+      debugPrint('❌ Error initializing status tracking: $e');
     }
   }
 

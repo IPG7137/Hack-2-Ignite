@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'comprehensive_report_models.dart';
 import 'credit_service.dart';
@@ -48,7 +49,7 @@ class ComprehensiveDatabaseService {
     double radiusMeters = 200.0,
   }) async {
     try {
-      print('🔍 Multi-Signal duplicate evaluation within ${radiusMeters}m for category: $category');
+      debugPrint('🔍 Multi-Signal duplicate evaluation within ${radiusMeters}m for category: $category');
       
       // Fetch candidate active markers (from public_report_markers view under RLS, or reports table)
       List<dynamic> response;
@@ -115,7 +116,7 @@ class ComprehensiveDatabaseService {
       // Backward-compatible determination: If best match within radius has valid category match or score >= 0.50
       if (bestMatch != null && (bestMatch.categoryScore >= 0.70 || bestMatch.totalConfidence >= 0.50)) {
         final parentId = bestMatch.candidateReportId;
-        print('📍 Multi-signal duplicate candidate identified: Report #$parentId (${bestMatch.distanceMeters?.toStringAsFixed(1)}m, confidence: ${(bestMatch.totalConfidence * 100).toStringAsFixed(1)}%)');
+        debugPrint('📍 Multi-signal duplicate candidate identified: Report #$parentId (${bestMatch.distanceMeters?.toStringAsFixed(1)}m, confidence: ${(bestMatch.totalConfidence * 100).toStringAsFixed(1)}%)');
         return (
           hasDuplicate: true,
           parentReportId: parentId,
@@ -133,7 +134,7 @@ class ComprehensiveDatabaseService {
         analysisResult: null,
       );
     } catch (e) {
-      print('⚠️ Multi-signal duplicate check warning: $e');
+      debugPrint('⚠️ Multi-signal duplicate check warning: $e');
       return (
         hasDuplicate: false,
         parentReportId: null,
@@ -204,7 +205,7 @@ class ComprehensiveDatabaseService {
       results.sort((a, b) => b.totalConfidence.compareTo(a.totalConfidence));
       return results;
     } catch (e) {
-      print('⚠️ Error in findMultiSignalDuplicates: $e');
+      debugPrint('⚠️ Error in findMultiSignalDuplicates: $e');
       return [];
     }
   }
@@ -216,7 +217,7 @@ class ComprehensiveDatabaseService {
   /// Test database connection and table access
   Future<bool> testDatabaseConnection() async {
     try {
-      print('🔍 Testing database connection...');
+      debugPrint('🔍 Testing database connection...');
       
       // Try to perform a simple query to test connection
       final response = await _supabase
@@ -224,10 +225,10 @@ class ComprehensiveDatabaseService {
           .select('id')
           .limit(1);
       
-      print('✅ Database connection successful. Found ${response.length} sample records.');
+      debugPrint('✅ Database connection successful. Found ${response.length} sample records.');
       return true;
     } catch (e) {
-      print('❌ Database connection test failed: $e');
+      debugPrint('❌ Database connection test failed: $e');
       return false;
     }
   }
@@ -256,7 +257,7 @@ class ComprehensiveDatabaseService {
         return (success: false, user: null, message: (response[0]['message'] ?? 'Authentication failed').toString());
       }
     } catch (e) {
-      print('Authentication error: $e');
+      debugPrint('Authentication error: $e');
       return (success: false, user: null, message: 'Authentication error: ${e.toString()}');
     }
   }
@@ -272,7 +273,7 @@ class ComprehensiveDatabaseService {
 
       return UserModel.fromJson(response);
     } catch (e) {
-      print('Error fetching user profile: $e');
+      debugPrint('Error fetching user profile: $e');
       return null;
     }
   }
@@ -286,7 +287,7 @@ class ComprehensiveDatabaseService {
           .eq('id', userId);
       return true;
     } catch (e) {
-      print('Error updating user profile data: $e');
+      debugPrint('Error updating user profile data: $e');
       return false;
     }
   }
@@ -308,29 +309,29 @@ class ComprehensiveDatabaseService {
     String? contactNumber,
   }) async {
     try {
-      print('🔄 Submitting report to database...');
-      print('   User ID: $userId');
-      print('   Title: $title');
-      print('   Category: $category');
-      print('   Location: $location');
-      print('   Latitude: $latitude');
-      print('   Longitude: $longitude');
-      print('   Images: ${imageUrls?.length ?? 0} images');
-      print('   Contact: $contactNumber');
+      debugPrint('🔄 Submitting report to database...');
+      debugPrint('   User ID: $userId');
+      debugPrint('   Title: $title');
+      debugPrint('   Category: $category');
+      debugPrint('   Location: $location');
+      debugPrint('   Latitude: $latitude');
+      debugPrint('   Longitude: $longitude');
+      debugPrint('   Images: ${imageUrls?.length ?? 0} images');
+      debugPrint('   Contact: $contactNumber');
       
       // Validate required fields
       if (userId.isEmpty) {
-        print('❌ Error: User ID is empty');
+        debugPrint('❌ Error: User ID is empty');
         return ReportSubmissionResult.error('User ID is required');
       }
       
       if (title.isEmpty) {
-        print('❌ Error: Title is empty');
+        debugPrint('❌ Error: Title is empty');
         return ReportSubmissionResult.error('Title is required');
       }
       
       if (description.isEmpty) {
-        print('❌ Error: Description is empty');
+        debugPrint('❌ Error: Description is empty');
         return ReportSubmissionResult.error('Description is required');
       }
       
@@ -344,13 +345,13 @@ class ComprehensiveDatabaseService {
         priority = 'low';
       }
       
-      print('   Calculated Priority: $priority');
+      debugPrint('   Calculated Priority: $priority');
       
       // Prepare coordinates as JSONB
       Map<String, dynamic>? coordinates;
       if (latitude != null && longitude != null) {
         coordinates = {'lat': latitude, 'lng': longitude};
-        print('   Coordinates: $coordinates');
+        debugPrint('   Coordinates: $coordinates');
       }
 
       // Proximity-based duplicate pre-check (200m radius threshold - PS 02 4.D)
@@ -370,7 +371,7 @@ class ComprehensiveDatabaseService {
           isPotentialDuplicate = true;
           parentReportId = duplicateCheck.parentReportId;
           matchDistance = duplicateCheck.distanceMeters;
-          print('🔗 Report flagged as potential duplicate of #$parentReportId (${matchDistance?.toStringAsFixed(1)}m away)');
+          debugPrint('🔗 Report flagged as potential duplicate of #$parentReportId (${matchDistance?.toStringAsFixed(1)}m away)');
         }
       }
       
@@ -396,7 +397,7 @@ class ComprehensiveDatabaseService {
         if (parentReportId != null) 'parent_report_id': parentReportId,
       };
       
-      print('📤 Attempting database insert with data: $insertData');
+      debugPrint('📤 Attempting database insert with data: $insertData');
       
       // Insert directly into reports table
       final response = await _supabase
@@ -405,18 +406,18 @@ class ComprehensiveDatabaseService {
           .select('id')
           .single();
 
-      print('📥 Database response received: $response');
+      debugPrint('📥 Database response received: $response');
 
       if (response['id'] != null) {
         final reportId = response['id'].toString();
-        print('✅ Report submitted successfully with ID: $reportId');
+        debugPrint('✅ Report submitted successfully with ID: $reportId');
         
         // Award credits to user for successful report submission
         try {
           await CreditService.awardCreditsForReport(userId, reportId);
-          print('✅ Credits awarded for report submission');
+          debugPrint('✅ Credits awarded for report submission');
         } catch (creditError) {
-          print('⚠️ Credit awarding failed: $creditError');
+          debugPrint('⚠️ Credit awarding failed: $creditError');
         }
 
         return ReportSubmissionResult.success(
@@ -430,12 +431,12 @@ class ComprehensiveDatabaseService {
           distanceMeters: matchDistance,
         );
       } else {
-        print('❌ Report submission failed - no response ID');
+        debugPrint('❌ Report submission failed - no response ID');
         return ReportSubmissionResult.error('Report submission failed - no response from database');
       }
     } catch (e, stackTrace) {
-      print('❌ Report submission error: $e');
-      print('❌ Stack trace: $stackTrace');
+      debugPrint('❌ Report submission error: $e');
+      debugPrint('❌ Stack trace: $stackTrace');
       
       // Check for specific error types
       if (e.toString().contains('duplicate key')) {
@@ -455,17 +456,17 @@ class ComprehensiveDatabaseService {
   /// Get comprehensive reports for a user
   Future<List<ComprehensiveReportModel>> getUserReportsComprehensive(String userId) async {
     try {
-      print('🔍 Fetching reports for user: $userId');
+      debugPrint('🔍 Fetching reports for user: $userId');
       final response = await _supabase
           .from('reports')
           .select()
           .eq('user_id', userId)
           .order('created_at', ascending: false);
 
-      print('✅ Fetched ${response.length} reports for user');
+      debugPrint('✅ Fetched ${response.length} reports for user');
       return response.map((json) => ComprehensiveReportModel.fromJson(json)).toList();
     } catch (e) {
-      print('❌ Error fetching user reports: $e');
+      debugPrint('❌ Error fetching user reports: $e');
       return [];
     }
   }
@@ -473,16 +474,16 @@ class ComprehensiveDatabaseService {
   /// Get all reports (for admin view)
   Future<List<ComprehensiveReportModel>> getAllReportsComprehensive() async {
     try {
-      print('🔍 Fetching all reports for admin view');
+      debugPrint('🔍 Fetching all reports for admin view');
       final response = await _supabase
           .from('reports')
           .select()
           .order('created_at', ascending: false);
 
-      print('✅ Fetched ${response.length} total reports');
+      debugPrint('✅ Fetched ${response.length} total reports');
       return response.map((json) => ComprehensiveReportModel.fromJson(json)).toList();
     } catch (e) {
-      print('❌ Error fetching all reports: $e');
+      debugPrint('❌ Error fetching all reports: $e');
       return [];
     }
   }
@@ -496,7 +497,7 @@ class ComprehensiveDatabaseService {
     String? statusFilter,
   }) async {
     try {
-      print('🗺️ Fetching live reports for map view (lat: $latitude, lng: $longitude, radius: ${radiusKm}km)');
+      debugPrint('🗺️ Fetching live reports for map view (lat: $latitude, lng: $longitude, radius: ${radiusKm}km)');
       var query = _supabase.from('reports').select();
 
       if (category != null && category != 'All') {
@@ -534,14 +535,14 @@ class ComprehensiveDatabaseService {
             }
           }
         } catch (e) {
-          print('⚠️ Error parsing map report: $e');
+          debugPrint('⚠️ Error parsing map report: $e');
         }
       }
 
-      print('✅ Found ${reports.length} reports with valid coordinates for map');
+      debugPrint('✅ Found ${reports.length} reports with valid coordinates for map');
       return reports;
     } catch (e) {
-      print('❌ Error fetching map reports: $e');
+      debugPrint('❌ Error fetching map reports: $e');
       return [];
     }
   }
@@ -567,7 +568,7 @@ class ComprehensiveDatabaseService {
         baselineDays: baselineDays,
       );
     } catch (e) {
-      print('⚠️ Error in detectEmergingHotspots: $e');
+      debugPrint('⚠️ Error in detectEmergingHotspots: $e');
       return [];
     }
   }
@@ -596,7 +597,7 @@ class ComprehensiveDatabaseService {
         groupingRadiusMeters: groupingRadiusMeters,
       );
     } catch (e) {
-      print('⚠️ Error in groupReportsIntoIncidents: $e');
+      debugPrint('⚠️ Error in groupReportsIntoIncidents: $e');
       return [];
     }
   }
@@ -619,17 +620,17 @@ class ComprehensiveDatabaseService {
   /// Get reports by status
   Future<List<ComprehensiveReportModel>> getReportsByStatus(ReportStatus status) async {
     try {
-      print('🔍 Fetching reports with status: ${status.value}');
+      debugPrint('🔍 Fetching reports with status: ${status.value}');
       final response = await _supabase
           .from('reports')
           .select()
           .eq('status', status.value)
           .order('created_at', ascending: false);
 
-      print('✅ Fetched ${response.length} reports with status ${status.value}');
+      debugPrint('✅ Fetched ${response.length} reports with status ${status.value}');
       return response.map((json) => ComprehensiveReportModel.fromJson(json)).toList();
     } catch (e) {
-      print('❌ Error fetching reports by status: $e');
+      debugPrint('❌ Error fetching reports by status: $e');
       return [];
     }
   }
@@ -645,7 +646,7 @@ class ComprehensiveDatabaseService {
 
       return response.map((json) => ComprehensiveReportModel.fromJson(json)).toList();
     } catch (e) {
-      print('Error fetching reports by priority: $e');
+      debugPrint('Error fetching reports by priority: $e');
       return [];
     }
   }
@@ -661,7 +662,7 @@ class ComprehensiveDatabaseService {
 
       return ComprehensiveReportModel.fromJson(response);
     } catch (e) {
-      print('Error fetching report by ID: $e');
+      debugPrint('Error fetching report by ID: $e');
       return null;
     }
   }
@@ -672,24 +673,24 @@ class ComprehensiveDatabaseService {
     final effectiveUserId = (authId != null && authId.isNotEmpty) ? authId : userId;
 
     if (effectiveUserId.isEmpty) {
-      print('ℹ️ No authenticated user ID provided for user reports stream, returning empty stream');
+      debugPrint('ℹ️ No authenticated user ID provided for user reports stream, returning empty stream');
       return Stream.value(<ComprehensiveReportModel>[]);
     }
 
-    print('🔄 Setting up real-time stream for user: $effectiveUserId');
+    debugPrint('🔄 Setting up real-time stream for user: $effectiveUserId');
     return _supabase
         .from('reports')
         .stream(primaryKey: ['id'])
         .eq('user_id', effectiveUserId)
         .order('created_at', ascending: false)
         .asyncMap((data) async {
-          print('📡 Real-time stream: ${data.length} reports received for user $effectiveUserId');
+          debugPrint('📡 Real-time stream: ${data.length} reports received for user $effectiveUserId');
           
           final reports = data.map((json) {
             try {
               return ComprehensiveReportModel.fromJson(json);
             } catch (e) {
-              print('❌ Error parsing report: $e');
+              debugPrint('❌ Error parsing report: $e');
               rethrow;
             }
           }).toList();
@@ -700,7 +701,7 @@ class ComprehensiveDatabaseService {
 
   /// Stream assigned reports for officer in real-time
   Stream<List<ComprehensiveReportModel>> getOfficerAssignedReportsStream(String officerId) {
-    print('🔄 Setting up officer real-time stream for assigned reports: $officerId');
+    debugPrint('🔄 Setting up officer real-time stream for assigned reports: $officerId');
     return _supabase
         .from('reports')
         .stream(primaryKey: ['id'])
@@ -716,7 +717,7 @@ class ComprehensiveDatabaseService {
             try {
               return ComprehensiveReportModel.fromJson(json);
             } catch (e) {
-              print('❌ Error parsing officer report: $e');
+              debugPrint('❌ Error parsing officer report: $e');
               rethrow;
             }
           }).toList();
@@ -735,26 +736,26 @@ class ComprehensiveDatabaseService {
       final response = await query.order('created_at', ascending: false).limit(100);
       return response.map((json) => ComprehensiveReportModel.fromJson(json)).toList();
     } catch (e) {
-      print('⚠️ Error fetching officer assigned reports: $e');
+      debugPrint('⚠️ Error fetching officer assigned reports: $e');
       return [];
     }
   }
 
   /// Stream all reports for admin real-time updates with enhanced responsiveness  
   Stream<List<ComprehensiveReportModel>> getAllReportsStream() {
-    print('🔄 Setting up admin real-time stream for all reports');
+    debugPrint('🔄 Setting up admin real-time stream for all reports');
     return _supabase
         .from('reports')
         .stream(primaryKey: ['id'])
         .order('created_at', ascending: false)
         .asyncMap((data) async {
-          print('📡 Admin real-time stream: ${data.length} total reports received');
+          debugPrint('📡 Admin real-time stream: ${data.length} total reports received');
           
           final reports = data.map((json) {
             try {
               return ComprehensiveReportModel.fromJson(json);
             } catch (e) {
-              print('❌ Error parsing admin report: $e');
+              debugPrint('❌ Error parsing admin report: $e');
               rethrow;
             }
           }).toList();
@@ -785,7 +786,7 @@ class ComprehensiveDatabaseService {
         updateData['admin_notes'] = adminNote;
       }
       if (newStatus == ReportStatus.resolved ||
-          newStatus == ReportStatus.resolution_submitted ||
+          newStatus == ReportStatus.resolutionSubmitted ||
           newStatus == ReportStatus.verified ||
           newStatus == ReportStatus.closed) {
         updateData['completion_date'] = now;
@@ -809,7 +810,7 @@ class ComprehensiveDatabaseService {
 
       return StatusUpdateResult.success('Status updated to ${newStatus.displayName}');
     } catch (e) {
-      print('Status update error: $e');
+      debugPrint('Status update error: $e');
       return StatusUpdateResult.error('Status update error: ${e.toString()}');
     }
   }
@@ -843,7 +844,7 @@ class ComprehensiveDatabaseService {
 
       return StatusUpdateResult.success('Note added successfully');
     } catch (e) {
-      print('Add note error: $e');
+      debugPrint('Add note error: $e');
       return StatusUpdateResult.error('Add note error: ${e.toString()}');
     }
   }
@@ -859,7 +860,7 @@ class ComprehensiveDatabaseService {
 
       return response.map((json) => AdminNoteModel.fromJson(json)).toList();
     } catch (e) {
-      print('Error fetching admin notes: $e');
+      debugPrint('Error fetching admin notes: $e');
       return [];
     }
   }
@@ -875,14 +876,14 @@ class ComprehensiveDatabaseService {
 
       return response.map((json) => ReportStatusHistoryModel.fromJson(json)).toList();
     } catch (e) {
-      print('Error fetching status history: $e');
+      debugPrint('Error fetching status history: $e');
       return [];
     }
   }
 
   /// Stream real-time status history for a specific complaint
   Stream<List<ReportStatusHistoryModel>> getReportStatusHistoryStream(String reportId) {
-    print('🔄 Subscribing to real-time status history stream for report #$reportId');
+    debugPrint('🔄 Subscribing to real-time status history stream for report #$reportId');
     return _supabase
         .from('report_status_history')
         .stream(primaryKey: ['id'])
@@ -906,10 +907,10 @@ class ComprehensiveDatabaseService {
             'updated_at': DateTime.now().toIso8601String(),
           })
           .eq('id', reportId);
-      print('✅ Citizen feedback submitted for report #$reportId (Rating: $rating)');
+      debugPrint('✅ Citizen feedback submitted for report #$reportId (Rating: $rating)');
       return true;
     } catch (e) {
-      print('❌ Error submitting citizen feedback: $e');
+      debugPrint('❌ Error submitting citizen feedback: $e');
       return false;
     }
   }
@@ -929,7 +930,7 @@ class ComprehensiveDatabaseService {
 
       return response.map((json) => CategoryModel.fromJson(json)).toList();
     } catch (e) {
-      print('Error fetching categories: $e');
+      debugPrint('Error fetching categories: $e');
       return [];
     }
   }
@@ -945,7 +946,7 @@ class ComprehensiveDatabaseService {
 
       return CategoryModel.fromJson(response);
     } catch (e) {
-      print('Error fetching category: $e');
+      debugPrint('Error fetching category: $e');
       return null;
     }
   }
@@ -965,7 +966,7 @@ class ComprehensiveDatabaseService {
 
       return response.map((json) => NotificationModel.fromJson(json)).toList();
     } catch (e) {
-      print('Error fetching notifications: $e');
+      debugPrint('Error fetching notifications: $e');
       return [];
     }
   }
@@ -979,7 +980,7 @@ class ComprehensiveDatabaseService {
           .eq('id', notificationId);
       return true;
     } catch (e) {
-      print('Error marking notification as read: $e');
+      debugPrint('Error marking notification as read: $e');
       return false;
     }
   }
@@ -993,7 +994,7 @@ class ComprehensiveDatabaseService {
           .eq('user_id', userId);
       return true;
     } catch (e) {
-      print('Error marking all notifications as read: $e');
+      debugPrint('Error marking all notifications as read: $e');
       return false;
     }
   }
@@ -1012,7 +1013,7 @@ class ComprehensiveDatabaseService {
 
       return response;
     } catch (e) {
-      print('Error fetching dashboard stats: $e');
+      debugPrint('Error fetching dashboard stats: $e');
       return {};
     }
   }
@@ -1040,7 +1041,7 @@ class ComprehensiveDatabaseService {
         'high_priority_reports': highPriorityReports,
       };
     } catch (e) {
-      print('Error fetching user stats: $e');
+      debugPrint('Error fetching user stats: $e');
       return {};
     }
   }
@@ -1060,7 +1061,7 @@ class ComprehensiveDatabaseService {
 
       return response.map((json) => ComprehensiveReportModel.fromJson(json)).toList();
     } catch (e) {
-      print('Error searching reports: $e');
+      debugPrint('Error searching reports: $e');
       return [];
     }
   }
@@ -1100,7 +1101,7 @@ class ComprehensiveDatabaseService {
 
       return response.map((json) => ComprehensiveReportModel.fromJson(json)).toList();
     } catch (e) {
-      print('Error filtering reports: $e');
+      debugPrint('Error filtering reports: $e');
       return [];
     }
   }
@@ -1119,7 +1120,7 @@ class ComprehensiveDatabaseService {
           .maybeSingle();
       if (response != null) return Map<String, dynamic>.from(response);
     } catch (e) {
-      print('ℹ️ fetchUserProfile from users table: $e, trying user_profiles...');
+      debugPrint('ℹ️ fetchUserProfile from users table: $e, trying user_profiles...');
     }
 
     try {
@@ -1130,7 +1131,7 @@ class ComprehensiveDatabaseService {
           .maybeSingle();
       if (response != null) return Map<String, dynamic>.from(response);
     } catch (e) {
-      print('⚠️ fetchUserProfile from user_profiles table: $e');
+      debugPrint('⚠️ fetchUserProfile from user_profiles table: $e');
     }
 
     return null;
@@ -1162,9 +1163,9 @@ class ComprehensiveDatabaseService {
           .update(updateData)
           .eq('id', userId);
       updated = true;
-      print('✅ Profile updated in users table for user $userId');
+      debugPrint('✅ Profile updated in users table for user $userId');
     } catch (e) {
-      print('ℹ️ updateUserProfile in users table failed ($e), trying user_profiles...');
+      debugPrint('ℹ️ updateUserProfile in users table failed ($e), trying user_profiles...');
     }
 
     if (!updated) {
@@ -1176,9 +1177,9 @@ class ComprehensiveDatabaseService {
               ...updateData,
             });
         updated = true;
-        print('✅ Profile updated in user_profiles table for user $userId');
+        debugPrint('✅ Profile updated in user_profiles table for user $userId');
       } catch (e) {
-        print('⚠️ updateUserProfile in user_profiles table: $e');
+        debugPrint('⚠️ updateUserProfile in user_profiles table: $e');
       }
     }
 

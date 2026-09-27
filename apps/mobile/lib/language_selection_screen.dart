@@ -213,7 +213,7 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen> with 
           ...LanguageService.supportedLanguages.map((language) {
             final isSelected = _languageService.currentLanguage.code == language.code;
             return _buildLanguageOption(language, isSelected);
-          }).toList(),
+          }),
         ],
       ),
     );

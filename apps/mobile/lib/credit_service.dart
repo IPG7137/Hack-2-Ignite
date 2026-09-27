@@ -106,9 +106,9 @@ class CreditService {
   static final SupabaseClient _supabase = Supabase.instance.client;
 
   // Credit earning constants
-  static const int CREDITS_PER_REPORT = 10;
-  static const int CREDITS_PER_RESOLVED_REPORT = 5;
-  static const int CREDITS_PER_QUALITY_REPORT = 15; // For high-quality reports
+  static const int creditsPerReport = 10;
+  static const int creditsPerResolvedReport = 5;
+  static const int creditsPerQualityReport = 15; // For high-quality reports
 
   /// Award credits to user for a specific action
   static Future<bool> awardCredits({
@@ -141,7 +141,7 @@ class CreditService {
   static Future<bool> awardCreditsForReport(String userId, String reportId) async {
     return await awardCredits(
       userId: userId,
-      credits: CREDITS_PER_REPORT,
+      credits: creditsPerReport,
       earnedFor: 'report_submission',
       reportId: reportId,
     );
@@ -151,7 +151,7 @@ class CreditService {
   static Future<bool> awardCreditsForResolvedReport(String userId, String reportId) async {
     return await awardCredits(
       userId: userId,
-      credits: CREDITS_PER_RESOLVED_REPORT,
+      credits: creditsPerResolvedReport,
       earnedFor: 'report_resolved',
       reportId: reportId,
     );

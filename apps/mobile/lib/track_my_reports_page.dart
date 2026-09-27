@@ -300,7 +300,7 @@ class _TrackMyReportsPageState extends State<TrackMyReportsPage> {
             'Please wait while we fetch your reports',
             style: TextStyle(
               fontSize: 14,
-              color: colorScheme.onSurface.withOpacity(0.7),
+              color: colorScheme.onSurface.withValues(alpha: 0.7),
             ),
           ),
         ],
@@ -332,7 +332,7 @@ class _TrackMyReportsPageState extends State<TrackMyReportsPage> {
             'Please try again later',
             style: TextStyle(
               fontSize: 14,
-              color: colorScheme.onSurface.withOpacity(0.7),
+              color: colorScheme.onSurface.withValues(alpha: 0.7),
             ),
           ),
           const SizedBox(height: 16),
@@ -357,7 +357,7 @@ class _TrackMyReportsPageState extends State<TrackMyReportsPage> {
           Icon(
             Icons.inbox_outlined,
             size: 64,
-            color: colorScheme.onSurface.withOpacity(0.5),
+            color: colorScheme.onSurface.withValues(alpha: 0.5),
           ),
           const SizedBox(height: 16),
           Text(
@@ -365,7 +365,7 @@ class _TrackMyReportsPageState extends State<TrackMyReportsPage> {
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w500,
-              color: colorScheme.onSurface.withOpacity(0.7),
+              color: colorScheme.onSurface.withValues(alpha: 0.7),
             ),
           ),
         ],
@@ -434,7 +434,7 @@ class ReportCard extends StatelessWidget {
                   report.id,
                   style: TextStyle(
                     fontSize: 12,
-                    color: colorScheme.onSurface.withOpacity(0.6),
+                    color: colorScheme.onSurface.withValues(alpha: 0.6),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -478,7 +478,7 @@ class ReportCard extends StatelessWidget {
               report.description,
               style: TextStyle(
                 fontSize: 14,
-                color: colorScheme.onSurface.withOpacity(0.8),
+                color: colorScheme.onSurface.withValues(alpha: 0.8),
                 height: 1.4,
               ),
             ),
@@ -490,7 +490,7 @@ class ReportCard extends StatelessWidget {
                 Icon(
                   Icons.location_on,
                   size: 16,
-                  color: colorScheme.onSurface.withOpacity(0.6),
+                  color: colorScheme.onSurface.withValues(alpha: 0.6),
                 ),
                 const SizedBox(width: 4),
                 Expanded(
@@ -498,7 +498,7 @@ class ReportCard extends StatelessWidget {
                     report.location,
                     style: TextStyle(
                       fontSize: 12,
-                      color: colorScheme.onSurface.withOpacity(0.6),
+                      color: colorScheme.onSurface.withValues(alpha: 0.6),
                     ),
                   ),
                 ),
@@ -506,7 +506,7 @@ class ReportCard extends StatelessWidget {
                   _getTimeString(report.submittedDate),
                   style: TextStyle(
                     fontSize: 12,
-                    color: colorScheme.onSurface.withOpacity(0.6),
+                    color: colorScheme.onSurface.withValues(alpha: 0.6),
                   ),
                 ),
               ],

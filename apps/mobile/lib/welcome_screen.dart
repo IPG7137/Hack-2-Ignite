@@ -190,6 +190,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> with SingleTickerProvider
                               onPressed: () async {
                                 // Mark welcome screen as seen
                                 await AppPreferences.instance.setWelcomeSeen();
+                                if (!context.mounted) return;
                                 
                                 Navigator.push(
                                   context,

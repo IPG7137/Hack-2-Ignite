@@ -121,6 +121,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       if (mounted) {
         // Even if remote fails, persist locally so user experience is not broken
         await AppPreferences.setUserProfile(updatedProfile);
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Profile saved locally: ${e.toString()}'),
@@ -183,7 +184,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                               ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withOpacity(0.1),
+                                  color: Colors.black.withValues(alpha: 0.1),
                                   blurRadius: 10,
                                   offset: const Offset(0, 4),
                                 ),

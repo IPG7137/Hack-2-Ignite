@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'credit_service.dart';
 // import 'package:shared_preferences/shared_preferences.dart'; // Unused import
@@ -233,7 +234,7 @@ class DatabaseService {
 
   Future<bool> updateReportStatus(String reportId, String newStatus) async {
     try {
-      print('📝 Updating report $reportId status to: $newStatus');
+      debugPrint('📝 Updating report $reportId status to: $newStatus');
       
       final updateData = {
         'status': newStatus,
@@ -250,10 +251,10 @@ class DatabaseService {
           .update(updateData)
           .eq('id', reportId);
           
-      print('✅ Report status updated successfully');
+      debugPrint('✅ Report status updated successfully');
       return true;
     } catch (e) {
-      print('❌ Failed to update report status: $e');
+      debugPrint('❌ Failed to update report status: $e');
       return false;
     }
   }
@@ -264,7 +265,7 @@ class DatabaseService {
       // Get current status
       final report = await getReportById(reportId);
       if (report == null) {
-        print('❌ Report not found: $reportId');
+        debugPrint('❌ Report not found: $reportId');
         return false;
       }
 
@@ -286,14 +287,14 @@ class DatabaseService {
           nextStatus = 'resolved';
           break;
         default:
-          print('⚠️ Report already at final status: $currentStatus');
+          debugPrint('⚠️ Report already at final status: $currentStatus');
           return false;
       }
 
-      print('🔄 Progressing report from $currentStatus to $nextStatus');
+      debugPrint('🔄 Progressing report from $currentStatus to $nextStatus');
       return await updateReportStatus(reportId, nextStatus);
     } catch (e) {
-      print('❌ Failed to progress report status: $e');
+      debugPrint('❌ Failed to progress report status: $e');
       return false;
     }
   }
@@ -308,10 +309,10 @@ class DatabaseService {
         .eq('user_id', userId)
         .order('created_at', ascending: false)
         .map((data) {
-          print('🔄 Real-time data received: ${data.length} reports');
+          debugPrint('🔄 Real-time data received: ${data.length} reports');
           return data
               .map((item) {
-                print('   Status for ${item['title']}: ${item['status']}');
+                debugPrint('   Status for ${item['title']}: ${item['status']}');
                 return ReportModel.fromJson(item);
               })
               .toList();

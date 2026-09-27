@@ -114,7 +114,7 @@ class _ComprehensiveTrackReportsScreenState extends State<ComprehensiveTrackRepo
     final authService = AuthService.instance;
     final userId = authService.userId ?? authService.supabaseUser?.id ?? '';
     
-    print('⚡ Initializing citizen reports stream for user: $userId (Admin: $_isAdmin)');
+    debugPrint('⚡ Initializing citizen reports stream for user: $userId (Admin: $_isAdmin)');
     
     setState(() {
       _isLoading = true;
@@ -123,7 +123,7 @@ class _ComprehensiveTrackReportsScreenState extends State<ComprehensiveTrackRepo
     });
     
     if (!_isAdmin && userId.isEmpty) {
-      print('ℹ️ No authenticated user for citizen track reports stream, skipping subscription');
+      debugPrint('ℹ️ No authenticated user for citizen track reports stream, skipping subscription');
       setState(() {
         _allReports = [];
         _filteredReports = [];
@@ -192,7 +192,7 @@ class _ComprehensiveTrackReportsScreenState extends State<ComprehensiveTrackRepo
               }
             },
             onError: (error) {
-              print('❌ Reports stream error: $error');
+              debugPrint('❌ Reports stream error: $error');
               if (mounted) {
                 setState(() {
                   _hasError = !_hasValidCachedData();
@@ -209,7 +209,7 @@ class _ComprehensiveTrackReportsScreenState extends State<ComprehensiveTrackRepo
             cancelOnError: false,
           );
     } catch (e) {
-      print('❌ Error initializing reports stream: $e');
+      debugPrint('❌ Error initializing reports stream: $e');
       if (mounted) {
         setState(() {
           _hasError = !_hasValidCachedData();
@@ -248,7 +248,7 @@ class _ComprehensiveTrackReportsScreenState extends State<ComprehensiveTrackRepo
         }
       }
     } catch (e) {
-      print('Background refresh: $e');
+      debugPrint('Background refresh: $e');
     }
   }
 
@@ -257,7 +257,7 @@ class _ComprehensiveTrackReportsScreenState extends State<ComprehensiveTrackRepo
       _cachedReports = List.from(reports);
       _lastCacheTime = DateTime.now();
     } catch (e) {
-      print('Failed to cache reports: $e');
+      debugPrint('Failed to cache reports: $e');
     }
   }
 
@@ -271,7 +271,7 @@ class _ComprehensiveTrackReportsScreenState extends State<ComprehensiveTrackRepo
         });
       }
     } catch (e) {
-      print('Error loading cached data: $e');
+      debugPrint('Error loading cached data: $e');
     }
   }
 
@@ -303,7 +303,7 @@ class _ComprehensiveTrackReportsScreenState extends State<ComprehensiveTrackRepo
 
   /// Show citizen-focused in-app notification when complaint status changes
   void _handleStatusChange(ComprehensiveReportModel oldReport, ComprehensiveReportModel newReport) {
-    print('🔄 Real-time status update: #${newReport.id} [${oldReport.status.displayName} -> ${newReport.status.displayName}]');
+    debugPrint('🔄 Real-time status update: #${newReport.id} [${oldReport.status.displayName} -> ${newReport.status.displayName}]');
     
     HapticFeedback.mediumImpact();
     
@@ -317,7 +317,7 @@ class _ComprehensiveTrackReportsScreenState extends State<ComprehensiveTrackRepo
           statusMessage = 'Your complaint #${newReport.id} is registered in the civic system.';
           break;
         case ReportStatus.review:
-        case ReportStatus.under_review:
+        case ReportStatus.underReview:
           statusHeadline = 'Under Review';
           statusMessage = 'Grievance cell is reviewing complaint #${newReport.id}.';
           break;
@@ -326,11 +326,11 @@ class _ComprehensiveTrackReportsScreenState extends State<ComprehensiveTrackRepo
           statusMessage = 'Complaint #${newReport.id} has been assigned for field action.';
           break;
         case ReportStatus.progress:
-        case ReportStatus.in_progress:
+        case ReportStatus.inProgress:
           statusHeadline = 'Field Work In Progress';
           statusMessage = 'Municipal maintenance crew is working on complaint #${newReport.id}.';
           break;
-        case ReportStatus.resolution_submitted:
+        case ReportStatus.resolutionSubmitted:
           statusHeadline = 'Resolution Submitted';
           statusMessage = 'Field officer submitted proof of resolution for complaint #${newReport.id}.';
           break;
@@ -355,7 +355,7 @@ class _ComprehensiveTrackReportsScreenState extends State<ComprehensiveTrackRepo
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
+                  color: Colors.white.withValues(alpha: 0.2),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
@@ -409,14 +409,14 @@ class _ComprehensiveTrackReportsScreenState extends State<ComprehensiveTrackRepo
       case ReportStatus.submitted:
         return Icons.check_circle_outline;
       case ReportStatus.review:
-      case ReportStatus.under_review:
+      case ReportStatus.underReview:
         return Icons.rate_review_outlined;
       case ReportStatus.assigned:
         return Icons.engineering_outlined;
       case ReportStatus.progress:
-      case ReportStatus.in_progress:
+      case ReportStatus.inProgress:
         return Icons.hourglass_bottom_outlined;
-      case ReportStatus.resolution_submitted:
+      case ReportStatus.resolutionSubmitted:
         return Icons.task_alt_outlined;
       case ReportStatus.resolved:
       case ReportStatus.verified:
@@ -449,7 +449,7 @@ class _ComprehensiveTrackReportsScreenState extends State<ComprehensiveTrackRepo
       _initializeReportsStream();
       await Future.delayed(const Duration(milliseconds: 600));
     } catch (e) {
-      print('Refresh error: $e');
+      debugPrint('Refresh error: $e');
     } finally {
       if (mounted) {
         setState(() {
@@ -632,7 +632,7 @@ class _ComprehensiveTrackReportsScreenState extends State<ComprehensiveTrackRepo
             _isAdmin ? 'Live municipal dispatch & oversight' : 'Real-time municipal action status',
             style: TextStyle(
               fontSize: 11,
-              color: colorScheme.onPrimary.withOpacity(0.8),
+              color: colorScheme.onPrimary.withValues(alpha: 0.8),
             ),
           ),
         ],
@@ -854,7 +854,7 @@ class _ComprehensiveTrackReportsScreenState extends State<ComprehensiveTrackRepo
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -1118,7 +1118,7 @@ class _ComprehensiveTrackReportsScreenState extends State<ComprehensiveTrackRepo
         border: Border.all(color: Colors.grey.shade200),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 6,
             offset: const Offset(0, 2),
           ),
@@ -1162,7 +1162,7 @@ class _ComprehensiveTrackReportsScreenState extends State<ComprehensiveTrackRepo
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                       decoration: BoxDecoration(
-                        color: priorityColor.withOpacity(0.12),
+                        color: priorityColor.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Row(
@@ -1188,7 +1188,7 @@ class _ComprehensiveTrackReportsScreenState extends State<ComprehensiveTrackRepo
                         borderRadius: BorderRadius.circular(12),
                         boxShadow: [
                           BoxShadow(
-                            color: statusColor.withOpacity(0.25),
+                            color: statusColor.withValues(alpha: 0.25),
                             blurRadius: 4,
                             offset: const Offset(0, 1),
                           ),
@@ -1350,14 +1350,14 @@ class _ComprehensiveTrackReportsScreenState extends State<ComprehensiveTrackRepo
       case ReportStatus.submitted:
         return 'Submitted';
       case ReportStatus.review:
-      case ReportStatus.under_review:
+      case ReportStatus.underReview:
         return 'Under Review';
       case ReportStatus.assigned:
         return 'Assigned';
       case ReportStatus.progress:
-      case ReportStatus.in_progress:
+      case ReportStatus.inProgress:
         return 'In Progress';
-      case ReportStatus.resolution_submitted:
+      case ReportStatus.resolutionSubmitted:
         return 'Resolution Submitted';
       case ReportStatus.resolved:
       case ReportStatus.verified:
@@ -1374,14 +1374,14 @@ class _ComprehensiveTrackReportsScreenState extends State<ComprehensiveTrackRepo
       case ReportStatus.submitted:
         return const Color(0xFF1E40AF); // Blue
       case ReportStatus.review:
-      case ReportStatus.under_review:
+      case ReportStatus.underReview:
         return const Color(0xFF4F46E5); // Indigo
       case ReportStatus.assigned:
         return const Color(0xFF7C3AED); // Purple
       case ReportStatus.progress:
-      case ReportStatus.in_progress:
+      case ReportStatus.inProgress:
         return const Color(0xFFD97706); // Amber / Orange
-      case ReportStatus.resolution_submitted:
+      case ReportStatus.resolutionSubmitted:
         return const Color(0xFF0284C7); // Sky Blue
       case ReportStatus.resolved:
       case ReportStatus.verified:
@@ -1471,7 +1471,7 @@ class _ReportDetailsBottomSheetState extends State<_ReportDetailsBottomSheet> {
         });
       }
     }, onError: (e) {
-      print('Realtime status history stream error: $e');
+      debugPrint('Realtime status history stream error: $e');
     });
   }
 
@@ -1597,7 +1597,7 @@ class _ReportDetailsBottomSheetState extends State<_ReportDetailsBottomSheet> {
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                               decoration: BoxDecoration(
-                                color: priorityColor.withOpacity(0.15),
+                                color: priorityColor.withValues(alpha: 0.15),
                                 borderRadius: BorderRadius.circular(4),
                               ),
                               child: Text(
@@ -1892,15 +1892,15 @@ class _ReportDetailsBottomSheetState extends State<_ReportDetailsBottomSheet> {
         currentStageIndex = 0;
         break;
       case ReportStatus.review:
-      case ReportStatus.under_review:
+      case ReportStatus.underReview:
         currentStageIndex = 1;
         break;
       case ReportStatus.assigned:
         currentStageIndex = 2;
         break;
       case ReportStatus.progress:
-      case ReportStatus.in_progress:
-      case ReportStatus.resolution_submitted:
+      case ReportStatus.inProgress:
+      case ReportStatus.resolutionSubmitted:
         currentStageIndex = 3;
         break;
       case ReportStatus.resolved:
@@ -2049,7 +2049,7 @@ class _ReportDetailsBottomSheetState extends State<_ReportDetailsBottomSheet> {
                 width: 22,
                 height: 22,
                 decoration: BoxDecoration(
-                  color: isCompleted ? nodeColor : (isActive ? nodeColor.withOpacity(0.15) : Colors.white),
+                  color: isCompleted ? nodeColor : (isActive ? nodeColor.withValues(alpha: 0.15) : Colors.white),
                   shape: BoxShape.circle,
                   border: Border.all(
                     color: nodeColor,

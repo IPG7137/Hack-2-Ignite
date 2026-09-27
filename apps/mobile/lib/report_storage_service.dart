@@ -37,7 +37,7 @@ class ReportStorageService {
           final base64String = base64Encode(bytes);
           imageBase64List.add(base64String);
         } catch (e) {
-          print('Error encoding image: $e');
+          debugPrint('Error encoding image: $e');
           // Continue with other images even if one fails
         }
       }
@@ -78,7 +78,7 @@ class ReportStorageService {
       
       return reportId;
     } catch (e) {
-      print('Error saving report: $e');
+      debugPrint('Error saving report: $e');
       rethrow;
     }
   }
@@ -96,7 +96,7 @@ class ReportStorageService {
       final List<dynamic> reportsList = jsonDecode(reportsJson);
       return reportsList.map((json) => _createReportFromJson(json)).toList();
     } catch (e) {
-      print('Error loading reports: $e');
+      debugPrint('Error loading reports: $e');
       return [];
     }
   }
@@ -135,7 +135,7 @@ class ReportStorageService {
         await prefs.setString(_reportsKey, jsonEncode(reportsJsonList));
       }
     } catch (e) {
-      print('Error updating report status: $e');
+      debugPrint('Error updating report status: $e');
     }
   }
   
@@ -149,7 +149,7 @@ class ReportStorageService {
       final reportsJsonList = reports.map((report) => _reportToJson(report)).toList();
       await prefs.setString(_reportsKey, jsonEncode(reportsJsonList));
     } catch (e) {
-      print('Error deleting report: $e');
+      debugPrint('Error deleting report: $e');
     }
   }
   
@@ -159,7 +159,7 @@ class ReportStorageService {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_reportsKey);
     } catch (e) {
-      print('Error clearing reports: $e');
+      debugPrint('Error clearing reports: $e');
     }
   }
   

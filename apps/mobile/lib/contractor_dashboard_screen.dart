@@ -839,7 +839,7 @@ class _ContractorDashboardScreenState extends State<ContractorDashboardScreen> w
               const SizedBox(height: 16),
 
               if (report.status == ReportStatus.submitted ||
-                  report.status == ReportStatus.under_review ||
+                  report.status == ReportStatus.underReview ||
                   report.status == ReportStatus.assigned) ...[
                 SizedBox(
                   width: double.infinity,
@@ -858,7 +858,7 @@ class _ContractorDashboardScreenState extends State<ContractorDashboardScreen> w
                     ),
                   ),
                 ),
-              ] else if (report.status == ReportStatus.in_progress) ...[
+              ] else if (report.status == ReportStatus.inProgress) ...[
                 SizedBox(
                   width: double.infinity,
                   height: 48,
@@ -876,7 +876,7 @@ class _ContractorDashboardScreenState extends State<ContractorDashboardScreen> w
                     ),
                   ),
                 ),
-              ] else if (report.status == ReportStatus.resolution_submitted) ...[
+              ] else if (report.status == ReportStatus.resolutionSubmitted) ...[
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(14),
@@ -1041,10 +1041,10 @@ class _ContractorDashboardScreenState extends State<ContractorDashboardScreen> w
     final assignedCount = _assignedReports.where((r) =>
         r.status == ReportStatus.assigned ||
         r.status == ReportStatus.submitted ||
-        r.status == ReportStatus.under_review).length;
-    final inProgressCount = _assignedReports.where((r) => r.status == ReportStatus.in_progress).length;
+        r.status == ReportStatus.underReview).length;
+    final inProgressCount = _assignedReports.where((r) => r.status == ReportStatus.inProgress).length;
     final resolvedCount = _assignedReports.where((r) =>
-        r.status == ReportStatus.resolution_submitted ||
+        r.status == ReportStatus.resolutionSubmitted ||
         r.status == ReportStatus.verified ||
         r.status == ReportStatus.closed).length;
 
@@ -1053,12 +1053,12 @@ class _ContractorDashboardScreenState extends State<ContractorDashboardScreen> w
       filteredReports = _assignedReports.where((r) =>
           r.status == ReportStatus.assigned ||
           r.status == ReportStatus.submitted ||
-          r.status == ReportStatus.under_review).toList();
+          r.status == ReportStatus.underReview).toList();
     } else if (_selectedFilter == 'in_progress') {
-      filteredReports = _assignedReports.where((r) => r.status == ReportStatus.in_progress).toList();
+      filteredReports = _assignedReports.where((r) => r.status == ReportStatus.inProgress).toList();
     } else if (_selectedFilter == 'resolution_submitted') {
       filteredReports = _assignedReports.where((r) =>
-          r.status == ReportStatus.resolution_submitted ||
+          r.status == ReportStatus.resolutionSubmitted ||
           r.status == ReportStatus.verified ||
           r.status == ReportStatus.closed).toList();
     }
@@ -1498,7 +1498,7 @@ class _ContractorDashboardScreenState extends State<ContractorDashboardScreen> w
                   
                   // Action quick button
                   if (report.status == ReportStatus.submitted ||
-                      report.status == ReportStatus.under_review ||
+                      report.status == ReportStatus.underReview ||
                       report.status == ReportStatus.assigned)
                     TextButton.icon(
                       onPressed: () => _handleStartWork(report),
@@ -1511,7 +1511,7 @@ class _ContractorDashboardScreenState extends State<ContractorDashboardScreen> w
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                       ),
                     )
-                  else if (report.status == ReportStatus.in_progress)
+                  else if (report.status == ReportStatus.inProgress)
                     TextButton.icon(
                       onPressed: () => _showResolutionSubmissionDialog(report),
                       icon: const Icon(Icons.check_circle_outline, size: 16),
@@ -1545,17 +1545,17 @@ class _ContractorDashboardScreenState extends State<ContractorDashboardScreen> w
     switch (status) {
       case ReportStatus.submitted:
       case ReportStatus.review:
-      case ReportStatus.under_review:
+      case ReportStatus.underReview:
       case ReportStatus.assigned:
         bg = const Color(0xFFEFF6FF);
         fg = const Color(0xFF2563EB);
         break;
       case ReportStatus.progress:
-      case ReportStatus.in_progress:
+      case ReportStatus.inProgress:
         bg = const Color(0xFFFEF3C7);
         fg = const Color(0xFFD97706);
         break;
-      case ReportStatus.resolution_submitted:
+      case ReportStatus.resolutionSubmitted:
         bg = const Color(0xFFF0FDF4);
         fg = const Color(0xFF16803C);
         break;

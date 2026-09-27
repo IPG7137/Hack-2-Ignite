@@ -123,7 +123,7 @@ class _MapViewScreenState extends State<MapViewScreen> with TickerProviderStateM
         _applyFiltersAndRefreshMap(updateWebview: true);
       },
       onError: (error) {
-        print('⚠️ Realtime map stream error: $error');
+        debugPrint('⚠️ Realtime map stream error: $error');
       },
     );
   }
@@ -184,7 +184,7 @@ class _MapViewScreenState extends State<MapViewScreen> with TickerProviderStateM
         'if (window.updateMapLayers) { window.updateMapLayers($reportsJsonStr, $hotspotsJsonStr); }',
       );
     } catch (e) {
-      print('⚠️ Error pushing GeoJSON to webview: $e');
+      debugPrint('⚠️ Error pushing GeoJSON to webview: $e');
     }
   }
 
@@ -218,7 +218,7 @@ class _MapViewScreenState extends State<MapViewScreen> with TickerProviderStateM
       _currentPosition = position;
       _isLocationDenied = false;
     } catch (e) {
-      print('⚠️ GPS obtain error: $e, using municipal center fallback');
+      debugPrint('⚠️ GPS obtain error: $e, using municipal center fallback');
       _isLocationDenied = true;
     }
   }
@@ -258,7 +258,7 @@ class _MapViewScreenState extends State<MapViewScreen> with TickerProviderStateM
         });
       }
     } catch (e) {
-      print('❌ Error fetching nearby map reports: $e');
+      debugPrint('❌ Error fetching nearby map reports: $e');
       if (mounted) {
         setState(() {
           _isLoadingReports = false;
@@ -727,7 +727,7 @@ class _MapViewScreenState extends State<MapViewScreen> with TickerProviderStateM
                   borderRadius: BorderRadius.circular(20),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
+                      color: Colors.black.withValues(alpha: 0.1),
                       blurRadius: 6,
                     ),
                   ],
@@ -794,7 +794,7 @@ class _MapViewScreenState extends State<MapViewScreen> with TickerProviderStateM
         border: Border.all(color: const Color(0xFFE2E8F0)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
+            color: Colors.black.withValues(alpha: 0.02),
             blurRadius: 4,
             offset: const Offset(0, 1),
           ),
@@ -828,7 +828,7 @@ class _MapViewScreenState extends State<MapViewScreen> with TickerProviderStateM
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
-                        color: priorityColor.withOpacity(0.12),
+                        color: priorityColor.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
@@ -957,7 +957,7 @@ class _MapViewScreenState extends State<MapViewScreen> with TickerProviderStateM
                   width: 70,
                   height: 70,
                   decoration: BoxDecoration(
-                    color: const Color(0xFF1E3A8A).withOpacity(0.1),
+                    color: const Color(0xFF1E3A8A).withValues(alpha: 0.1),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(Icons.location_searching, size: 36, color: Color(0xFF1E3A8A)),
@@ -1067,14 +1067,14 @@ class _MapViewScreenState extends State<MapViewScreen> with TickerProviderStateM
       case ReportStatus.submitted:
         return const Color(0xFF1E40AF);
       case ReportStatus.review:
-      case ReportStatus.under_review:
+      case ReportStatus.underReview:
         return const Color(0xFF4F46E5);
       case ReportStatus.assigned:
         return const Color(0xFF7C3AED);
       case ReportStatus.progress:
-      case ReportStatus.in_progress:
+      case ReportStatus.inProgress:
         return const Color(0xFFD97706);
-      case ReportStatus.resolution_submitted:
+      case ReportStatus.resolutionSubmitted:
         return const Color(0xFF0284C7);
       case ReportStatus.resolved:
       case ReportStatus.verified:
@@ -1231,7 +1231,7 @@ class _NearbyReportSummarySheet extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
-                  color: priorityColor.withOpacity(0.12),
+                  color: priorityColor.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text(
@@ -1351,14 +1351,14 @@ class _NearbyReportSummarySheet extends StatelessWidget {
       case ReportStatus.submitted:
         return const Color(0xFF1E40AF);
       case ReportStatus.review:
-      case ReportStatus.under_review:
+      case ReportStatus.underReview:
         return const Color(0xFF4F46E5);
       case ReportStatus.assigned:
         return const Color(0xFF7C3AED);
       case ReportStatus.progress:
-      case ReportStatus.in_progress:
+      case ReportStatus.inProgress:
         return const Color(0xFFD97706);
-      case ReportStatus.resolution_submitted:
+      case ReportStatus.resolutionSubmitted:
         return const Color(0xFF0284C7);
       case ReportStatus.resolved:
       case ReportStatus.verified:

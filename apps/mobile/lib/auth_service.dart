@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart' show kDebugMode;
+import 'package:flutter/foundation.dart' show kDebugMode, debugPrint;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'app_preferences.dart';
@@ -313,7 +313,7 @@ class AuthService {
         await prefs.setString('user_full_name', _userFullName!);
       }
     } catch (e) {
-      print('Error saving login state: $e');
+      debugPrint('Error saving login state: $e');
     }
   }
 
@@ -327,7 +327,7 @@ class AuthService {
       await prefs.remove('user_id');
       await prefs.remove('user_full_name');
     } catch (e) {
-      print('Error clearing login state: $e');
+      debugPrint('Error clearing login state: $e');
     }
   }
 

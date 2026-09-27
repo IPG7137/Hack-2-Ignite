@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:convert';
-import 'dart:typed_data';
 import 'language_service.dart';
 import 'category_selection_screen.dart';
 import 'database_service.dart';
 import 'dashboard_screen.dart';
 import 'profile_page.dart';
 import 'report_status_service.dart';
+import 'auth_service.dart';
 
 // Report Status Enum
 enum ReportStatus {
@@ -161,7 +161,7 @@ class _TrackReportsScreenState extends State<TrackReportsScreen>
     });
     
     try {
-      print('Setting up real-time reports stream...');
+      debugPrint('Setting up real-time reports stream...');
       final databaseService = DatabaseService();
       final authService = AuthService.instance;
       final userId = authService.userId ?? authService.supabaseUser?.id ?? '';
@@ -177,10 +177,10 @@ class _TrackReportsScreenState extends State<TrackReportsScreen>
       
       // Set up real-time stream for reports
       _reportsStream = databaseService.getUserReportsStream(userId).map((reportModels) {
-        print('Real-time update: ${reportModels.length} reports received');
+        debugPrint('Real-time update: ${reportModels.length} reports received');
         
         return reportModels.map((reportModel) {
-          print('Converting report: ${reportModel.title} - Status: ${reportModel.status}');
+          debugPrint('Converting report: ${reportModel.title} - Status: ${reportModel.status}');
           
           return Report(
             id: reportModel.id,
@@ -203,23 +203,23 @@ class _TrackReportsScreenState extends State<TrackReportsScreen>
       
       // Listen to the stream and update UI in real-time
       _reportsStream!.listen((reports) {
-        print('Real-time update: Updating UI with ${reports.length} reports');
+        debugPrint('Real-time update: Updating UI with ${reports.length} reports');
         setState(() {
           _allReports = reports;
           _filteredReports = List.from(_allReports);
-          print('📝 Before _applyFilters: _allReports.length = ${_allReports.length}, _filteredReports.length = ${_filteredReports.length}');
+          debugPrint('📝 Before _applyFilters: _allReports.length = ${_allReports.length}, _filteredReports.length = ${_filteredReports.length}');
           try {
             _applyFilters(); // Re-apply current filters
-            print('✅ After _applyFilters: _filteredReports.length = ${_filteredReports.length}');
+            debugPrint('✅ After _applyFilters: _filteredReports.length = ${_filteredReports.length}');
           } catch (e) {
-            print('❌ Error in _applyFilters: $e');
+            debugPrint('❌ Error in _applyFilters: $e');
             // If filtering fails, just use all reports
             _filteredReports = List.from(_allReports);
           }
           _isLoading = false;
           _hasError = false;
         });
-        print('UI updated: _allReports.length = ${_allReports.length}, _filteredReports.length = ${_filteredReports.length}');
+        debugPrint('UI updated: _allReports.length = ${_allReports.length}, _filteredReports.length = ${_filteredReports.length}');
         
         // Start animations after data is loaded
         if (_animationController.isDismissed) {
@@ -229,7 +229,7 @@ class _TrackReportsScreenState extends State<TrackReportsScreen>
           _staggerController.forward();
         }
       }, onError: (error) {
-        print('Real-time stream error: $error');
+        debugPrint('Real-time stream error: $error');
         setState(() {
           _hasError = true;
           _errorMessage = 'Failed to load reports: ${error.toString()}';
@@ -239,10 +239,10 @@ class _TrackReportsScreenState extends State<TrackReportsScreen>
         _loadReportsOnce();
       });
       
-      print('Real-time reports stream set up successfully');
+      debugPrint('Real-time reports stream set up successfully');
       
     } catch (e) {
-      print('Error setting up real-time stream: $e');
+      debugPrint('Error setting up real-time stream: $e');
       setState(() {
         _hasError = true;
         _errorMessage = 'Failed to setup real-time updates: ${e.toString()}';
@@ -256,7 +256,7 @@ class _TrackReportsScreenState extends State<TrackReportsScreen>
   // Fallback method for one-time report loading
   Future<void> _loadReportsOnce() async {
     try {
-      print('Fallback: Loading reports once...');
+      debugPrint('Fallback: Loading reports once...');
       final databaseService = DatabaseService();
       final authService = AuthService.instance;
       final userId = authService.userId ?? authService.supabaseUser?.id ?? '';
@@ -271,7 +271,7 @@ class _TrackReportsScreenState extends State<TrackReportsScreen>
       }
       
       final storedReports = await databaseService.getUserReports(userId);
-      print('Retrieved ${storedReports.length} reports from database');
+      debugPrint('Retrieved ${storedReports.length} reports from database');
       
       final convertedReports = storedReports.map((reportModel) {
         return Report(
@@ -299,9 +299,9 @@ class _TrackReportsScreenState extends State<TrackReportsScreen>
         _hasError = false;
       });
       
-      print('Fallback reports loaded successfully');
+      debugPrint('Fallback reports loaded successfully');
     } catch (e) {
-      print('Fallback loading failed: $e');
+      debugPrint('Fallback loading failed: $e');
       setState(() {
         _hasError = true;
         _errorMessage = 'Failed to load reports from database: ${e.toString()}';
@@ -413,44 +413,44 @@ class _TrackReportsScreenState extends State<TrackReportsScreen>
   }
 
   List<String> _filterAndTestImages(List<String> imageUrls) {
-    print('🔍 Filtering images from ${imageUrls.length} URLs');
+    debugPrint('🔍 Filtering images from ${imageUrls.length} URLs');
     
     // Filter out invalid images but keep blob URLs for now
     final validImages = imageUrls.where((url) {
       if (url.startsWith('blob:')) {
-        print('📎 Found blob URL: ${url.substring(0, 50)}...');
+        debugPrint('📎 Found blob URL: ${url.substring(0, 50)}...');
         return true; // Keep blob URLs
       }
       
       if (url.startsWith('data:image/')) {
         // Check for known invalid base64 patterns - be more specific
         if (url.contains('/9j/4AAQSkZJRgABAQAAAQABAAD') && url.length < 100) {
-          print('❌ Filtering out known invalid base64 pattern');
+          debugPrint('❌ Filtering out known invalid base64 pattern');
           return false;
         }
         // Allow smaller base64 images - only reject very short ones
         if (url.length < 50) {
-          print('❌ Filtering out very short base64 URL');
+          debugPrint('❌ Filtering out very short base64 URL');
           return false;
         }
-        print('✅ Found base64 image: ${url.substring(0, 50)}...');
+        debugPrint('✅ Found base64 image: ${url.substring(0, 50)}...');
         return true;
       }
       
       if (url.startsWith('http')) {
-        print('🌐 Found network URL: ${url.substring(0, 50)}...');
+        debugPrint('🌐 Found network URL: ${url.substring(0, 50)}...');
         return true; // Keep network URLs
       }
       
-      print('⚠️ Unknown image format: ${url.substring(0, 50)}...');
+      debugPrint('⚠️ Unknown image format: ${url.substring(0, 50)}...');
       return false;
     }).toList();
     
-    print('✅ Filtered to ${validImages.length} valid images');
+    debugPrint('✅ Filtered to ${validImages.length} valid images');
     
     // Only add test image if there are absolutely no valid images
     if (validImages.isEmpty) {
-      print('📝 Adding placeholder image since no valid images found');
+      debugPrint('📝 Adding placeholder image since no valid images found');
       // A minimal 1x1 transparent PNG (guaranteed to work)
       validImages.add('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==');
     }
@@ -583,7 +583,7 @@ class _TrackReportsScreenState extends State<TrackReportsScreen>
   }
 
   void _applyFilters() {
-    print('🔍 _applyFilters called - _allReports.length: ${_allReports.length}, _selectedFilter: $_selectedFilter, _searchQuery: "$_searchQuery"');
+    debugPrint('🔍 _applyFilters called - _allReports.length: ${_allReports.length}, _selectedFilter: $_selectedFilter, _searchQuery: "$_searchQuery"');
     setState(() {
       _filteredReports = _allReports.where((report) {
         // Filter by status
@@ -611,10 +611,10 @@ class _TrackReportsScreenState extends State<TrackReportsScreen>
             report.location.toLowerCase().contains(_searchQuery.toLowerCase()) ||
             report.category.name.toLowerCase().contains(_searchQuery.toLowerCase());
         
-        print('📋 Report "${report.title}" - Status: ${report.status}, StatusMatch: $statusMatch, SearchMatch: $searchMatch');
+        debugPrint('📋 Report "${report.title}" - Status: ${report.status}, StatusMatch: $statusMatch, SearchMatch: $searchMatch');
         return statusMatch && searchMatch;
       }).toList();
-      print('✅ _applyFilters result: ${_filteredReports.length} reports after filtering');
+      debugPrint('✅ _applyFilters result: ${_filteredReports.length} reports after filtering');
       
       // Apply sorting
       switch (_sortBy) {
@@ -642,7 +642,7 @@ class _TrackReportsScreenState extends State<TrackReportsScreen>
 
   @override
   Widget build(BuildContext context) {
-    print('🏗️ BUILD: _isLoading=$_isLoading, _hasError=$_hasError, _allReports.length=${_allReports.length}, _filteredReports.length=${_filteredReports.length}');
+    debugPrint('🏗️ BUILD: _isLoading=$_isLoading, _hasError=$_hasError, _allReports.length=${_allReports.length}, _filteredReports.length=${_filteredReports.length}');
     final colorScheme = Theme.of(context).colorScheme;
     
     return Theme(
@@ -668,7 +668,7 @@ class _TrackReportsScreenState extends State<TrackReportsScreen>
                     _buildSearchAndFilters(colorScheme),
                     Expanded(
                       child: () {
-                        print('UI Build: _isLoading = $_isLoading, _hasError = $_hasError, _filteredReports.length = ${_filteredReports.length}');
+                        debugPrint('UI Build: _isLoading = $_isLoading, _hasError = $_hasError, _filteredReports.length = ${_filteredReports.length}');
                         if (_isLoading) {
                           return _buildEmptyState(colorScheme);
                         } else if (_hasError) {
@@ -1865,7 +1865,7 @@ class _TrackReportsScreenState extends State<TrackReportsScreen>
                             ],
                           ),
                         );
-                      }).toList(),
+                      }),
                       
                       const SizedBox(height: 32),
                       
@@ -2042,7 +2042,7 @@ class _TrackReportsScreenState extends State<TrackReportsScreen>
   }
 
   Widget _buildImageWidget(String imageUrl, ColorScheme colorScheme) {
-    print('🖼️ Attempting to display image: ${imageUrl.substring(0, 50)}...');
+    debugPrint('🖼️ Attempting to display image: ${imageUrl.substring(0, 50)}...');
     
     // Handle data URLs (Base64 encoded images)
     if (imageUrl.startsWith('data:image/')) {
@@ -2051,22 +2051,22 @@ class _TrackReportsScreenState extends State<TrackReportsScreen>
         // Format: data:image/jpeg;base64,<base64-data>
         final base64Index = imageUrl.indexOf('base64,');
         if (base64Index == -1) {
-          print('❌ Invalid data URL format: missing base64 marker');
+          debugPrint('❌ Invalid data URL format: missing base64 marker');
           return _buildImageErrorWidget(colorScheme);
         }
         
         var base64Data = imageUrl.substring(base64Index + 7); // Skip 'base64,'
-        print('📊 Base64 data length: ${base64Data.length}');
+        debugPrint('📊 Base64 data length: ${base64Data.length}');
         
         // Only reject extremely short base64 data (less than 20 characters)
         if (base64Data.length < 20) {
-          print('🔄 Base64 data too short, likely invalid');
+          debugPrint('🔄 Base64 data too short, likely invalid');
           return _buildImageErrorWidget(colorScheme);
         }
         
         // Check for specific known invalid patterns only
         if (base64Data.contains('wAARCAABAAEDASIAAhEBAxEB')) {
-          print('🔄 Detected known invalid/placeholder image pattern');
+          debugPrint('🔄 Detected known invalid/placeholder image pattern');
           return _buildImageErrorWidget(colorScheme);
         }
         
@@ -2077,32 +2077,32 @@ class _TrackReportsScreenState extends State<TrackReportsScreen>
         
         // Validate base64 format before decoding
         if (!RegExp(r'^[A-Za-z0-9+/]*={0,2}$').hasMatch(base64Data)) {
-          print('❌ Invalid base64 format detected');
+          debugPrint('❌ Invalid base64 format detected');
           return _buildImageErrorWidget(colorScheme);
         }
         
-        print('🔍 Attempting to decode ${base64Data.length} characters of base64 data');
+        debugPrint('🔍 Attempting to decode ${base64Data.length} characters of base64 data');
         
         // Decode base64 with error handling
         late Uint8List bytes;
         try {
           bytes = base64Decode(base64Data);
-          print('✅ Successfully decoded image bytes: ${bytes.length} bytes');
+          debugPrint('✅ Successfully decoded image bytes: ${bytes.length} bytes');
         } catch (decodeError) {
-          print('❌ Base64 decode error: $decodeError');
+          debugPrint('❌ Base64 decode error: $decodeError');
           return _buildImageErrorWidget(colorScheme);
         }
         
         // Validate decoded bytes
         if (bytes.length < 50) {
-          print('⚠️ Image is very small (${bytes.length} bytes), treating as invalid');
+          debugPrint('⚠️ Image is very small (${bytes.length} bytes), treating as invalid');
           return _buildImageErrorWidget(colorScheme);
         }
         
         // Note: Skipping image header validation for now to avoid compilation issues
         // TODO: Re-enable when compilation cache is cleared
         // if (!_isValidImageHeader(bytes)) {
-        //   print('❌ Invalid image header detected');
+        //   debugPrint('❌ Invalid image header detected');
         //   return _buildImageErrorWidget(colorScheme);
         // }
         
@@ -2110,27 +2110,27 @@ class _TrackReportsScreenState extends State<TrackReportsScreen>
           bytes,
           fit: BoxFit.cover,
           errorBuilder: (context, error, stackTrace) {
-            print('❌ Image.memory error: $error');
+            debugPrint('❌ Image.memory error: $error');
             return _buildImageErrorWidget(colorScheme);
           },
         );
       } catch (e) {
-        print('❌ Error parsing Base64 image: $e');
+        debugPrint('❌ Error parsing Base64 image: $e');
         return _buildImageErrorWidget(colorScheme);
       }
     }
     
     // Handle blob URLs and network URLs
-    print('🌐 Attempting to load network/blob image: $imageUrl');
+    debugPrint('🌐 Attempting to load network/blob image: $imageUrl');
     return Image.network(
       imageUrl,
       fit: BoxFit.cover,
       loadingBuilder: (context, child, loadingProgress) {
         if (loadingProgress == null) {
-          print('✅ Network image loaded successfully');
+          debugPrint('✅ Network image loaded successfully');
           return child;
         }
-        print('⏳ Loading network image: ${loadingProgress.cumulativeBytesLoaded}/${loadingProgress.expectedTotalBytes}');
+        debugPrint('⏳ Loading network image: ${loadingProgress.cumulativeBytesLoaded}/${loadingProgress.expectedTotalBytes}');
         return Center(
           child: CircularProgressIndicator(
             value: loadingProgress.expectedTotalBytes != null
@@ -2141,8 +2141,8 @@ class _TrackReportsScreenState extends State<TrackReportsScreen>
         );
       },
       errorBuilder: (context, error, stackTrace) {
-        print('❌ Network image error: $error');
-        print('❌ Stack trace: $stackTrace');
+        debugPrint('❌ Network image error: $error');
+        debugPrint('❌ Stack trace: $stackTrace');
         return _buildImageErrorWidget(colorScheme);
       },
     );
@@ -2349,7 +2349,7 @@ class _FullScreenImageViewerState extends State<FullScreenImageViewer> {
   }
 
   Widget _buildFullScreenImage(String imageUrl) {
-    print('🖼️ Full-screen image: ${imageUrl.substring(0, 50)}...');
+    debugPrint('🖼️ Full-screen image: ${imageUrl.substring(0, 50)}...');
     
     // Handle data URLs (Base64 encoded images)
     if (imageUrl.startsWith('data:image/')) {
@@ -2357,7 +2357,7 @@ class _FullScreenImageViewerState extends State<FullScreenImageViewer> {
         // Extract base64 data from data URL
         final base64Index = imageUrl.indexOf('base64,');
         if (base64Index == -1) {
-          print('❌ Invalid full-screen data URL format: missing base64 marker');
+          debugPrint('❌ Invalid full-screen data URL format: missing base64 marker');
           return _buildFullScreenErrorWidget();
         }
         
@@ -2365,7 +2365,7 @@ class _FullScreenImageViewerState extends State<FullScreenImageViewer> {
         
         // Check if this is the fallback placeholder image (invalid Base64)
         if (base64Data.length < 100 || base64Data.contains('wAARCAABAAEDASIAAhEBAxEB')) {
-          print('🔄 Detected fallback placeholder in full-screen, showing error widget');
+          debugPrint('🔄 Detected fallback placeholder in full-screen, showing error widget');
           return _buildFullScreenErrorWidget();
         }
         
@@ -2376,18 +2376,18 @@ class _FullScreenImageViewerState extends State<FullScreenImageViewer> {
         
         // Decode base64 manually to avoid web issues
         final Uint8List bytes = base64Decode(base64Data);
-        print('✅ Full-screen image bytes: ${bytes.length} bytes');
+        debugPrint('✅ Full-screen image bytes: ${bytes.length} bytes');
         
         return Image.memory(
           bytes,
           fit: BoxFit.contain,
           errorBuilder: (context, error, stackTrace) {
-            print('❌ Full-screen Image.memory error: $error');
+            debugPrint('❌ Full-screen Image.memory error: $error');
             return _buildFullScreenErrorWidget();
           },
         );
       } catch (e) {
-        print('❌ Error parsing full-screen Base64 image: $e');
+        debugPrint('❌ Error parsing full-screen Base64 image: $e');
         return _buildFullScreenErrorWidget();
       }
     }

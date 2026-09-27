@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'auth_service.dart';
 
@@ -69,7 +70,7 @@ class EnhancedReportService {
         return ReportSubmissionResult.error('Invalid response from server');
       }
     } catch (e) {
-      print('Error submitting report: $e');
+      debugPrint('Error submitting report: $e');
       return ReportSubmissionResult.error('Failed to submit report: ${e.toString()}');
     }
   }
@@ -109,7 +110,7 @@ class EnhancedReportService {
       return response.map<EnhancedReportModel>((json) => 
           EnhancedReportModel.fromJson(json)).toList();
     } catch (e) {
-      print('Error fetching user reports: $e');
+      debugPrint('Error fetching user reports: $e');
       return [];
     }
   }
@@ -152,7 +153,7 @@ class EnhancedReportService {
       return response.map<EnhancedReportModel>((json) => 
           EnhancedReportModel.fromJson(json)).toList();
     } catch (e) {
-      print('Error fetching all reports: $e');
+      debugPrint('Error fetching all reports: $e');
       return [];
     }
   }
@@ -206,7 +207,7 @@ class EnhancedReportService {
 
       return true;
     } catch (e) {
-      print('Error updating report status: $e');
+      debugPrint('Error updating report status: $e');
       return false;
     }
   }
@@ -235,7 +236,7 @@ class EnhancedReportService {
 
       return true;
     } catch (e) {
-      print('Error sending notification: $e');
+      debugPrint('Error sending notification: $e');
       return false;
     }
   }
@@ -275,7 +276,7 @@ class EnhancedReportService {
       return response.map<NotificationModel>((json) => 
           NotificationModel.fromJson(json)).toList();
     } catch (e) {
-      print('Error fetching notifications: $e');
+      debugPrint('Error fetching notifications: $e');
       return [];
     }
   }
@@ -290,7 +291,7 @@ class EnhancedReportService {
 
       return true;
     } catch (e) {
-      print('Error marking notification as read: $e');
+      debugPrint('Error marking notification as read: $e');
       return false;
     }
   }
@@ -305,7 +306,7 @@ class EnhancedReportService {
 
       return DashboardStats.fromJson(response);
     } catch (e) {
-      print('Error fetching dashboard stats: $e');
+      debugPrint('Error fetching dashboard stats: $e');
       return null;
     }
   }
@@ -322,7 +323,7 @@ class EnhancedReportService {
       return response.map<CategoryModel>((json) => 
           CategoryModel.fromJson(json)).toList();
     } catch (e) {
-      print('Error fetching categories: $e');
+      debugPrint('Error fetching categories: $e');
       return [];
     }
   }
@@ -338,7 +339,7 @@ class EnhancedReportService {
       if (_authService.isLoggedIn && _authService.isAdmin) {
         final currentUserEmail = _authService.userEmail;
         if (currentUserEmail == null) {
-          print('Cannot log admin action: User email not available');
+          debugPrint('Cannot log admin action: User email not available');
           return;
         }
 
@@ -361,7 +362,7 @@ class EnhancedReportService {
         });
       }
     } catch (e) {
-      print('Error logging admin action: $e');
+      debugPrint('Error logging admin action: $e');
     }
   }
 }
@@ -447,7 +448,7 @@ class EnhancedReportModel {
             imageUrls = List<String>.from(parsed);
           }
         } catch (e) {
-          print('Error parsing image URLs: $e');
+          debugPrint('Error parsing image URLs: $e');
         }
       }
     }

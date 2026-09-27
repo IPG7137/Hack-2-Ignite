@@ -136,6 +136,7 @@ class _OnboardingCarouselState extends State<OnboardingCarousel> {
                           onPressed: () async {
                             // Mark onboarding as seen
                             await AppPreferences.instance.setOnboardingSeen();
+                            if (!context.mounted) return;
                             
                             Navigator.pushReplacement(
                               context,
@@ -162,6 +163,7 @@ class _OnboardingCarouselState extends State<OnboardingCarousel> {
                         onPressed: () async {
                           // Mark onboarding as seen
                           await AppPreferences.instance.setOnboardingSeen();
+                          if (!context.mounted) return;
                           
                           Navigator.pushReplacement(
                             context,

@@ -311,11 +311,11 @@ class ComprehensiveReportModel {
 enum ReportStatus {
   submitted,
   review,
-  under_review,
+  underReview,
   assigned,
   progress,
-  in_progress,
-  resolution_submitted,
+  inProgress,
+  resolutionSubmitted,
   resolved,
   verified,
   closed,
@@ -329,15 +329,15 @@ extension ReportStatusExtension on ReportStatus {
         return 'submitted';
       case ReportStatus.review:
         return 'review';
-      case ReportStatus.under_review:
+      case ReportStatus.underReview:
         return 'under_review';
       case ReportStatus.assigned:
         return 'assigned';
       case ReportStatus.progress:
         return 'progress';
-      case ReportStatus.in_progress:
+      case ReportStatus.inProgress:
         return 'in_progress';
-      case ReportStatus.resolution_submitted:
+      case ReportStatus.resolutionSubmitted:
         return 'resolution_submitted';
       case ReportStatus.resolved:
         return 'resolved';
@@ -355,14 +355,14 @@ extension ReportStatusExtension on ReportStatus {
       case ReportStatus.submitted:
         return 'submitted';
       case ReportStatus.review:
-      case ReportStatus.under_review:
+      case ReportStatus.underReview:
         return 'under_review';
       case ReportStatus.assigned:
         return 'assigned';
       case ReportStatus.progress:
-      case ReportStatus.in_progress:
+      case ReportStatus.inProgress:
         return 'in_progress';
-      case ReportStatus.resolution_submitted:
+      case ReportStatus.resolutionSubmitted:
         return 'resolution_submitted';
       case ReportStatus.resolved:
       case ReportStatus.verified:
@@ -379,14 +379,14 @@ extension ReportStatusExtension on ReportStatus {
       case ReportStatus.submitted:
         return 'Submitted';
       case ReportStatus.review:
-      case ReportStatus.under_review:
+      case ReportStatus.underReview:
         return 'Under Review';
       case ReportStatus.assigned:
         return 'Assigned';
       case ReportStatus.progress:
-      case ReportStatus.in_progress:
+      case ReportStatus.inProgress:
         return 'In Progress';
-      case ReportStatus.resolution_submitted:
+      case ReportStatus.resolutionSubmitted:
         return 'Resolution Submitted';
       case ReportStatus.resolved:
         return 'Resolved';
@@ -408,15 +408,15 @@ extension ReportStatusExtension on ReportStatus {
         return ReportStatus.review;
       case 'under_review':
       case 'in_review':
-        return ReportStatus.under_review;
+        return ReportStatus.underReview;
       case 'assigned':
         return ReportStatus.assigned;
       case 'progress':
         return ReportStatus.progress;
       case 'in_progress':
-        return ReportStatus.in_progress;
+        return ReportStatus.inProgress;
       case 'resolution_submitted':
-        return ReportStatus.resolution_submitted;
+        return ReportStatus.resolutionSubmitted;
       case 'resolved':
         return ReportStatus.resolved;
       case 'verified':

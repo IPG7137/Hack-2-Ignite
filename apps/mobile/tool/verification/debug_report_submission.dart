@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'lib/comprehensive_database_service.dart';
-import 'lib/auth_service.dart';
+import 'package:civic_resolve/comprehensive_database_service.dart';
+import 'package:civic_resolve/auth_service.dart';
 
 // Quick test to debug report submission issues
 void main() async {

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'dart:async';
 import 'comprehensive_database_service.dart';
 import 'comprehensive_report_models.dart';
@@ -122,7 +121,7 @@ class _UltraFastTrackReportsScreenState extends State<UltraFastTrackReportsScree
   /// Ultra-fast initialization with instant UI and sub-100ms data loading
   Future<void> _initializeDataWithInstantUI() async {
     final stopwatch = Stopwatch()..start();
-    print('⚡ [${stopwatch.elapsedMilliseconds}ms] Ultra-fast initialization starting...');
+    debugPrint('⚡ [${stopwatch.elapsedMilliseconds}ms] Ultra-fast initialization starting...');
 
     try {
       // INSTANT: Show UI immediately (0ms)
@@ -132,12 +131,12 @@ class _UltraFastTrackReportsScreenState extends State<UltraFastTrackReportsScree
           _hasError = false;
         });
       }
-      print('⚡ [${stopwatch.elapsedMilliseconds}ms] Initial state set to loading.');
+      debugPrint('⚡ [${stopwatch.elapsedMilliseconds}ms] Initial state set to loading.');
 
       // Check cached data first (target: <50ms)
       final cachedData = await _loadCachedDataInstant();
       if (cachedData.isNotEmpty) {
-        print('⚡ [${stopwatch.elapsedMilliseconds}ms] Cache check complete. Found ${cachedData.length} items.');
+        debugPrint('⚡ [${stopwatch.elapsedMilliseconds}ms] Cache check complete. Found ${cachedData.length} items.');
         
         if (mounted) {
           setState(() {
@@ -150,23 +149,23 @@ class _UltraFastTrackReportsScreenState extends State<UltraFastTrackReportsScree
           _fadeController.forward();
           _animationController.forward();
         }
-        print('🚀 [${stopwatch.elapsedMilliseconds}ms] Cached data loaded and UI updated.');
+        debugPrint('🚀 [${stopwatch.elapsedMilliseconds}ms] Cached data loaded and UI updated.');
         
         // Start background refresh
         _startBackgroundRefresh();
         return;
       }
-      print('⚡ [${stopwatch.elapsedMilliseconds}ms] No valid cache found.');
+      debugPrint('⚡ [${stopwatch.elapsedMilliseconds}ms] No valid cache found.');
 
       // Fresh data fetch (target: <100ms)
       await _fetchFreshDataUltraFast();
       
       stopwatch.stop();
-      print('✅ Total initialization: ${stopwatch.elapsedMilliseconds}ms');
+      debugPrint('✅ Total initialization: ${stopwatch.elapsedMilliseconds}ms');
       
     } catch (e) {
       stopwatch.stop();
-      print('❌ Initialization error after ${stopwatch.elapsedMilliseconds}ms: $e');
+      debugPrint('❌ Initialization error after ${stopwatch.elapsedMilliseconds}ms: $e');
       if (mounted) {
         setState(() {
           _isLoading = false;
@@ -185,15 +184,15 @@ class _UltraFastTrackReportsScreenState extends State<UltraFastTrackReportsScree
           DateTime.now().difference(_lastCacheTime!).inMinutes < 3 &&
           _cachedReports.isNotEmpty) {
         stopwatch.stop();
-        print('⚡ [${stopwatch.elapsedMilliseconds}ms] Cache hit. Returning ${_cachedReports.length} cached reports.');
+        debugPrint('⚡ [${stopwatch.elapsedMilliseconds}ms] Cache hit. Returning ${_cachedReports.length} cached reports.');
         return _cachedReports;
       }
       stopwatch.stop();
-      print('⚡ [${stopwatch.elapsedMilliseconds}ms] Cache miss or expired.');
+      debugPrint('⚡ [${stopwatch.elapsedMilliseconds}ms] Cache miss or expired.');
       return [];
     } catch (e) {
       stopwatch.stop();
-      print('❌ [${stopwatch.elapsedMilliseconds}ms] Cache load error: $e');
+      debugPrint('❌ [${stopwatch.elapsedMilliseconds}ms] Cache load error: $e');
       return [];
     }
   }
@@ -210,14 +209,14 @@ class _UltraFastTrackReportsScreenState extends State<UltraFastTrackReportsScree
         throw Exception('User not authenticated');
       }
 
-      print('🔄 [${stopwatch.elapsedMilliseconds}ms] Fetching fresh data for user: $userId (Admin: $_isAdmin)');
+      debugPrint('🔄 [${stopwatch.elapsedMilliseconds}ms] Fetching fresh data for user: $userId (Admin: $_isAdmin)');
 
       // Use faster single query instead of stream
       final reports = _isAdmin 
           ? await _databaseService.getAllReportsComprehensive()
           : await _databaseService.getUserReportsComprehensive(userId);
 
-      print('⚡ [${stopwatch.elapsedMilliseconds}ms] Fresh data fetched in ${stopwatch.elapsedMilliseconds}ms (${reports.length} reports)');
+      debugPrint('⚡ [${stopwatch.elapsedMilliseconds}ms] Fresh data fetched in ${stopwatch.elapsedMilliseconds}ms (${reports.length} reports)');
 
       if (mounted) {
         setState(() {
@@ -233,14 +232,14 @@ class _UltraFastTrackReportsScreenState extends State<UltraFastTrackReportsScree
         _buildReportIndex();
         _fadeController.forward();
         _animationController.forward();
-        print('⚡ [${stopwatch.elapsedMilliseconds}ms] UI updated with fresh data.');
+        debugPrint('⚡ [${stopwatch.elapsedMilliseconds}ms] UI updated with fresh data.');
         
         // Setup real-time updates after initial load
         _setupRealTimeUpdates(userId);
       }
       
     } catch (e) {
-      print('❌ [${stopwatch.elapsedMilliseconds}ms] Fresh data fetch error: $e');
+      debugPrint('❌ [${stopwatch.elapsedMilliseconds}ms] Fresh data fetch error: $e');
       if (mounted) {
         setState(() {
           _isLoading = false;
@@ -271,7 +270,7 @@ class _UltraFastTrackReportsScreenState extends State<UltraFastTrackReportsScree
         .listen(
           (reports) {
             if (mounted && _isInitialized) {
-              print('📡 Real-time update: ${reports.length} reports');
+              debugPrint('📡 Real-time update: ${reports.length} reports');
               setState(() {
                 _allReports = reports;
                 _cachedReports = List.from(reports);
@@ -282,7 +281,7 @@ class _UltraFastTrackReportsScreenState extends State<UltraFastTrackReportsScree
             }
           },
           onError: (error) {
-            print('❌ Real-time error: $error');
+            debugPrint('❌ Real-time error: $error');
           },
         );
   }
@@ -336,7 +335,7 @@ class _UltraFastTrackReportsScreenState extends State<UltraFastTrackReportsScree
     }
     
     stopwatch.stop();
-    print('⚡ Filters applied in ${stopwatch.elapsedMicroseconds}µs (${filtered.length} results)');
+    debugPrint('⚡ Filters applied in ${stopwatch.elapsedMicroseconds}µs (${filtered.length} results)');
   }
 
   /// Debounced search
@@ -435,7 +434,7 @@ class _UltraFastTrackReportsScreenState extends State<UltraFastTrackReportsScree
         color: colorScheme.surface,
         boxShadow: [
           BoxShadow(
-            color: colorScheme.shadow.withOpacity(0.1),
+            color: colorScheme.shadow.withValues(alpha: 0.1),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -454,7 +453,7 @@ class _UltraFastTrackReportsScreenState extends State<UltraFastTrackReportsScree
                 borderRadius: BorderRadius.circular(12),
               ),
               filled: true,
-              fillColor: colorScheme.surfaceVariant.withOpacity(0.3),
+              fillColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
             ),
           ),
           const SizedBox(height: 12),
@@ -480,7 +479,7 @@ class _UltraFastTrackReportsScreenState extends State<UltraFastTrackReportsScree
         label: Text(filter),
         selected: isSelected,
         onSelected: (selected) => _onFilterSelected(filter),
-        backgroundColor: isSelected ? colorScheme.primary : colorScheme.surfaceVariant,
+        backgroundColor: isSelected ? colorScheme.primary : colorScheme.surfaceContainerHighest,
         selectedColor: colorScheme.primary,
         labelStyle: TextStyle(
           color: isSelected ? colorScheme.onPrimary : colorScheme.onSurfaceVariant,
@@ -499,13 +498,13 @@ class _UltraFastTrackReportsScreenState extends State<UltraFastTrackReportsScree
           Icon(
             Icons.assignment,
             size: 16,
-            color: colorScheme.onSurface.withOpacity(0.6),
+            color: colorScheme.onSurface.withValues(alpha: 0.6),
           ),
           const SizedBox(width: 8),
           Text(
             '${_filteredReports.length} reports',
             style: TextStyle(
-              color: colorScheme.onSurface.withOpacity(0.8),
+              color: colorScheme.onSurface.withValues(alpha: 0.8),
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -518,7 +517,7 @@ class _UltraFastTrackReportsScreenState extends State<UltraFastTrackReportsScree
             ),
             const SizedBox(width: 4),
             Text(
-              'filtered by "${_searchQuery}"',
+              'filtered by "$_searchQuery"',
               style: TextStyle(
                 color: colorScheme.primary,
                 fontWeight: FontWeight.w500,
@@ -530,7 +529,7 @@ class _UltraFastTrackReportsScreenState extends State<UltraFastTrackReportsScree
             Text(
               'Updated ${_getTimeAgo(_lastCacheTime!)}',
               style: TextStyle(
-                color: colorScheme.onSurface.withOpacity(0.5),
+                color: colorScheme.onSurface.withValues(alpha: 0.5),
                 fontSize: 12,
               ),
             ),
@@ -587,7 +586,7 @@ class _UltraFastTrackReportsScreenState extends State<UltraFastTrackReportsScree
             'This should only take a moment',
             style: TextStyle(
               fontSize: 14,
-              color: colorScheme.onSurface.withOpacity(0.7),
+              color: colorScheme.onSurface.withValues(alpha: 0.7),
             ),
           ),
         ],
@@ -622,7 +621,7 @@ class _UltraFastTrackReportsScreenState extends State<UltraFastTrackReportsScree
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 14,
-                color: colorScheme.onSurface.withOpacity(0.7),
+                color: colorScheme.onSurface.withValues(alpha: 0.7),
               ),
             ),
             const SizedBox(height: 24),
@@ -651,7 +650,7 @@ class _UltraFastTrackReportsScreenState extends State<UltraFastTrackReportsScree
             Icon(
               _searchQuery.isNotEmpty ? Icons.search_off : Icons.inbox_outlined,
               size: 64,
-              color: colorScheme.onSurface.withOpacity(0.5),
+              color: colorScheme.onSurface.withValues(alpha: 0.5),
             ),
             const SizedBox(height: 16),
             Text(
@@ -661,7 +660,7 @@ class _UltraFastTrackReportsScreenState extends State<UltraFastTrackReportsScree
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w600,
-                color: colorScheme.onSurface.withOpacity(0.8),
+                color: colorScheme.onSurface.withValues(alpha: 0.8),
               ),
             ),
             const SizedBox(height: 8),
@@ -672,7 +671,7 @@ class _UltraFastTrackReportsScreenState extends State<UltraFastTrackReportsScree
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 14,
-                color: colorScheme.onSurface.withOpacity(0.6),
+                color: colorScheme.onSurface.withValues(alpha: 0.6),
               ),
             ),
             if (_searchQuery.isNotEmpty) ...[
@@ -777,7 +776,7 @@ class _UltraFastTrackReportsScreenState extends State<UltraFastTrackReportsScree
                     report.id,
                     style: TextStyle(
                       fontSize: 12,
-                      color: colorScheme.onSurface.withOpacity(0.6),
+                      color: colorScheme.onSurface.withValues(alpha: 0.6),
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -809,7 +808,7 @@ class _UltraFastTrackReportsScreenState extends State<UltraFastTrackReportsScree
                 report.description,
                 style: TextStyle(
                   fontSize: 14,
-                  color: colorScheme.onSurface.withOpacity(0.8),
+                  color: colorScheme.onSurface.withValues(alpha: 0.8),
                   height: 1.4,
                 ),
                 maxLines: 2,
@@ -823,7 +822,7 @@ class _UltraFastTrackReportsScreenState extends State<UltraFastTrackReportsScree
                   Icon(
                     Icons.location_on,
                     size: 16,
-                    color: colorScheme.onSurface.withOpacity(0.6),
+                    color: colorScheme.onSurface.withValues(alpha: 0.6),
                   ),
                   const SizedBox(width: 4),
                   Expanded(
@@ -831,7 +830,7 @@ class _UltraFastTrackReportsScreenState extends State<UltraFastTrackReportsScree
                       report.location,
                       style: TextStyle(
                         fontSize: 12,
-                        color: colorScheme.onSurface.withOpacity(0.6),
+                        color: colorScheme.onSurface.withValues(alpha: 0.6),
                       ),
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -841,7 +840,7 @@ class _UltraFastTrackReportsScreenState extends State<UltraFastTrackReportsScree
                     _getTimeAgo(report.createdAt),
                     style: TextStyle(
                       fontSize: 12,
-                      color: colorScheme.onSurface.withOpacity(0.6),
+                      color: colorScheme.onSurface.withValues(alpha: 0.6),
                     ),
                   ),
                 ],
@@ -894,7 +893,7 @@ class _UltraFastTrackReportsScreenState extends State<UltraFastTrackReportsScree
             height: 4,
             margin: const EdgeInsets.symmetric(vertical: 12),
             decoration: BoxDecoration(
-              color: colorScheme.onSurface.withOpacity(0.3),
+              color: colorScheme.onSurface.withValues(alpha: 0.3),
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -933,14 +932,14 @@ class _UltraFastTrackReportsScreenState extends State<UltraFastTrackReportsScree
       case ReportStatus.submitted:
         return Colors.blue;
       case ReportStatus.review:
-      case ReportStatus.under_review:
+      case ReportStatus.underReview:
         return Colors.orange;
       case ReportStatus.assigned:
         return Colors.purple;
       case ReportStatus.progress:
-      case ReportStatus.in_progress:
+      case ReportStatus.inProgress:
         return Colors.indigo;
-      case ReportStatus.resolution_submitted:
+      case ReportStatus.resolutionSubmitted:
         return Colors.teal;
       case ReportStatus.resolved:
       case ReportStatus.verified:

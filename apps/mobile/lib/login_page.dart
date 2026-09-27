@@ -180,6 +180,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
 
       try {
         await Future.delayed(const Duration(milliseconds: 600));
+        if (!mounted) return;
         
         setState(() {
           _isOtpSent = true;
@@ -197,6 +198,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
           ),
         );
       } catch (e) {
+        if (!mounted) return;
         setState(() {
           _isLoading = false;
         });
@@ -355,7 +357,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF3B82F6).withOpacity(0.2),
+            color: const Color(0xFF3B82F6).withValues(alpha: 0.2),
             blurRadius: 8,
             offset: const Offset(0, 4),
           ),
@@ -544,7 +546,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
-          disabledBackgroundColor: const Color(0xFF3B82F6).withOpacity(0.6),
+          disabledBackgroundColor: const Color(0xFF3B82F6).withValues(alpha: 0.6),
         ),
         child: isLoading
             ? const SizedBox(
