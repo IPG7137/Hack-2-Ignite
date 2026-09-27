@@ -1,17 +1,13 @@
 import React, { useState, useMemo } from 'react';
 import {
-  Shield,
   Lock,
   Mail,
   AlertCircle,
   ArrowRight,
-  Sparkles,
   Building2,
   KeyRound,
   ShieldCheck,
   Landmark,
-  Compass,
-  CheckCircle2,
 } from 'lucide-react';
 import { useAuthContext } from '../../context/AuthContext';
 import { useOrganization } from '../../context/OrganizationContext';
@@ -209,28 +205,6 @@ export const MunicipalAuthScreen: React.FC = () => {
                   <span>Level 2: Municipal Corporations (Command Center & Dispatch)</span>
                 </div>
                 <div className="pl-5 text-[#526581]">↓ Ward Officers & Field Crews (On-Site Resolution)</div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-              <div className="p-3 rounded-lg bg-white border border-[#D9E2EC] shadow-2xs">
-                <div className="flex items-center gap-2 text-[#1769D2] text-xs font-bold mb-1">
-                  <Sparkles className="w-3.5 h-3.5" />
-                  <span>3A–3E Intelligence</span>
-                </div>
-                <p className="text-[11px] text-[#718096]">
-                  Cross-corporation duplicate detection, priority ranking, and emerging surge radar.
-                </p>
-              </div>
-
-              <div className="p-3 rounded-lg bg-white border border-[#D9E2EC] shadow-2xs">
-                <div className="flex items-center gap-2 text-[#16803C] text-xs font-bold mb-1">
-                  <Shield className="w-3.5 h-3.5" />
-                  <span>PostgreSQL RLS</span>
-                </div>
-                <p className="text-[11px] text-[#718096]">
-                  Strict data isolation ensuring municipal corporations operate within their jurisdictions.
-                </p>
               </div>
             </div>
           </div>
