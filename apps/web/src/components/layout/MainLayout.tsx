@@ -65,6 +65,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
         onRefresh={onRefresh}
         isRefreshing={isRefreshing}
         onToggleMobileMenu={() => setMobileSidebarOpen(!mobileSidebarOpen)}
+        onNavigateToNotifications={() => onSelectPage('notifications')}
       />
 
       {/* Body: Fixed Sidebar + Independently Scrollable Main Content */}

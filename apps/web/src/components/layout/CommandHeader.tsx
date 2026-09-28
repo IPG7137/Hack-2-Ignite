@@ -4,12 +4,14 @@ import { Button } from '../ui/Button';
 import { useAuth } from '../../hooks/useAuth';
 import { useOrganization } from '../../context/OrganizationContext';
 import { LoginModal } from '../auth/LoginModal';
+import { NotificationBell } from '../notifications/NotificationBell';
 
 interface CommandHeaderProps {
   onOpenCopilot?: () => void;
   onRefresh: () => void;
   isRefreshing?: boolean;
   onToggleMobileMenu?: () => void;
+  onNavigateToNotifications?: () => void;
 }
 
 export const CommandHeader: React.FC<CommandHeaderProps> = ({
@@ -17,6 +19,7 @@ export const CommandHeader: React.FC<CommandHeaderProps> = ({
   onRefresh,
   isRefreshing = false,
   onToggleMobileMenu,
+  onNavigateToNotifications,
 }) => {
   const [timeString, setTimeString] = useState<string>('');
   const [isLoginOpen, setIsLoginOpen] = useState(false);
@@ -222,6 +225,9 @@ export const CommandHeader: React.FC<CommandHeaderProps> = ({
               <RefreshCw className="w-3.5 h-3.5 sm:mr-1 text-[#718096]" />
               <span className="hidden sm:inline font-medium whitespace-nowrap">Live Sync</span>
             </Button>
+          {/* Notification Bell */}
+          <div className="flex items-center shrink-0">
+            <NotificationBell onNavigateToNotifications={onNavigateToNotifications} />
           </div>
 
           {/* Divider */}

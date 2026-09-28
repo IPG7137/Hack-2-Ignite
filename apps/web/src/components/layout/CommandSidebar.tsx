@@ -16,6 +16,7 @@ import {
   Trophy,
   Award,
   Layers,
+  Bell,
   X,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
@@ -29,6 +30,7 @@ export type ActivePage =
   | 'complaint_details'
   | 'map'
   | 'alerts'
+  | 'notifications'
   | 'analytics'
   | 'ai_insights'
   | 'departments'
@@ -144,6 +146,7 @@ export const CommandSidebar: React.FC<CommandSidebarProps> = ({
           badge: alertCount,
           badgeColor: 'bg-red-50 text-red-700 border-red-200',
         },
+        { id: 'notifications', label: 'Notification Center', icon: Bell },
         { id: 'complaints', label: 'Complaints Queue', icon: FileText, badge: openCount },
         {
           id: 'sla',

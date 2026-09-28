@@ -18,6 +18,7 @@ import { runComplaintLifecycleTests } from './complaintLifecycle.test';
 import { runSmartMapGisTests } from './smartMapGis.test';
 import { runSmartAlertsSLATests } from './smartAlertsSLA.test';
 import { runResolutionEvidenceTests } from './resolutionEvidence.test';
+import { runNotificationsTests } from './notifications.test';
 
 async function main() {
   console.log('===========================================================');
@@ -135,6 +136,11 @@ async function main() {
   totalPassed += res17.passed;
   totalFailed += res17.failed;
 
+  // Phase 18: Feature 6 Notifications & Multi-Channel Communication
+  const res18 = await runNotificationsTests();
+  totalPassed += res18.passed;
+  totalFailed += res18.failed;
+
   console.log('\n===========================================================');
   console.log('📊 FINAL VERIFICATION SCORECARD:');
   console.log(`   3A Similarity:             ${res3A.passed}/${res3A.passed + res3A.failed}`);
@@ -155,6 +161,7 @@ async function main() {
   console.log(`   15 Smart Map & GIS Intel:  ${res15.passed}/${res15.passed + res15.failed}`);
   console.log(`   16 Smart Alerts & SLA:     ${res16.passed}/${res16.passed + res16.failed}`);
   console.log(`   17 Resolution Evidence:    ${res17.passed}/${res17.passed + res17.failed}`);
+  console.log(`   18 Notifications & Comm:   ${res18.passed}/${res18.passed + res18.failed}`);
   console.log('-----------------------------------------------------------');
   console.log(`   TOTAL:                     ${totalPassed} PASSED / ${totalFailed} FAILED`);
   console.log('===========================================================');

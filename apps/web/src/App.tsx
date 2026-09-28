@@ -11,6 +11,7 @@ import { AIInsights } from './pages/AIInsights';
 import { Departments } from './pages/Departments';
 import { FieldTeams } from './pages/FieldTeams';
 import { AlertCenter } from './pages/AlertCenter';
+import { NotificationsPage } from './pages/Notifications';
 import { SLA } from './pages/SLA';
 import { Copilot } from './pages/Copilot';
 import { Settings } from './pages/Settings';
@@ -278,6 +279,13 @@ export function App() {
           onSelectComplaint={handleSelectComplaint}
           onNavigatePage={(p) => setActivePage(p as any)}
           onRefresh={handleRefresh}
+        />
+      )}
+
+      {activePage === 'notifications' && (
+        <NotificationsPage
+          onNavigateToComplaint={handleSelectComplaint}
+          onNavigateToAlerts={() => setActivePage('alerts')}
         />
       )}
 
