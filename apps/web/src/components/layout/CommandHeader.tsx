@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { RefreshCw, LogIn, LogOut, ShieldCheck, MapPin, Building, Menu, Bot } from 'lucide-react';
+import { RefreshCw, LogIn, LogOut, ShieldCheck, MapPin, Building, Menu, Bot, FilePlus } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { useAuth } from '../../hooks/useAuth';
 import { useOrganization } from '../../context/OrganizationContext';
@@ -8,6 +8,7 @@ import { NotificationBell } from '../notifications/NotificationBell';
 
 interface CommandHeaderProps {
   onOpenCopilot?: () => void;
+  onOpenReport?: () => void;
   onRefresh: () => void;
   isRefreshing?: boolean;
   onToggleMobileMenu?: () => void;
@@ -16,6 +17,7 @@ interface CommandHeaderProps {
 
 export const CommandHeader: React.FC<CommandHeaderProps> = ({
   onOpenCopilot,
+  onOpenReport,
   onRefresh,
   isRefreshing = false,
   onToggleMobileMenu,
@@ -195,6 +197,22 @@ export const CommandHeader: React.FC<CommandHeaderProps> = ({
               <span className="text-[#172B4D] font-bold text-xs whitespace-nowrap">{timeString || '--:--:--'}</span>
             </div>
           </div>
+
+          {/* Report Grievance Action */}
+          {onOpenReport && (
+            <div className="flex items-center shrink-0">
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={onOpenReport}
+                className="h-8.5 px-2.5 sm:px-3 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs shrink-0 flex items-center gap-1.5 rounded-lg border border-emerald-500 cursor-pointer"
+                title="Lodge a new civic grievance"
+              >
+                <FilePlus className="w-3.5 h-3.5 text-emerald-100" />
+                <span className="hidden sm:inline font-bold whitespace-nowrap">Report Issue</span>
+              </Button>
+            </div>
+          )}
 
           {/* AI Civic Copilot Launcher */}
           {onOpenCopilot && (

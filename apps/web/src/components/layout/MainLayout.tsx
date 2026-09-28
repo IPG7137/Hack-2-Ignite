@@ -17,6 +17,7 @@ interface MainLayoutProps {
   complaints: Complaint[];
   selectedComplaintId?: string | null;
   onSelectComplaint?: (id: string) => void;
+  onOpenReport?: () => void;
   onRefresh?: () => void;
   isRefreshing?: boolean;
   children: React.ReactNode;
@@ -28,6 +29,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
   complaints,
   selectedComplaintId,
   onSelectComplaint,
+  onOpenReport,
   onRefresh = () => {},
   isRefreshing = false,
   children,
@@ -62,6 +64,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
       {/* Top Tactical Command Header */}
       <CommandHeader
         onOpenCopilot={() => setCopilotOpen(true)}
+        onOpenReport={onOpenReport}
         onRefresh={onRefresh}
         isRefreshing={isRefreshing}
         onToggleMobileMenu={() => setMobileSidebarOpen(!mobileSidebarOpen)}

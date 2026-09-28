@@ -176,6 +176,12 @@ export function useComplaints(initialFilters: ComplaintFilterParams = {}) {
     return updated;
   };
 
+  const submitComplaint = async (params: import('../services/api.interface').CreateComplaintParams): Promise<Complaint> => {
+    const newComplaint = await complaintService.submitComplaint(params);
+    setComplaints((prev) => [newComplaint, ...prev]);
+    return newComplaint;
+  };
+
   const getComplaintById = async (id: string): Promise<Complaint | null> => {
     return await complaintService.getComplaintById(id);
   };
@@ -188,6 +194,7 @@ export function useComplaints(initialFilters: ComplaintFilterParams = {}) {
     filters,
     setFilters,
     refetch: fetchComplaints,
+    submitComplaint,
     updateStatus,
     assignOfficer,
     addAdminNote,

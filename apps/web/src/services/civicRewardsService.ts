@@ -71,21 +71,14 @@ export class CivicRewardsService {
       }
     } catch (_) {}
 
-    // Isolated Mock Dataset Fallback
+    // Isolated Mock Dataset Fallback (only if exact userId match)
     const districtProfiles = getMockCivicProfilesForDistrict(cleanDist);
     const mockUser = districtProfiles.find((p) => p.userId === userId);
     if (mockUser) return { ...mockUser };
 
-    // Default primary profile for district citizen
-    if (districtProfiles.length > 0) {
-      return {
-        ...districtProfiles[0],
-        userId,
-      };
-    }
-
+    // Fresh Citizen Profile (starts with 0 points, 0 reports, starter badge)
     return {
-      id: `PROF-${cleanDist.toUpperCase()}-DEF`,
+      id: `PROF-${cleanDist.toUpperCase()}-${userId}`,
       userId,
       districtId: cleanDist,
       displayName: 'Verified Citizen',
@@ -98,6 +91,47 @@ export class CivicRewardsService {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
+  }
+
+  /**
+   * Idempotently initializes a new citizen civic profile with 0 starting points
+   */
+  async initializeCitizenProfile(
+    userId: string,
+    districtId: string,
+    displayName: string = 'Verified Citizen'
+  ): Promise<CitizenCivicProfile> {
+    const cleanDist = (districtId || 'pune').toLowerCase().trim();
+    const profile: CitizenCivicProfile = {
+      id: `PROF-${cleanDist.toUpperCase()}-${userId}`,
+      userId,
+      districtId: cleanDist,
+      displayName: formatCitizenDisplayName(displayName),
+      civicScore: 0,
+      verifiedReportsCount: 0,
+      verifiedResolutionsCount: 0,
+      helpfulEvidenceCount: 0,
+      badgeLevel: 'starter',
+      isFlagged: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    try {
+      await supabase.from('citizen_civic_profiles').upsert({
+        user_id: userId,
+        district_id: cleanDist,
+        display_name: profile.displayName,
+        civic_score: 0,
+        verified_reports_count: 0,
+        verified_resolutions_count: 0,
+        helpful_evidence_count: 0,
+        badge_level: 'starter',
+        is_flagged: false,
+      });
+    } catch (_) {}
+
+    return profile;
   }
 
   /**

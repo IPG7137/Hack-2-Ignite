@@ -307,6 +307,63 @@ export async function runAuthServiceTests(): Promise<{ passed: number; failed: n
     assert(!masked.includes('1234 5678 9012'), '13d. AI output guard redacts Aadhaar numbers');
   }
 
+  // 14. Dynamic Citizen Signup with District & Zero-Score Civic Profile
+  {
+    const originalSignUp = supabase.auth.signUp.bind(supabase.auth);
+    let capturedOptions: any = null;
+    (supabase.auth as any).signUp = async (params: any) => {
+      capturedOptions = params;
+      return {
+        data: {
+          user: {
+            id: 'usr-dynamic-citizen-01',
+            email: params.email,
+            user_metadata: params.options?.data,
+            app_metadata: {},
+            aud: 'authenticated',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          },
+          session: null,
+        },
+        error: null,
+      };
+    };
+
+    try {
+      const res = await AuthService.signUp('saurabh.citizen@example.com', 'SecurePass123!', {
+        fullName: 'Saurabh Resident',
+        phone: '9876543210',
+        districtId: 'nagpur',
+        ward: 'Ward 12',
+      });
+
+      assert(res.error === null, '14a. Dynamic citizen signup succeeds');
+      assert(res.user?.fullName === 'Saurabh Resident', '14b. Full name stored in profile');
+      assert(res.user?.districtId === 'nagpur', '14c. District ID stored in citizen profile');
+      assert(res.user?.role === 'citizen', '14d. Dynamic signup strictly enforces citizen role');
+    } finally {
+      (supabase.auth as any).signUp = originalSignUp;
+    }
+  }
+
+  // 15. Civic Rewards Service Idempotent Zero-Score Profile Initialization
+  {
+    const { CivicRewardsService } = await import('./civicRewardsService');
+    const rewardsService = new CivicRewardsService();
+    const newProfile = await rewardsService.initializeCitizenProfile(
+      'usr-brand-new-999',
+      'thane',
+      'Priya Sharma'
+    );
+
+    assert(newProfile.userId === 'usr-brand-new-999', '15a. Initializes profile for brand new citizen');
+    assert(newProfile.districtId === 'thane', '15b. Assigns correct district');
+    assert(newProfile.civicScore === 0, '15c. Brand new citizen starts with exactly 0 civic score');
+    assert(newProfile.verifiedReportsCount === 0, '15d. Brand new citizen starts with 0 verified reports');
+    assert(newProfile.badgeLevel === 'starter', '15e. Brand new citizen starts with starter badge');
+  }
+
   console.log(`✅ Phase 9B Authentication Tests Finished: ${passed} passed, ${failed} failed`);
   return { passed, failed, errors };
 }

@@ -26,6 +26,7 @@ import { ComplaintStatus } from './types/complaint';
 import { Button } from './components/ui/Button';
 import { StateDashboard } from './pages/StateDashboard';
 import { CivicChampions } from './pages/CivicChampions';
+import { CitizenReportModal } from './components/complaints/CitizenReportModal';
 import { useOrganization } from './context/OrganizationContext';
 import { isComplaintInZone } from './lib/zoneFilter';
 
@@ -38,6 +39,7 @@ export function App() {
   const [selectedComplaintId, setSelectedComplaintId] = useState<string | null>(null);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
 
   const {
     complaints,
@@ -47,6 +49,7 @@ export function App() {
     filters,
     setFilters,
     refetch,
+    submitComplaint,
     updateStatus,
     assignOfficer,
     addAdminNote,
@@ -177,6 +180,7 @@ export function App() {
       complaints={visibleComplaints}
       selectedComplaintId={selectedComplaintId}
       onSelectComplaint={handleSelectComplaint}
+      onOpenReport={() => setIsReportModalOpen(true)}
       onRefresh={handleRefresh}
       isRefreshing={isRefreshing}
     >
@@ -322,6 +326,13 @@ export function App() {
       {activePage === 'civic_champions' && <CivicChampions />}
 
       {activePage === 'settings' && isMunicipalAdmin && <Settings />}
+
+      <CitizenReportModal
+        isOpen={isReportModalOpen}
+        onClose={() => setIsReportModalOpen(false)}
+        onSubmit={submitComplaint}
+        existingComplaints={complaints}
+      />
     </MainLayout>
   );
 }
