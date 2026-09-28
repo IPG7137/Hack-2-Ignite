@@ -580,6 +580,10 @@ class _AdminActionsScreenState extends State<AdminActionsScreen> {
         return Colors.amber;
       case ReportStatus.resolutionSubmitted:
         return Colors.cyan;
+      case ReportStatus.citizenVerification:
+        return Colors.teal;
+      case ReportStatus.reopened:
+        return Colors.orange;
       case ReportStatus.resolved:
       case ReportStatus.verified:
         return Colors.green;

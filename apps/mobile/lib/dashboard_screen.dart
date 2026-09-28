@@ -934,6 +934,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
         return const Color(0xFFD97706);
       case ReportStatus.resolutionSubmitted:
         return const Color(0xFF0284C7);
+      case ReportStatus.citizenVerification:
+        return const Color(0xFF0D9488);
+      case ReportStatus.reopened:
+        return const Color(0xFFDC2626);
       case ReportStatus.resolved:
       case ReportStatus.verified:
         return const Color(0xFF12B76A);
@@ -958,6 +962,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
         return 'In Progress';
       case ReportStatus.resolutionSubmitted:
         return 'Resolution Submitted';
+      case ReportStatus.citizenVerification:
+        return 'Citizen Verification';
+      case ReportStatus.reopened:
+        return 'Reopened';
       case ReportStatus.resolved:
       case ReportStatus.verified:
         return 'Verified';

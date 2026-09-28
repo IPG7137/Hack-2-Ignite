@@ -72,7 +72,7 @@ export async function runNotificationsTests(): Promise<{ passed: number; failed:
   const pushAudit = multiChannelRes.deliveryAudits.find((a) => a.channel === 'push');
   assert(pushAudit?.deliveryStatus === 'SKIPPED', 'Push channel without active token marked SKIPPED');
   assert(
-    pushAudit?.failureReason?.includes('not configured'),
+    Boolean(pushAudit?.failureReason?.includes('not configured')),
     'Push channel outputs transparent non-configured reason'
   );
 

@@ -294,35 +294,53 @@ export class CopilotService {
   ): Promise<GroundedMunicipalBriefing> {
     if (securityContext?.role === 'citizen') {
       return {
-        briefingId: `BRF-${Date.now()}`,
-        generatedAt: new Date().toISOString(),
+        id: `BRF-${Date.now()}`,
+        timestamp: new Date().toISOString(),
         datasetSize: 0,
+        isAiGenerated: false,
         modelName: 'Grounded Intelligence Security Guard',
+        summary: 'Access restricted to authorized personnel.',
+        markdownContent: `### 🔒 Access Restricted\n\nExecutive municipal briefings are restricted to authorized municipal officers, ward engineers, and state administrators. Citizens may query the status of their individual complaints through the Citizen Copilot desk.`,
+        referencedComplaintIds: [],
         metrics: {
           totalComplaints: 0,
           activeComplaints: 0,
           resolvedComplaints: 0,
           overdueComplaints: 0,
+          criticalPriorityCount: 0,
+          highPriorityCount: 0,
+          emergingHotspotsCount: 0,
+          potentialIncidentsCount: 0,
+          pendingVerificationCount: 0,
+          departmentDistribution: {},
         },
-        referencedComplaintIds: [],
-        markdownContent: `### 🔒 Access Restricted\n\nExecutive municipal briefings are restricted to authorized municipal officers, ward engineers, and state administrators. Citizens may query the status of their individual complaints through the Citizen Copilot desk.`,
+        topDirectives: [],
       };
     }
 
     if (!complaints || complaints.length === 0) {
       return {
-        briefingId: `BRF-${Date.now()}`,
-        generatedAt: new Date().toISOString(),
+        id: `BRF-${Date.now()}`,
+        timestamp: new Date().toISOString(),
         datasetSize: 0,
+        isAiGenerated: false,
         modelName: 'Grounded Deterministic 3A-3E Engine',
+        summary: 'No active complaints in operational jurisdiction.',
+        markdownContent: `### 🏛️ Municipal Commissioner Executive Operational Briefing\n\nCurrently evaluating **0 complaints** on file. No active municipal reports recorded in this operational jurisdiction. Connect live telemetry or register new grievances to populate intelligence metrics.`,
+        referencedComplaintIds: [],
         metrics: {
           totalComplaints: 0,
           activeComplaints: 0,
           resolvedComplaints: 0,
           overdueComplaints: 0,
+          criticalPriorityCount: 0,
+          highPriorityCount: 0,
+          emergingHotspotsCount: 0,
+          potentialIncidentsCount: 0,
+          pendingVerificationCount: 0,
+          departmentDistribution: {},
         },
-        referencedComplaintIds: [],
-        markdownContent: `### 🏛️ Municipal Commissioner Executive Operational Briefing\n\nCurrently evaluating **0 complaints** on file. No active municipal reports recorded in this operational jurisdiction. Connect live telemetry or register new grievances to populate intelligence metrics.`,
+        topDirectives: [],
       };
     }
 
@@ -404,19 +422,42 @@ export class CopilotService {
     // PII Scrubbing
     const scrubbedContent = GroundingSecurityGuard.maskPII(md);
 
+    const departmentDistribution: { [key: string]: number } = {};
+    safeComplaints.forEach((c) => {
+      const dept = c.assignment?.departmentName || c.categoryLabel || 'General';
+      departmentDistribution[dept] = (departmentDistribution[dept] || 0) + 1;
+    });
+
+    const criticalPriorityCount = safeComplaints.filter((c) => c.priority === 'urgent').length;
+    const highPriorityCount = safeComplaints.filter((c) => c.priority === 'high').length;
+    const pendingVerification = safeComplaints.filter((c) => c.status === 'citizen_verification' || c.status === 'resolution_submitted').length;
+
     return {
-      briefingId: `BRF-${Date.now()}`,
-      generatedAt: new Date().toISOString(),
+      id: `BRF-${Date.now()}`,
+      timestamp: new Date().toISOString(),
       datasetSize: safeComplaints.length,
+      isAiGenerated: false,
       modelName: 'Grounded Deterministic 3A-3E Engine + Gemini 1.5',
+      summary: `Evaluated ${safeComplaints.length} municipal records across active district.`,
+      markdownContent: scrubbedContent,
+      referencedComplaintIds: uniqueReferenced,
       metrics: {
         totalComplaints: safeComplaints.length,
         activeComplaints: active.length,
         resolvedComplaints: resolved.length,
         overdueComplaints: overdue.length,
+        criticalPriorityCount,
+        highPriorityCount,
+        emergingHotspotsCount: hotspots.length,
+        potentialIncidentsCount: incidentGroups.length,
+        pendingVerificationCount: pendingVerification,
+        departmentDistribution,
       },
-      referencedComplaintIds: uniqueReferenced,
-      markdownContent: scrubbedContent,
+      topDirectives: [
+        `Dispatch field teams to ${urgent.length} urgent/high priority complaints`,
+        `Inspect ${hotspots.length} detected spatial hotspots`,
+        `Process ${pendingVerification} verification records`,
+      ],
     };
   }
 
@@ -610,7 +651,7 @@ export class CopilotService {
       datasetCount: complaints.length,
       district: activeDistrict,
       timestamp: new Date().toISOString(),
-      lastUpdated: complaints[0]?.timestamps?.updatedAt || new Date().toISOString(),
+      lastUpdated: complaints[0]?.updatedAt || complaints[0]?.createdAt || new Date().toISOString(),
     };
 
     return {
@@ -663,8 +704,8 @@ export class CopilotService {
     }
 
     const c = target;
-    const submittedDate = c.timestamps?.createdAt ? new Date(c.timestamps.createdAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'Recently';
-    const updatedDate = c.timestamps?.updatedAt ? new Date(c.timestamps.updatedAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'Recently';
+    const submittedDate = c.createdAt ? new Date(c.createdAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'Recently';
+    const updatedDate = c.updatedAt ? new Date(c.updatedAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'Recently';
     const deptName = c.assignment?.departmentName || (c.categoryLabel ? `${c.categoryLabel} Department` : 'Jurisdictional Maintenance Division');
     const officerName = c.assignment?.officerName ? `Officer ${c.assignment.officerName}` : 'Field Maintenance Unit';
 
@@ -955,7 +996,7 @@ export class CopilotService {
     complaints: Complaint[],
     securityContext?: CopilotSecurityContext
   ): GroundedCopilotResponse {
-    const geoTagged = complaints.filter((c) => c.location.coordinates?.lat && c.location.coordinates?.lng);
+    const geoTagged = complaints.filter((c) => c.location.latitude && c.location.longitude);
 
     if (geoTagged.length === 0) {
       return {

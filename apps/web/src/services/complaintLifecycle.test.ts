@@ -204,7 +204,7 @@ export function runComplaintLifecycleTests(): TestResult {
     'Test 6: Citizen rejects resolution -> Status is REOPENED & reopenCount is incremented'
   );
   assert(
-    rejectedComplaint.reopenReason?.includes('Bitumen washed away'),
+    Boolean(rejectedComplaint.reopenReason?.includes('Bitumen washed away')),
     'Test 6: Reopen reason is recorded faithfully'
   );
   assert(

@@ -960,7 +960,12 @@ class ComprehensiveDatabaseService {
         // Award Civic Score / Credits (+15 pts for confirming resolution)
         if (userId != null) {
           try {
-            await CreditService.addCredits(15);
+            await CreditService.awardCredits(
+              userId: userId,
+              credits: 15,
+              earnedFor: 'citizen_verified',
+              reportId: reportId,
+            );
           } catch (_) {}
         }
       } else {

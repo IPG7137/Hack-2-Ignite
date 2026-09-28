@@ -110,6 +110,10 @@ class ComprehensiveReportModel {
   final String? parentReportId;
   final String? resolutionNotes;
   final String? resolutionImageUrl;
+  final String? citizenVerificationStatus;
+  final String? reopenReason;
+  final int reopenCount;
+  final String? verificationPhotoUrl;
 
   // Display fields (from view)
   final String? userName;
