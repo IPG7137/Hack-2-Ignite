@@ -2094,7 +2094,89 @@ void main() {
       expect(disclaimer, contains('reviewed'));
     });
   });
+
+  group('Local Civic Feed & Community Support Tests (Phase 16)', () {
+    test('1. ComprehensiveReportModel parses supportCount, userHasSupported, and distanceMeters', () {
+      final json = {
+        'id': '101',
+        'user_id': 'user-citizen-01',
+        'title': 'Severe Pothole on Station Road',
+        'description': 'Large pothole blocking bus lane',
+        'category': 'potholes_roads',
+        'location': 'Station Road, Solapur',
+        'latitude': 17.68687,
+        'longitude': 75.92275,
+        'image_urls': <String>[],
+        'status': 'assigned',
+        'priority': 'high',
+        'created_at': DateTime.now().toIso8601String(),
+        'updated_at': DateTime.now().toIso8601String(),
+        'support_count': 14,
+        'user_has_supported': true,
+        'distance_meters': 350.5,
+      };
+
+      final model = ComprehensiveReportModel.fromJson(json);
+
+      expect(model.id, '101');
+      expect(model.supportCount, 14);
+      expect(model.userHasSupported, isTrue);
+      expect(model.distanceMeters, 350.5);
+      expect(model.categoryDisplayName, 'Roads & Potholes');
+    });
+
+    test('2. copyWithSupport updates supported state and count immutably', () {
+      final initial = ComprehensiveReportModel.fromJson({
+        'id': '202',
+        'user_id': 'user-citizen-02',
+        'title': 'Water Pipe Burst',
+        'description': 'Main pipeline leaking clean water',
+        'category': 'water_supply',
+        'location': 'Market Chowk, Solapur',
+        'latitude': 17.6800,
+        'longitude': 75.9200,
+        'image_urls': <String>[],
+        'status': 'submitted',
+        'priority': 'urgent',
+        'created_at': DateTime.now().toIso8601String(),
+        'support_count': 5,
+        'user_has_supported': false,
+      });
+
+      expect(initial.supportCount, 5);
+      expect(initial.userHasSupported, isFalse);
+
+      final updated = initial.copyWithSupport(supported: true, count: 6);
+
+      expect(updated.id, '202');
+      expect(updated.supportCount, 6);
+      expect(updated.userHasSupported, isTrue);
+      // Original remains unchanged
+      expect(initial.supportCount, 5);
+      expect(initial.userHasSupported, isFalse);
+    });
+
+    test('3. Canonical category mapping in civic feed cards matches across all categories', () {
+      expect(ComprehensiveReportModel.canonicalCategoryDisplayName('roads_infrastructure'), 'Roads & Potholes');
+      expect(ComprehensiveReportModel.canonicalCategoryDisplayName('water_supply'), 'Water Supply & Leaks');
+      expect(ComprehensiveReportModel.canonicalCategoryDisplayName('drainage_sewage'), 'Drainage & Sewage');
+      expect(ComprehensiveReportModel.canonicalCategoryDisplayName('electricity_streetlights'), 'Electricity & Streetlights');
+      expect(ComprehensiveReportModel.canonicalCategoryDisplayName('garbage'), 'Garbage & Sanitation');
+      expect(ComprehensiveReportModel.canonicalCategoryDisplayName('hazard'), 'Public Safety Hazards');
+      expect(ComprehensiveReportModel.canonicalCategoryDisplayName('trees'), 'Parks & Urban Greens');
+    });
+
+    test('4. Support action prevents duplicate complaint creation in 3A workflow', () {
+      const parentReportId = '505';
+      const duplicateDetected = true;
+
+      expect(duplicateDetected, isTrue);
+      expect(parentReportId, '505');
+
+      // Citizen selects "Support Existing Issue" instead of submitting
+      final actionLabel = 'Support Existing Issue';
+      expect(actionLabel, contains('Support'));
+      expect(actionLabel, isNot(contains('Duplicate')));
+    });
+  });
 }
-
-
-

@@ -628,21 +628,35 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> with TickerPr
                   onPressed: () async {
                     final authService = AuthService.instance;
                     final currentUserId = authService.userId ?? authService.supabaseUser?.id;
+                    final parentIdInt = int.tryParse(_duplicateParentId ?? '') ?? 1;
                     if (currentUserId != null && currentUserId.isNotEmpty) {
-                      await CreditService.awardCreditsForReport(currentUserId, _duplicateParentId ?? '1');
+                      await ComprehensiveDatabaseService().toggleReportSupport(
+                        reportId: parentIdInt,
+                        userId: currentUserId,
+                      );
+                      await CreditService.awardCreditsForReport(currentUserId, parentIdInt.toString());
                     }
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text('Upvoted complaint #${_duplicateParentId ?? ""}! +5 Green Credits awarded.'),
+                          content: Row(
+                            children: [
+                              const Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text('Supported issue #CR-$parentIdInt instead of creating a duplicate! +5 Civic Credits awarded.'),
+                              ),
+                            ],
+                          ),
                           backgroundColor: const Color(0xFF12B76A),
+                          duration: const Duration(seconds: 4),
                         ),
                       );
                       Navigator.pop(context);
                     }
                   },
                   icon: const Icon(Icons.thumb_up_alt_rounded, size: 14),
-                  label: const Text('Upvote Existing Complaint', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
+                  label: const Text('Support Existing Issue', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF155EEF),
                     foregroundColor: Colors.white,

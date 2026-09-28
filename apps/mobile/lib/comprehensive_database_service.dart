@@ -1343,4 +1343,157 @@ class ComprehensiveDatabaseService {
 
     return updated;
   }
+
+  // ========================================
+  // CIVIC FEED & REPORT SUPPORT (Phase 16)
+  // ========================================
+
+  /// Toggles citizen support for a civic report (Atomic via RPC with table fallback)
+  Future<Map<String, dynamic>> toggleReportSupport({
+    required int reportId,
+    required String userId,
+  }) async {
+    try {
+      debugPrint('🗳️ Toggling support for report #$reportId by user $userId');
+
+      // 1. Primary Strategy: RPC toggle_report_support
+      try {
+        final res = await _supabase.rpc('toggle_report_support', params: {
+          'p_report_id': reportId,
+          'p_user_id': userId,
+        });
+        if (res != null && res is Map) {
+          debugPrint('✅ toggle_report_support RPC succeeded: $res');
+          return {
+            'success': true,
+            'supported': res['supported'] == true,
+            'total_supports': int.tryParse(res['total_supports']?.toString() ?? '0') ?? 0,
+          };
+        }
+      } catch (rpcErr) {
+        debugPrint('ℹ️ toggle_report_support RPC unavailable ($rpcErr), trying direct table operations...');
+      }
+
+      // 2. Direct table fallback
+      final existing = await _supabase
+          .from('report_supports')
+          .select('id')
+          .eq('report_id', reportId)
+          .eq('user_id', userId)
+          .maybeSingle();
+
+      bool nowSupported = false;
+      if (existing != null) {
+        // Unsupport
+        await _supabase
+            .from('report_supports')
+            .delete()
+            .eq('report_id', reportId)
+            .eq('user_id', userId);
+        nowSupported = false;
+      } else {
+        // Support
+        await _supabase.from('report_supports').insert({
+          'report_id': reportId,
+          'user_id': userId,
+        });
+        nowSupported = true;
+      }
+
+      // Fetch updated count
+      final countRes = await _supabase
+          .from('report_supports')
+          .select('id')
+          .eq('report_id', reportId);
+      final totalSupports = countRes.length;
+
+      return {
+        'success': true,
+        'supported': nowSupported,
+        'total_supports': totalSupports,
+      };
+    } catch (e) {
+      debugPrint('❌ Error toggling report support: $e');
+      return {
+        'success': false,
+        'supported': false,
+        'total_supports': 0,
+        'error': e.toString(),
+      };
+    }
+  }
+
+  /// Gets the support count and whether a user has supported a specific report
+  Future<Map<String, dynamic>> getReportSupportStatus({
+    required int reportId,
+    required String userId,
+  }) async {
+    try {
+      final supports = await _supabase
+          .from('report_supports')
+          .select('user_id')
+          .eq('report_id', reportId);
+
+      final hasSupported = userId.isNotEmpty && supports.any((s) => s['user_id']?.toString() == userId);
+      return {
+        'supported': hasSupported,
+        'total_supports': supports.length,
+      };
+    } catch (e) {
+      debugPrint('Note: Could not fetch report support status: $e');
+      return {
+        'supported': false,
+        'total_supports': 0,
+      };
+    }
+  }
+
+  /// Fetches local civic feed reports with distance calculations and support tallies
+  Future<List<ComprehensiveReportModel>> getCivicFeed({
+    double? latitude,
+    double? longitude,
+    double radiusKm = 25.0,
+    String? category,
+    String? userId,
+    int limit = 50,
+    int offset = 0,
+  }) async {
+    try {
+      debugPrint('📰 Fetching local civic feed (lat: $latitude, lng: $longitude, radius: ${radiusKm}km)');
+
+      // 1. Primary Strategy: RPC get_civic_feed
+      try {
+        final rpcRes = await _supabase.rpc('get_civic_feed', params: {
+          'p_lat': latitude,
+          'p_lng': longitude,
+          'p_radius_km': radiusKm,
+          'p_category': category != null && category != 'All' ? category : null,
+          'p_user_id': userId,
+          'p_limit': limit,
+          'p_offset': offset,
+        });
+
+        if (rpcRes is List && rpcRes.isNotEmpty) {
+          debugPrint('✅ Loaded ${rpcRes.length} civic feed items via get_civic_feed RPC');
+          return rpcRes.map((json) => ComprehensiveReportModel.fromJson(json)).toList();
+        }
+      } catch (rpcErr) {
+        debugPrint('ℹ️ get_civic_feed RPC fallback ($rpcErr), aggregating from public markers...');
+      }
+
+      // 2. Fallback: Aggregate from getNearbyMapReports
+      final baseReports = await getNearbyMapReports(
+        latitude: latitude,
+        longitude: longitude,
+        radiusKm: radiusKm,
+        category: category,
+      );
+
+      // Populate support counts if available
+      return baseReports;
+    } catch (e) {
+      debugPrint('❌ Error fetching civic feed: $e');
+      return [];
+    }
+  }
 }
