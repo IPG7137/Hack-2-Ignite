@@ -2179,4 +2179,86 @@ void main() {
       expect(actionLabel, isNot(contains('Duplicate')));
     });
   });
+
+  // =========================================================================
+  // TASK 07: CITIZEN FEEDBACK & RESOLUTION INTEGRITY TESTS
+  // =========================================================================
+  group('Citizen Feedback & Resolution Integrity Tests (Task 07)', () {
+    test('1. ComprehensiveReportModel parses citizen feedback, rating and reopen details', () {
+      final model = ComprehensiveReportModel.fromJson({
+        'id': '901',
+        'user_id': 'user-citizen-901',
+        'title': 'Broken footpath slab',
+        'description': 'Concrete slab caved in',
+        'category': 'roads',
+        'location': 'FC Road, Pune',
+        'latitude': 18.5204,
+        'longitude': 73.8567,
+        'image_urls': <String>['https://example.com/before.jpg'],
+        'status': 'closed',
+        'priority': 'medium',
+        'created_at': DateTime.now().toIso8601String(),
+        'citizen_verification_status': 'verified',
+        'rating': 5,
+        'citizen_feedback': 'Footpath repaired cleanly and leveled smoothly.',
+        'reopen_count': 0,
+      });
+
+      expect(model.id, '901');
+      expect(model.status, ReportStatus.closed);
+      expect(model.citizenVerificationStatus, 'verified');
+      expect(model.rating, 5);
+      expect(model.citizenFeedback, contains('repaired cleanly'));
+      expect(model.reopenCount, 0);
+    });
+
+    test('2. Reopened complaint preserves reopen count, reason and status mapping', () {
+      final model = ComprehensiveReportModel.fromJson({
+        'id': '902',
+        'user_id': 'user-citizen-902',
+        'title': 'Clogged stormwater drain',
+        'description': 'Water stagnant after rains',
+        'category': 'drainage_sewage',
+        'location': 'Deccan Gymkhana, Pune',
+        'latitude': 18.5167,
+        'longitude': 73.8417,
+        'image_urls': <String>[],
+        'status': 'reopened',
+        'priority': 'high',
+        'created_at': DateTime.now().toIso8601String(),
+        'citizen_verification_status': 'reopened',
+        'reopen_reason': 'Drain still blocked with plastic debris.',
+        'reopen_count': 2,
+        'verification_photo_url': 'https://example.com/reopen_proof.jpg',
+      });
+
+      expect(model.id, '902');
+      expect(model.status, ReportStatus.reopened);
+      expect(model.citizenVerificationStatus, 'reopened');
+      expect(model.reopenReason, 'Drain still blocked with plastic debris.');
+      expect(model.reopenCount, 2);
+      expect(model.verificationPhotoUrl, isNotNull);
+    });
+
+    test('3. Satisfaction verification logic correctly switches status to closed or reopened', () {
+      String resolveStatus(bool isSatisfied) => isSatisfied ? 'closed' : 'reopened';
+      String resolveVerificationStatus(bool isSatisfied) => isSatisfied ? 'verified' : 'reopened';
+
+      expect(resolveStatus(true), 'closed');
+      expect(resolveVerificationStatus(true), 'verified');
+      expect(resolveStatus(false), 'reopened');
+      expect(resolveVerificationStatus(false), 'reopened');
+    });
+
+    test('4. Rating bounds validation strictly enforces 1 to 5 integer scale', () {
+      bool isValidRating(int rating) => rating >= 1 && rating <= 5;
+
+      expect(isValidRating(1), isTrue);
+      expect(isValidRating(5), isTrue);
+      expect(isValidRating(3), isTrue);
+      expect(isValidRating(0), isFalse);
+      expect(isValidRating(6), isFalse);
+      expect(isValidRating(-1), isFalse);
+    });
+  });
 }

@@ -15,9 +15,11 @@ import {
   MapPin,
   Sparkles,
   X,
+  MessageSquare,
 } from 'lucide-react';
 import { ReopenReason, REOPEN_REASON_LABELS } from '../../types/evidence';
 import { ResolutionEvidenceService } from '../../services/resolutionEvidenceService';
+import { ResolutionFeedbackService } from '../../services/resolutionFeedbackService';
 
 interface CitizenVerificationActionBoxProps {
   complaint: Complaint;
@@ -25,7 +27,8 @@ interface CitizenVerificationActionBoxProps {
     satisfied: boolean,
     comment?: string,
     reopenReason?: string,
-    proofPhotoUrl?: string
+    proofPhotoUrl?: string,
+    rating?: number
   ) => Promise<void>;
   loading?: boolean;
 }
@@ -39,7 +42,8 @@ export const CitizenVerificationActionBox: React.FC<CitizenVerificationActionBox
   const [selectedReason, setSelectedReason] = useState<ReopenReason>('issue_still_exists');
   const [customComment, setCustomComment] = useState('');
   const [reopenPhotoUrl, setReopenPhotoUrl] = useState('');
-  const [citizenRating, setCitizenRating] = useState(5);
+  const [citizenRating, setCitizenRating] = useState<number>(5);
+  const [hoverRating, setHoverRating] = useState<number | null>(null);
   const [citizenComment, setCitizenComment] = useState('');
   const [showRatingSuccess, setShowRatingSuccess] = useState(false);
   const [localSubmitting, setLocalSubmitting] = useState(false);
@@ -60,10 +64,24 @@ export const CitizenVerificationActionBox: React.FC<CitizenVerificationActionBox
   const handleConfirmSatisfied = async () => {
     try {
       setLocalSubmitting(true);
-      await onVerify(
-        true,
-        citizenComment.trim() || 'Verified resolved on-site by citizen.'
-      );
+      const commentText = citizenComment.trim() || 'Verified resolved on-site by citizen.';
+
+      // Submit through ResolutionFeedbackService
+      try {
+        ResolutionFeedbackService.submitFeedback({
+          complaintId: complaint.id,
+          resolutionAttemptId: latestAttempt?.id,
+          userId: complaint.reporter?.name || 'Citizen User',
+          rating: citizenRating,
+          satisfied: true,
+          comment: commentText,
+          districtId: (complaint as any).districtId || 'pune',
+        });
+      } catch (fbErr) {
+        console.warn('Feedback service notice:', fbErr);
+      }
+
+      await onVerify(true, commentText, undefined, undefined, citizenRating);
       setShowRatingSuccess(true);
     } finally {
       setLocalSubmitting(false);
@@ -73,11 +91,31 @@ export const CitizenVerificationActionBox: React.FC<CitizenVerificationActionBox
   const handleConfirmReopen = async () => {
     try {
       setLocalSubmitting(true);
+      const commentText = customComment.trim() || undefined;
+
+      // Submit through ResolutionFeedbackService
+      try {
+        ResolutionFeedbackService.submitFeedback({
+          complaintId: complaint.id,
+          resolutionAttemptId: latestAttempt?.id,
+          userId: complaint.reporter?.name || 'Citizen User',
+          rating: citizenRating < 4 ? citizenRating : 1, // default lower rating on reopen
+          satisfied: false,
+          comment: commentText,
+          reopenReason: selectedReason,
+          verificationPhotoUrl: reopenPhotoUrl.trim() || undefined,
+          districtId: (complaint as any).districtId || 'pune',
+        });
+      } catch (fbErr) {
+        console.warn('Feedback service notice on reopen:', fbErr);
+      }
+
       await onVerify(
         false,
-        customComment.trim() || undefined,
+        commentText,
         selectedReason,
-        reopenPhotoUrl.trim() || undefined
+        reopenPhotoUrl.trim() || undefined,
+        citizenRating < 4 ? citizenRating : 1
       );
       setShowReopenModal(false);
       setCustomComment('');
@@ -106,10 +144,10 @@ export const CitizenVerificationActionBox: React.FC<CitizenVerificationActionBox
             </div>
             <div>
               <h3 className="text-sm font-bold text-teal-950">
-                Complaint Resolved — Please Verify
+                Resolution Submitted — Citizen Feedback & Sign-Off
               </h3>
               <p className="text-[11px] text-teal-800">
-                Municipal field team has uploaded remediation proof. Citizen confirmation required.
+                Municipal field crew uploaded remediation proof. Rate the quality and confirm resolution.
               </p>
             </div>
           </div>
@@ -165,13 +203,57 @@ export const CitizenVerificationActionBox: React.FC<CitizenVerificationActionBox
           </div>
         )}
 
-        {/* Verification Action Box */}
+        {/* Interactive 5-Star Rating Selector */}
         <div className="p-3 bg-white rounded-lg border border-teal-200 space-y-3">
-          <div className="text-xs font-semibold text-[#172B4D]">
-            Did the municipal team successfully fix this civic problem?
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div className="text-xs font-bold text-slate-800">
+              How was the municipal remediation?
+            </div>
+            <div className="flex items-center gap-1">
+              {[1, 2, 3, 4, 5].map((star) => {
+                const isFilled = (hoverRating !== null ? hoverRating : citizenRating) >= star;
+                return (
+                  <button
+                    key={star}
+                    type="button"
+                    onClick={() => setCitizenRating(star)}
+                    onMouseEnter={() => setHoverRating(star)}
+                    onMouseLeave={() => setHoverRating(null)}
+                    className="p-1 rounded hover:scale-110 transition-transform cursor-pointer focus:outline-hidden"
+                    aria-label={`${star} Stars`}
+                  >
+                    <Star
+                      className={`w-5 h-5 ${
+                        isFilled
+                          ? 'text-amber-400 fill-amber-400'
+                          : 'text-slate-300 fill-transparent'
+                      }`}
+                    />
+                  </button>
+                );
+              })}
+              <span className="text-xs font-mono font-bold text-slate-700 ml-1.5">
+                {citizenRating}/5 Stars
+              </span>
+            </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-2">
+          {/* Optional Citizen Remarks */}
+          <div className="space-y-1">
+            <label className="text-[11px] font-semibold text-slate-600 block">
+              Citizen Feedback Remarks (Optional):
+            </label>
+            <input
+              type="text"
+              value={citizenComment}
+              onChange={(e) => setCitizenComment(e.target.value)}
+              placeholder="e.g., Road repaired smoothly, debris cleared completely..."
+              className="w-full text-xs p-2 rounded border border-slate-300 focus:ring-2 focus:ring-teal-500 outline-hidden"
+            />
+          </div>
+
+          {/* Decision Buttons */}
+          <div className="flex flex-col sm:flex-row gap-2 pt-1">
             <Button
               type="button"
               id="btn-verify-yes"
@@ -182,7 +264,7 @@ export const CitizenVerificationActionBox: React.FC<CitizenVerificationActionBox
               className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 flex items-center justify-center gap-2 shadow-xs cursor-pointer"
             >
               <CheckCircle2 className="w-4 h-4" />
-              <span>YES — Issue Resolved</span>
+              <span>Resolved — Confirm Resolution</span>
             </Button>
 
             <Button
@@ -195,14 +277,14 @@ export const CitizenVerificationActionBox: React.FC<CitizenVerificationActionBox
               className="flex-1 bg-white hover:bg-rose-50 border-rose-300 text-rose-700 font-bold py-2 flex items-center justify-center gap-2 cursor-pointer"
             >
               <RotateCcw className="w-4 h-4" />
-              <span>NO — Issue Not Resolved</span>
+              <span>Not Fully Resolved — Dispute</span>
             </Button>
           </div>
 
           <div className="text-[10px] text-slate-500 flex items-center gap-1">
             <HelpCircle className="w-3 h-3 text-teal-600 shrink-0" />
             <span>
-              Confirming resolution awards +15 Civic Champion points. Rejection reopens the complaint with SLA priority escalation.
+              Confirming resolution permanently closes the grievance and awards +15 Civic Champion points.
             </span>
           </div>
         </div>
@@ -214,7 +296,7 @@ export const CitizenVerificationActionBox: React.FC<CitizenVerificationActionBox
               <div className="flex items-center justify-between pb-2 border-b border-slate-100">
                 <div className="flex items-center gap-2 text-rose-700 font-bold text-sm">
                   <AlertTriangle className="w-4 h-4" />
-                  <span>Reopen Complaint</span>
+                  <span>Reopen & Dispute Resolution</span>
                 </div>
                 <button
                   type="button"
@@ -227,7 +309,7 @@ export const CitizenVerificationActionBox: React.FC<CitizenVerificationActionBox
 
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-slate-800 block">
-                  Select Reason for Rejection *
+                  Select Reason for Dispute *
                 </label>
                 <select
                   value={selectedReason}
@@ -244,20 +326,20 @@ export const CitizenVerificationActionBox: React.FC<CitizenVerificationActionBox
 
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-slate-800 block">
-                  Additional Citizen Notes (Optional)
+                  Dispute Explanation (Optional)
                 </label>
                 <textarea
                   rows={2}
                   value={customComment}
                   onChange={(e) => setCustomComment(e.target.value)}
-                  placeholder="Provide any specific observations about why the issue is unresolved."
+                  placeholder="Provide any specific observations about why the issue remains unresolved on-site."
                   className="w-full text-xs p-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-rose-500 outline-hidden"
                 />
               </div>
 
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-slate-800 block">
-                  Supporting Photo URL (Optional)
+                  Supporting Proof Photo URL (Optional)
                 </label>
                 <Input
                   type="url"
@@ -298,15 +380,31 @@ export const CitizenVerificationActionBox: React.FC<CitizenVerificationActionBox
 
   // Case 2: Issue is closed
   if (isClosed) {
+    const feedbacks = ResolutionFeedbackService.getFeedbackForComplaint(complaint.id);
+    const latestFeedback = feedbacks[feedbacks.length - 1];
+
     return (
       <Card className="p-4 bg-emerald-50/50 border-emerald-200 shadow-sm space-y-2">
-        <div className="flex items-center gap-2 text-emerald-800 font-bold text-xs">
-          <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-          <span>Case Closed & Verified</span>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-emerald-800 font-bold text-xs">
+            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+            <span>Case Closed & Citizen Verified</span>
+          </div>
+          {latestFeedback && (
+            <div className="flex items-center gap-1 text-xs font-mono font-bold text-amber-600">
+              <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+              <span>{latestFeedback.rating}/5 Stars</span>
+            </div>
+          )}
         </div>
         <p className="text-[11px] text-emerald-700">
           This complaint was confirmed as resolved and closed with permanent audit preservation.
         </p>
+        {latestFeedback?.comment && (
+          <div className="p-2 bg-white/80 rounded border border-emerald-100 text-[11px] text-emerald-950 italic">
+            "{latestFeedback.comment}"
+          </div>
+        )}
       </Card>
     );
   }
@@ -315,13 +413,25 @@ export const CitizenVerificationActionBox: React.FC<CitizenVerificationActionBox
   if (isReopened) {
     return (
       <Card className="p-4 bg-rose-50/50 border-rose-200 shadow-sm space-y-2">
-        <div className="flex items-center gap-2 text-rose-800 font-bold text-xs">
-          <AlertCircle className="w-4 h-4 text-rose-600" />
-          <span>Complaint Reopened by Citizen</span>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-rose-800 font-bold text-xs">
+            <AlertCircle className="w-4 h-4 text-rose-600" />
+            <span>Complaint Reopened by Citizen</span>
+          </div>
+          {reopenCount > 0 && (
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-rose-100 text-rose-800 font-bold">
+              CYCLE #{reopenCount + 1}
+            </span>
+          )}
         </div>
         <p className="text-[11px] text-rose-700">
-          Citizen reported this issue is still unresolved. Municipal field team has been notified for re-inspection.
+          Citizen reported this issue is still unresolved. Municipal field team has been dispatched for rework.
         </p>
+        {complaint.citizenVerification?.reopenReason && (
+          <div className="p-2 bg-white/80 rounded border border-rose-100 text-[11px] text-rose-950 font-medium">
+            Dispute Reason: "{complaint.citizenVerification.reopenReason}"
+          </div>
+        )}
       </Card>
     );
   }

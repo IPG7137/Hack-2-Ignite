@@ -33,6 +33,7 @@ import {
   Radio,
 } from 'lucide-react';
 import { SmartAlertEngine } from '../services/smartAlertEngine';
+import { FeedbackIntegrityReviewQueue } from '../components/complaints/FeedbackIntegrityReviewQueue';
 
 interface DashboardProps {
   complaints: Complaint[];
@@ -518,6 +519,18 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Task 07: Resolution Feedback & Integrity Review Surface for Municipal Staff */}
+      {user?.role && user.role !== 'citizen' && (
+        <div className="pt-2">
+          <FeedbackIntegrityReviewQueue
+            districtId={district || 'pune'}
+            userRole={user.role as any}
+            reviewerId={user.email || user.id || 'Municipal Officer'}
+            onSelectComplaint={onSelectComplaint}
+          />
+        </div>
+      )}
 
       {isLoginOpen && (
         <LoginModal

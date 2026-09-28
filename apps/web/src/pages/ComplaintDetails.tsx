@@ -437,7 +437,8 @@ export const ComplaintDetails: React.FC<ComplaintDetailsProps> = ({
     satisfied: boolean,
     comment?: string,
     reopenReason?: string,
-    proofPhotoUrl?: string
+    proofPhotoUrl?: string,
+    rating?: number
   ) => {
     try {
       setActionLoading(true);
