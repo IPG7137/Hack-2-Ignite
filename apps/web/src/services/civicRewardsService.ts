@@ -36,6 +36,14 @@ export interface RecordContributionParams {
 
 export class CivicRewardsService {
   private config: CivicRewardsConfig = DEFAULT_CIVIC_REWARDS_CONFIG;
+  private static processedContributionKeys: Set<string> = new Set();
+
+  /**
+   * Clears the contribution deduplication cache (useful for test resets)
+   */
+  public static resetDeduplicationCache(): void {
+    CivicRewardsService.processedContributionKeys.clear();
+  }
 
   /**
    * Retrieves the authenticated citizen's profile within their specific district.
@@ -403,6 +411,15 @@ export class CivicRewardsService {
         default:
           pointsAwarded = 0;
       }
+    }
+
+    // Deduplication check: if a non-provisional reward was already processed for this user+complaint+type, award 0 extra points
+    const dedupKey = complaintId ? `${userId}_${complaintId}_${contributionType}` : null;
+    if (dedupKey && !isProvisional && CivicRewardsService.processedContributionKeys.has(dedupKey)) {
+      pointsAwarded = 0;
+      description = 'Civic points already credited for this complaint verification event.';
+    } else if (dedupKey && !isProvisional && pointsAwarded > 0) {
+      CivicRewardsService.processedContributionKeys.add(dedupKey);
     }
 
     const contribution: CivicContribution = {
