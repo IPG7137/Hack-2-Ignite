@@ -53,6 +53,7 @@ export function runSmartAlertsSLATests(): { passed: number; failed: number; erro
     categoryLabel: 'Water Supply',
     location: {
       address: 'Shivajinagar Chowk',
+      landmark: 'Near Bus Stand',
       ward: 'Ward 5',
       zone: 'Zone 1',
       latitude: 18.5314,
@@ -181,7 +182,7 @@ export function runSmartAlertsSLATests(): { passed: number; failed: number; erro
   const reloadedAlerts = SmartAlertEngine.evaluateAlerts(puneComplaints, 'pune', 'pmc', now);
   const ackedAlert = reloadedAlerts.find((a) => a.id === sampleAlert.id || a.fingerprint === sampleAlert.fingerprint);
   assert(ackedAlert?.status === 'ACKNOWLEDGED', 'Acknowledged status persisted across evaluations');
-  assert(ackedAlert?.acknowledgedBy?.includes('Officer Kulkarni'), 'Officer name recorded in audit trail');
+  assert(Boolean(ackedAlert?.acknowledgedBy?.includes('Officer Kulkarni')), 'Officer name recorded in audit trail');
 
   // -------------------------------------------------------------
   // TEST 9: Strict District Data Isolation

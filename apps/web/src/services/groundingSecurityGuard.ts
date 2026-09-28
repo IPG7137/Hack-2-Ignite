@@ -60,7 +60,7 @@ export class GroundingSecurityGuard {
           rawQuery: query,
           cleanedQuery: text,
           isSafe: false,
-          securityViolation: 'Prompt injection or unauthorized system override pattern detected.',
+          securityViolation: 'Prompt injection pattern detected: unauthorized system override attempt.',
         };
       }
     }

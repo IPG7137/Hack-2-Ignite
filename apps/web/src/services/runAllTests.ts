@@ -19,6 +19,7 @@ import { runSmartMapGisTests } from './smartMapGis.test';
 import { runSmartAlertsSLATests } from './smartAlertsSLA.test';
 import { runResolutionEvidenceTests } from './resolutionEvidence.test';
 import { runNotificationsTests } from './notifications.test';
+import { runFullSecurityHardeningTests } from './fullSecurityHardening.test';
 
 async function main() {
   console.log('===========================================================');
@@ -141,6 +142,12 @@ async function main() {
   totalPassed += res18.passed;
   totalFailed += res18.failed;
 
+  // Phase 19: Full Security Hardening & Section 49 Matrix
+  const res19 = await runFullSecurityHardeningTests();
+  totalPassed += res19.passed;
+  totalFailed += res19.failed;
+  allErrors.push(...res19.errors);
+
   console.log('\n===========================================================');
   console.log('📊 FINAL VERIFICATION SCORECARD:');
   console.log(`   3A Similarity:             ${res3A.passed}/${res3A.passed + res3A.failed}`);
@@ -162,6 +169,7 @@ async function main() {
   console.log(`   16 Smart Alerts & SLA:     ${res16.passed}/${res16.passed + res16.failed}`);
   console.log(`   17 Resolution Evidence:    ${res17.passed}/${res17.passed + res17.failed}`);
   console.log(`   18 Notifications & Comm:   ${res18.passed}/${res18.passed + res18.failed}`);
+  console.log(`   19 Security Hardening:     ${res19.passed}/${res19.passed + res19.failed}`);
   console.log('-----------------------------------------------------------');
   console.log(`   TOTAL:                     ${totalPassed} PASSED / ${totalFailed} FAILED`);
   console.log('===========================================================');

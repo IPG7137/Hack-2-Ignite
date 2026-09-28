@@ -65,6 +65,19 @@ function getHaversineDistanceMeters(
   return R * c;
 }
 
+/**
+ * Escapes unsafe characters for MapLibre HTML popups to prevent XSS.
+ */
+function escapeHtml(str: string | undefined | null): string {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 export const CommandMap: React.FC<CommandMapProps> = ({
   complaints,
   selectedId,
@@ -752,27 +765,27 @@ export const CommandMap: React.FC<CommandMapProps> = ({
 
         popupContent.innerHTML = `
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-            <span style="color: #1769D2; font-weight: bold; font-family: monospace; font-size: 12px;">#${c.id}</span>
+            <span style="color: #1769D2; font-weight: bold; font-family: monospace; font-size: 12px;">#${escapeHtml(c.id)}</span>
             <span style="font-size: 10px; font-family: monospace; font-weight: bold; color: ${color}; padding: 1px 5px; border-radius: 4px; background: ${color}15; border: 1px solid ${color}40;">
               ${prioritySymbol} ${priorityLabel.toUpperCase()}
             </span>
           </div>
 
           <div style="font-size: 12px; font-weight: 700; color: #172B4D; line-height: 1.3; margin-bottom: 4px;">
-            ${c.title}
+            ${escapeHtml(c.title)}
           </div>
 
           <div style="font-size: 11px; color: #526581; margin-bottom: 2px;">
-            📂 ${c.categoryLabel || c.category}
+            📂 ${escapeHtml(c.categoryLabel || c.category)}
           </div>
 
           <div style="font-size: 11px; color: #526581; margin-bottom: 4px;">
-            📍 ${c.location.address || c.location.ward || 'Municipal Area'}
+            📍 ${escapeHtml(c.location.address || c.location.ward || 'Municipal Area')}
           </div>
 
           <div style="display: flex; justify-content: space-between; align-items: center; font-size: 10px; font-family: monospace; color: #526581; background: #F8FAFC; border: 1px solid #E2E8F0; padding: 3px 5px; border-radius: 4px; margin-bottom: 6px;">
-            <span>Reported: <strong>${reportedDateFormatted}</strong></span>
-            <span style="font-weight: 600; color: ${statusConfig.color};">${statusConfig.label}</span>
+            <span>Reported: <strong>${escapeHtml(reportedDateFormatted)}</strong></span>
+            <span style="font-weight: 600; color: ${statusConfig.color};">${escapeHtml(statusConfig.label)}</span>
           </div>
 
           <div style="font-size: 10px; font-family: monospace; color: #526581; display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">

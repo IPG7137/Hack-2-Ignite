@@ -371,7 +371,6 @@ You can click any prompt chip below or type an inquiry regarding road safety clu
       status: 'in_progress',
       priority: 'high',
       reporter: {
-        userId: 'citizen-user-1',
         name: 'Amit Deshmukh',
         phone: '+91 98765 00000',
         aadharMasked: 'XXXX-XXXX-9999',

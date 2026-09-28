@@ -15,8 +15,8 @@ export function useCivicRewards() {
   const { user } = useAuthContext();
   const { organizationType, districtId } = useOrganization();
 
-  // Resolved active district: user district, or organization district, or default 'solapur'
-  const activeDistrictId = districtId || (user as any)?.districtId || 'solapur';
+  // Resolved active district: user district, or organization district (strictly no silent Solapur fallback)
+  const activeDistrictId = districtId || (user as any)?.districtId || '';
 
   const [citizenProfile, setCitizenProfile] = useState<CitizenCivicProfile | null>(null);
   const [leaderboard, setLeaderboard] = useState<DistrictLeaderboardEntry[]>([]);
@@ -39,6 +39,12 @@ export function useCivicRewards() {
     try {
       setLoading(true);
       setError(null);
+
+      if (!activeDistrictId && organizationType !== 'STATE') {
+        setError('District context required. Please select or authenticate with an authorized district.');
+        setLoading(false);
+        return;
+      }
 
       const userId = user?.id || 'USER-CITIZEN-CURRENT';
 

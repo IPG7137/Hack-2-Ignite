@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
-import 'comprehensive_database_service.dart';
 import 'comprehensive_report_models.dart';
-import 'auth_service.dart';
 import 'category_selection_screen.dart';
 
 class CopilotMessageItem {
@@ -158,8 +156,8 @@ class _AiCopilotSheetState extends State<AiCopilotSheet> {
       }
 
       final latest = widget.reports.first;
-      final statusStr = latest.status.toUpperCase();
-      final categoryStr = latest.category;
+      final statusStr = latest.status.name.toUpperCase();
+      final categoryStr = latest.categoryDisplayName ?? latest.category;
       final timeStr = latest.createdAt.toLocal().toString().split('.')[0];
 
       return CopilotMessageItem(
@@ -168,11 +166,11 @@ class _AiCopilotSheetState extends State<AiCopilotSheet> {
         content: '📋 **Complaint Status Record**\n\n'
             'Your complaint **#${latest.id}** is currently **"$statusStr"**.\n\n'
             '• **Category:** $categoryStr\n'
-            '• **Location:** ${latest.locationAddress}\n'
+            '• **Location:** ${latest.location}\n'
             '• **Reported On:** $timeStr\n'
-            '• **Assigned Department:** ${latest.department}\n'
-            '• **Priority:** ${latest.priority.toUpperCase()}\n\n'
-            '${latest.status == "in_progress" ? "Work is actively underway by field crews." : latest.status == "resolved" ? "Field work complete. Awaiting your citizen satisfaction verification." : "Assigned and queued in municipal dispatch."}',
+            '• **Assigned Officer:** ${latest.assignedOfficerName ?? "Duty Desk"}\n'
+            '• **Priority:** ${latest.priority.name.toUpperCase()}\n\n'
+            '${latest.status == ReportStatus.inProgress ? "Work is actively underway by field crews." : latest.status == ReportStatus.resolved ? "Field work complete. Awaiting your citizen satisfaction verification." : "Assigned and queued in municipal dispatch."}',
         timestamp: DateTime.now(),
         suggestedPrompts: ['What evidence should I upload?'],
       );
@@ -310,7 +308,7 @@ class _AiCopilotSheetState extends State<AiCopilotSheet> {
                   width: 38,
                   height: 38,
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.15),
+                    color: Colors.white.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: const Center(
@@ -423,7 +421,7 @@ class _AiCopilotSheetState extends State<AiCopilotSheet> {
                                     ),
                                     Text(
                                       'Description: ${msg.actionProposal!["description"]}',
-                                      style: const TextStyle(fontSize: 11, color: Colors.black86),
+                                      style: const TextStyle(fontSize: 11, color: Colors.black87),
                                     ),
                                     const SizedBox(height: 8),
                                     ElevatedButton(

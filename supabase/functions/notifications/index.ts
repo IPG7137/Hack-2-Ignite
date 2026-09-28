@@ -1,12 +1,19 @@
 // Supabase Edge Function: notifications
-// Server-side notification dispatching, template interpolation, and delivery audit logging.
+// Server-side notification dispatching, template interpolation, delivery audit logging,
+// with caller authentication, role validation, and strict district scoping.
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+function sanitizeString(str: string): string {
+  if (!str) return '';
+  return str.replace(/<[^>]*>?/gm, '').trim();
+}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -14,6 +21,47 @@ serve(async (req) => {
   }
 
   try {
+    // 1. Caller Authentication Verification
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized: Missing Authorization header' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
+
+    let callerRole = 'citizen';
+    let callerDistrict = '';
+    let callerId = '';
+
+    if (supabaseUrl && supabaseAnonKey) {
+      const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+        global: { headers: { Authorization: authHeader } },
+      });
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) {
+        return new Response(
+          JSON.stringify({ error: 'Unauthorized: Invalid or expired auth token' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      callerId = user.id;
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role, district_id')
+        .eq('id', user.id)
+        .maybeSingle();
+
+      if (profile) {
+        callerRole = profile.role || 'citizen';
+        callerDistrict = profile.district_id || '';
+      }
+    }
+
     const body = await req.json();
     const {
       userId,
@@ -34,28 +82,50 @@ serve(async (req) => {
       );
     }
 
+    // 2. Authorization & Scoping Guard
+    // Citizens can only trigger notifications for their own user_id.
+    // Municipal staff can only dispatch notifications within their authorized district scope (unless state_admin).
+    if (callerRole === 'citizen' && callerId && userId !== callerId) {
+      return new Response(
+        JSON.stringify({ error: 'Forbidden: Citizens cannot dispatch notifications to other users' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (
+      callerRole !== 'state_admin' &&
+      callerRole !== 'super_admin' &&
+      callerDistrict &&
+      districtId.toLowerCase() !== callerDistrict.toLowerCase()
+    ) {
+      return new Response(
+        JSON.stringify({ error: 'Forbidden: Cannot dispatch notifications outside authorized district' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const now = new Date().toISOString();
     const notificationId = `notif-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
 
-    // Build notification record
-    const title = variables.title || `Notification: ${notificationType.replace(/_/g, ' ')}`;
-    const message = variables.message || `System event ${notificationType} recorded for ${districtId}.`;
+    // Build sanitized notification record
+    const title = sanitizeString(variables.title || `Notification: ${notificationType.replace(/_/g, ' ')}`);
+    const message = sanitizeString(variables.message || `System event ${notificationType} recorded for ${districtId}.`);
 
     const notification = {
       id: notificationId,
       userId,
       userRole,
-      notificationType,
+      notificationType: sanitizeString(notificationType),
       title,
       message,
-      entityId: complaintId || null,
-      complaintId: complaintId || null,
-      districtId,
-      organizationId: organizationId || null,
+      entityId: complaintId ? sanitizeString(complaintId) : null,
+      complaintId: complaintId ? sanitizeString(complaintId) : null,
+      districtId: sanitizeString(districtId),
+      organizationId: organizationId ? sanitizeString(organizationId) : null,
       severity: customSeverity,
       isRead: false,
       createdAt: now,
-      deepLink: complaintId ? `/complaints/${complaintId}` : '/alerts',
+      deepLink: complaintId ? `/complaints/${sanitizeString(complaintId)}` : '/alerts',
     };
 
     // Audit multi-channel deliveries
@@ -83,7 +153,7 @@ serve(async (req) => {
         channel: ch,
         deliveryStatus: status,
         failureReason,
-        districtId,
+        districtId: sanitizeString(districtId),
         createdAt: now,
       };
     });

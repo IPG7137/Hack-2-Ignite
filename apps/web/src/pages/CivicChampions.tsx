@@ -43,7 +43,7 @@ export const CivicChampions: React.FC = () => {
   const isStateAdmin = organizationType === 'STATE';
 
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
-  const [selectedStateDistrict, setSelectedStateDistrict] = useState<string>('solapur');
+  const [selectedStateDistrict, setSelectedStateDistrict] = useState<string>(activeDistrictId || 'pune');
 
   // Resolve current district object
   const currentDistrictObj = MAHARASHTRA_DISTRICTS.find(

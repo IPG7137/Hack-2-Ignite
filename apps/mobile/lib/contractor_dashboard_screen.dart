@@ -1559,11 +1559,19 @@ class _ContractorDashboardScreenState extends State<ContractorDashboardScreen> w
         bg = const Color(0xFFF0FDF4);
         fg = const Color(0xFF16803C);
         break;
+      case ReportStatus.citizenVerification:
+        bg = const Color(0xFFCCFBF1);
+        fg = const Color(0xFF0F766E);
+        break;
       case ReportStatus.resolved:
       case ReportStatus.verified:
       case ReportStatus.closed:
         bg = const Color(0xFFF8FAFC);
         fg = const Color(0xFF334155);
+        break;
+      case ReportStatus.reopened:
+        bg = const Color(0xFFFFEDD5);
+        fg = const Color(0xFFC2410C);
         break;
       case ReportStatus.rejected:
         bg = const Color(0xFFFEE2E2);

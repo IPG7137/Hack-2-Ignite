@@ -110,6 +110,18 @@ class CreditService {
   static const int creditsPerResolvedReport = 5;
   static const int creditsPerQualityReport = 15; // For high-quality reports
 
+  /// Add credits for current authenticated user
+  static Future<bool> addCredits(int credits, {String earnedFor = 'citizen_action', String? reportId}) async {
+    final userId = _supabase.auth.currentUser?.id;
+    if (userId == null) return false;
+    return await awardCredits(
+      userId: userId,
+      credits: credits,
+      earnedFor: earnedFor,
+      reportId: reportId,
+    );
+  }
+
   /// Award credits to user for a specific action
   static Future<bool> awardCredits({
     required String userId,

@@ -1076,9 +1076,13 @@ class _MapViewScreenState extends State<MapViewScreen> with TickerProviderStateM
         return const Color(0xFFD97706);
       case ReportStatus.resolutionSubmitted:
         return const Color(0xFF0284C7);
+      case ReportStatus.citizenVerification:
+        return const Color(0xFF0D9488);
       case ReportStatus.resolved:
       case ReportStatus.verified:
         return const Color(0xFF059669);
+      case ReportStatus.reopened:
+        return const Color(0xFFEA580C);
       case ReportStatus.closed:
         return const Color(0xFF475569);
       case ReportStatus.rejected:
@@ -1360,9 +1364,13 @@ class _NearbyReportSummarySheet extends StatelessWidget {
         return const Color(0xFFD97706);
       case ReportStatus.resolutionSubmitted:
         return const Color(0xFF0284C7);
+      case ReportStatus.citizenVerification:
+        return const Color(0xFF0D9488);
       case ReportStatus.resolved:
       case ReportStatus.verified:
         return const Color(0xFF059669);
+      case ReportStatus.reopened:
+        return const Color(0xFFEA580C);
       case ReportStatus.closed:
         return const Color(0xFF475569);
       case ReportStatus.rejected:

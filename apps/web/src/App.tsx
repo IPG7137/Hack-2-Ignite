@@ -26,6 +26,8 @@ import { ComplaintStatus } from './types/complaint';
 import { Button } from './components/ui/Button';
 import { StateDashboard } from './pages/StateDashboard';
 import { CivicChampions } from './pages/CivicChampions';
+import { PrivacyPolicy } from './pages/PrivacyPolicy';
+import { TermsOfService } from './pages/TermsOfService';
 import { useOrganization } from './context/OrganizationContext';
 import { isComplaintInZone } from './lib/zoneFilter';
 
@@ -306,6 +308,10 @@ export function App() {
       {activePage === 'civic_champions' && <CivicChampions />}
 
       {activePage === 'settings' && isMunicipalAdmin && <Settings />}
+
+      {activePage === 'privacy' && <PrivacyPolicy onBack={() => setActivePage('dashboard')} />}
+
+      {activePage === 'terms' && <TermsOfService onBack={() => setActivePage('dashboard')} />}
     </MainLayout>
   );
 }

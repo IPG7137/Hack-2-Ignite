@@ -412,7 +412,7 @@ export class NotificationService {
         createdAt: now,
         sentAt: status === 'SENT' || status === 'DELIVERED' ? now : undefined,
         deliveredAt: status === 'DELIVERED' ? now : undefined,
-        failedAt: status === 'FAILED' ? now : undefined,
+        failedAt: (status as any) === 'FAILED' ? now : undefined,
         districtId: params.districtId,
       };
 

@@ -38,7 +38,9 @@ export type ActivePage =
   | 'sla'
   | 'copilot'
   | 'civic_champions'
-  | 'settings';
+  | 'settings'
+  | 'privacy'
+  | 'terms';
 
 interface CommandSidebarProps {
   activePage: ActivePage;
@@ -345,6 +347,21 @@ export const CommandSidebar: React.FC<CommandSidebarProps> = ({
               <span className="text-emerald-700 font-mono font-bold text-[10px]">
                 91.8% Compliant
               </span>
+            </div>
+            <div className="flex items-center justify-center gap-2 pt-1 border-t border-slate-200/60 text-[10px] text-slate-400">
+              <button
+                onClick={() => onSelectPage('privacy')}
+                className="hover:text-[#1769D2] hover:underline"
+              >
+                Privacy
+              </button>
+              <span>•</span>
+              <button
+                onClick={() => onSelectPage('terms')}
+                className="hover:text-[#1769D2] hover:underline"
+              >
+                Terms
+              </button>
             </div>
           </div>
         </div>

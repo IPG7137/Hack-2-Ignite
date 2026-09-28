@@ -1,16 +1,19 @@
 // Supabase Edge Function: resolution-verification
-// Verifies resolution evidence, computes location distance, and performs advisory AI review.
+// Verifies resolution evidence, computes location distance, and performs advisory AI review
+// with caller authentication, role validation, and coordinate boundary enforcement.
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-interface LocationCoords {
-  latitude: number;
-  longitude: number;
+function isValidCoordinate(lat: any, lon: any): boolean {
+  if (typeof lat !== 'number' || typeof lon !== 'number') return false;
+  if (isNaN(lat) || isNaN(lon)) return false;
+  return lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180;
 }
 
 function calculateHaversineDistance(
@@ -39,6 +42,31 @@ serve(async (req) => {
   }
 
   try {
+    // 1. Caller Authentication Verification
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized: Missing Authorization header' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
+
+    if (supabaseUrl && supabaseAnonKey) {
+      const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+        global: { headers: { Authorization: authHeader } },
+      });
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) {
+        return new Response(
+          JSON.stringify({ error: 'Unauthorized: Invalid or expired auth token' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
     const body = await req.json();
     const {
       complaintId,
@@ -59,7 +87,7 @@ serve(async (req) => {
       );
     }
 
-    // 1. Location Verification
+    // 2. Location Verification with GPS boundary checks
     let locationResult = {
       hasOriginalCoordinates: false,
       hasResolutionCoordinates: false,
@@ -71,12 +99,10 @@ serve(async (req) => {
       explanation: 'GPS coordinates were not available for both initial report and resolution evidence.',
     };
 
-    if (
-      originalLocation?.latitude &&
-      originalLocation?.longitude &&
-      resolutionLocation?.latitude &&
-      resolutionLocation?.longitude
-    ) {
+    const hasValidOrig = originalLocation && isValidCoordinate(originalLocation.latitude, originalLocation.longitude);
+    const hasValidRes = resolutionLocation && isValidCoordinate(resolutionLocation.latitude, resolutionLocation.longitude);
+
+    if (hasValidOrig && hasValidRes) {
       const distance = calculateHaversineDistance(
         originalLocation.latitude,
         originalLocation.longitude,
@@ -101,7 +127,7 @@ serve(async (req) => {
       };
     }
 
-    // 2. Timestamp Verification
+    // 3. Timestamp Verification
     const uploadedAt = new Date().toISOString();
     const reportTime = reportedAt ? new Date(reportedAt).getTime() : Date.now();
     const durationHours = Math.max(0, (Date.now() - reportTime) / (1000 * 60 * 60));
@@ -113,7 +139,7 @@ serve(async (req) => {
       durationHoursFromReportToResolution: Number(durationHours.toFixed(1)),
     };
 
-    // 3. AI-Assisted Advisory Visual Review
+    // 4. AI-Assisted Advisory Visual Review
     const disclaimer =
       'AI-assisted evidence review is advisory only. Final resolution sign-off requires citizen/human verification.';
 

@@ -334,6 +334,14 @@ class _ComprehensiveTrackReportsScreenState extends State<ComprehensiveTrackRepo
           statusHeadline = 'Resolution Submitted';
           statusMessage = 'Field officer submitted proof of resolution for complaint #${newReport.id}.';
           break;
+        case ReportStatus.citizenVerification:
+          statusHeadline = 'Awaiting Verification';
+          statusMessage = 'Resolution proof uploaded for complaint #${newReport.id}. Please confirm quality.';
+          break;
+        case ReportStatus.reopened:
+          statusHeadline = 'Complaint Reopened';
+          statusMessage = 'Complaint #${newReport.id} reopened for field follow-up.';
+          break;
         case ReportStatus.resolved:
         case ReportStatus.verified:
         case ReportStatus.closed:
@@ -418,6 +426,10 @@ class _ComprehensiveTrackReportsScreenState extends State<ComprehensiveTrackRepo
         return Icons.hourglass_bottom_outlined;
       case ReportStatus.resolutionSubmitted:
         return Icons.task_alt_outlined;
+      case ReportStatus.citizenVerification:
+        return Icons.fact_check_outlined;
+      case ReportStatus.reopened:
+        return Icons.replay_outlined;
       case ReportStatus.resolved:
       case ReportStatus.verified:
       case ReportStatus.closed:
@@ -1359,9 +1371,13 @@ class _ComprehensiveTrackReportsScreenState extends State<ComprehensiveTrackRepo
         return 'In Progress';
       case ReportStatus.resolutionSubmitted:
         return 'Resolution Submitted';
+      case ReportStatus.citizenVerification:
+        return 'Citizen Verification';
       case ReportStatus.resolved:
       case ReportStatus.verified:
         return 'Verified';
+      case ReportStatus.reopened:
+        return 'Reopened';
       case ReportStatus.closed:
         return 'Closed';
       case ReportStatus.rejected:
@@ -1383,9 +1399,13 @@ class _ComprehensiveTrackReportsScreenState extends State<ComprehensiveTrackRepo
         return const Color(0xFFD97706); // Amber / Orange
       case ReportStatus.resolutionSubmitted:
         return const Color(0xFF0284C7); // Sky Blue
+      case ReportStatus.citizenVerification:
+        return const Color(0xFF0D9488); // Teal
       case ReportStatus.resolved:
       case ReportStatus.verified:
         return const Color(0xFF059669); // Emerald Green
+      case ReportStatus.reopened:
+        return const Color(0xFFEA580C); // Deep Orange
       case ReportStatus.closed:
         return const Color(0xFF475569); // Slate
       case ReportStatus.rejected:
@@ -1928,9 +1948,15 @@ class _ReportDetailsBottomSheetState extends State<_ReportDetailsBottomSheet> {
       case ReportStatus.resolutionSubmitted:
         currentStageIndex = 4;
         break;
+      case ReportStatus.citizenVerification:
+        currentStageIndex = 5;
+        break;
       case ReportStatus.resolved:
       case ReportStatus.verified:
         currentStageIndex = 5;
+        break;
+      case ReportStatus.reopened:
+        currentStageIndex = 3;
         break;
       case ReportStatus.closed:
       case ReportStatus.rejected:

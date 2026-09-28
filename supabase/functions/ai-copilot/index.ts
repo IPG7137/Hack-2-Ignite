@@ -44,7 +44,7 @@ serve(async (req) => {
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
 
     let userRole = "citizen";
-    let userDistrict = "pune";
+    let userDistrict = "";
     let userId: string | undefined;
 
     if (supabaseUrl && supabaseAnonKey) {
@@ -63,14 +63,14 @@ serve(async (req) => {
 
       // Check database role & district
       const { data: profile } = await supabase
-        .from("user_profiles")
+        .from("profiles")
         .select("role, district_id")
         .eq("id", user.id)
         .maybeSingle();
 
       if (profile) {
         userRole = profile.role || "citizen";
-        userDistrict = profile.district_id || "pune";
+        userDistrict = profile.district_id || "";
       }
     }
 

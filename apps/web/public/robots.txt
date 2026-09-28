@@ -1,0 +1,21 @@
+# CIVICRESOLVE robots.txt
+# Controls public search engine crawling and indexes only public legal/landing resources.
+# All operational dashboards, citizen complaints, and internal telemetry are strictly protected.
+
+User-agent: *
+Allow: /$
+Allow: /privacy$
+Allow: /terms$
+Disallow: /dashboard
+Disallow: /complaints
+Disallow: /complaint/
+Disallow: /map
+Disallow: /alerts
+Disallow: /notifications
+Disallow: /copilot
+Disallow: /analytics
+Disallow: /settings
+Disallow: /api/
+Disallow: /storage/
+
+Sitemap: https://civicresolve.maharashtra.gov.in/sitemap.xml

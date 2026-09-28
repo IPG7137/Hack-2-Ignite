@@ -252,6 +252,7 @@ export class AuthService {
    */
   public static async signOut(): Promise<{ error: string | null }> {
     try {
+      AuthService.clearSessionCache();
       const { error } = await supabase.auth.signOut();
       if (error) return { error: error.message };
       return { error: null };
@@ -281,4 +282,114 @@ export class AuthService {
       unsubscribe: () => subscription.unsubscribe(),
     };
   }
+
+  /**
+   * Clears in-memory session cache and wipes temporary auth context
+   */
+  private static cachedUser: AuthUser | null = null;
+
+  public static clearSessionCache(): void {
+    AuthService.cachedUser = null;
+    if (typeof localStorage !== 'undefined') {
+      try {
+        localStorage.removeItem('civicresolve_user_cache');
+      } catch (_) {}
+    }
+  }
+
+  public static getCurrentUser(): AuthUser | null {
+    return AuthService.cachedUser;
+  }
+
+  /**
+   * Validates if role escalation is permitted
+   */
+  public static validateRolePromotion(
+    currentRole: string,
+    targetRole: string
+  ): { allowed: boolean; reason?: string } {
+    if (currentRole === 'citizen' && targetRole !== 'citizen') {
+      return { allowed: false, reason: 'Citizens cannot self-promote to administrative or officer roles.' };
+    }
+    if (currentRole === 'officer' && (targetRole === 'state_admin' || targetRole === 'super_admin')) {
+      return { allowed: false, reason: 'Officers cannot promote themselves to state or super admin.' };
+    }
+    return { allowed: true };
+  }
+
+  /**
+   * Validates statutory complaint status transitions by role
+   */
+  public static canTransitionStatus(
+    role: string,
+    fromStatus: string,
+    toStatus: string
+  ): boolean {
+    if (role === 'citizen') {
+      // Citizens can only verify awaiting verification -> closed or reopened
+      if (fromStatus === 'RESOLVED_AWAITING_VERIFICATION' && (toStatus === 'CLOSED' || toStatus === 'REOPENED')) {
+        return true;
+      }
+      return false;
+    }
+    if (role === 'municipal_officer' || role === 'officer') {
+      if (fromStatus === 'ASSIGNED' && toStatus === 'IN_PROGRESS') return true;
+      if (fromStatus === 'IN_PROGRESS' && toStatus === 'RESOLVED_AWAITING_VERIFICATION') return true;
+      return false;
+    }
+    if (role === 'municipal_admin' || role === 'state_admin' || role === 'super_admin') {
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * RBAC Action Permission Checker
+   */
+  public static hasPermission(role: string, action: string): boolean {
+    const rolePermissions: Record<string, string[]> = {
+      citizen: ['complaints:create', 'complaints:view_own', 'complaints:verify_resolution'],
+      officer: [
+        'complaints:view_assigned',
+        'complaints:update_progress',
+        'complaints:submit_evidence',
+        'alerts:view_assigned'
+      ],
+      municipal_officer: [
+        'complaints:view_assigned',
+        'complaints:update_progress',
+        'complaints:submit_evidence',
+        'alerts:view_assigned'
+      ],
+      dept_admin: [
+        'complaints:view_department',
+        'complaints:assign',
+        'alerts:view_department',
+        'alerts:acknowledge'
+      ],
+      municipal_admin: [
+        'complaints:view_ulb',
+        'complaints:assign',
+        'complaints:reassign',
+        'alerts:manage',
+        'alerts:acknowledge',
+        'sla:configure'
+      ],
+      state_admin: [
+        'complaints:view_state',
+        'complaints:audit',
+        'alerts:manage_state',
+        'sla:configure',
+        'users:manage'
+      ],
+      super_admin: ['*']
+    };
+
+    const perms = rolePermissions[role] || [];
+    if (perms.includes('*') || perms.includes(action)) {
+      return true;
+    }
+    return false;
+  }
 }
+
