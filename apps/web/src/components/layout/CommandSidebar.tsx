@@ -185,7 +185,37 @@ export const CommandSidebar: React.FC<CommandSidebarProps> = ({
       : []),
   ];
 
-  const sections: NavSection[] = organizationType === 'STATE' ? stateSections : municipalSections;
+  const citizenSections: NavSection[] = [
+    {
+      title: 'CITIZEN SERVICES',
+      items: [
+        { id: 'dashboard', label: 'Civic Feed & Overview', icon: LayoutDashboard },
+        { id: 'complaints', label: 'My Grievance Tracking', icon: FileText, badge: openCount },
+        { id: 'map', label: 'Ward GIS Map', icon: MapPin },
+        { id: 'civic_champions', label: 'Civic Rewards & Badges', icon: Trophy },
+      ],
+    },
+    {
+      title: 'COMMUNITY & NOTIFICATIONS',
+      items: [
+        { id: 'notifications', label: 'Status Updates & Alerts', icon: Bell },
+        {
+          id: 'alerts',
+          label: 'Public Safety Alerts',
+          icon: ShieldAlert,
+          badge: alertCount,
+          badgeColor: 'bg-red-50 text-red-700 border-red-200',
+        },
+      ],
+    },
+  ];
+
+  const sections: NavSection[] =
+    user?.role === 'citizen'
+      ? citizenSections
+      : organizationType === 'STATE'
+      ? stateSections
+      : municipalSections;
 
   const handleItemClick = (id: ActivePage) => {
     onSelectPage(id);

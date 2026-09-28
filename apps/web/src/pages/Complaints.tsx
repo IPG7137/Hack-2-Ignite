@@ -38,18 +38,22 @@ export const Complaints: React.FC<ComplaintsProps> = ({
         <div>
           <h2 className="text-sm font-bold uppercase tracking-wider text-[#172B4D] flex items-center gap-2">
             <span>
-              {isMunicipalAdmin
+              {user?.role === 'citizen'
+                ? 'Citizen Grievance Tracking & Status History'
+                : isMunicipalAdmin
                 ? 'Municipal Grievance Inventory & Triage'
-                : 'Zone 2 Grievance Queue & Operational Triage'}
+                : `${user?.ward || 'Zone 2'} Grievance Queue & Operational Triage`}
             </span>
             <span className="text-xs font-mono px-2 py-0.5 rounded bg-blue-50 text-[#1769D2] border border-blue-200 font-semibold">
               {complaints.length} INCIDENTS
             </span>
           </h2>
           <p className="text-xs text-[#526581]">
-            {isMunicipalAdmin
+            {user?.role === 'citizen'
+              ? 'Real-time grievance tracking with transparent 7-step lifecycle progress and on-site resolution verification.'
+              : isMunicipalAdmin
               ? 'City-wide intake queue with 7-step lifecycle enforcement and SLA adherence tracking.'
-              : 'Zone 2 operational grievance intake with on-site dispatch and resolution verification.'}
+              : `${user?.ward || 'Zone 2'} operational grievance intake with on-site dispatch and resolution verification.`}
           </p>
         </div>
 
