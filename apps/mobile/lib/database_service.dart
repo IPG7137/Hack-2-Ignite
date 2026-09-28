@@ -136,6 +136,18 @@ class DatabaseService {
         processedImageUrls.add(imageUrl);
       }
       
+      final authUserId = _supabase.auth.currentUser?.id;
+      final effectiveUserId = (authUserId != null && authUserId.isNotEmpty) ? authUserId : userId;
+
+      Map<String, double>? validCoords;
+      if (coordinates != null) {
+        final lat = coordinates['lat'];
+        final lng = coordinates['lng'];
+        if (lat != null && lng != null && lat >= -90.0 && lat <= 90.0 && lng >= -180.0 && lng <= 180.0) {
+          validCoords = {'lat': lat, 'lng': lng};
+        }
+      }
+
       final reportData = {
         'title': title,
         'description': description,
@@ -145,8 +157,8 @@ class DatabaseService {
         'status': 'submitted',
         'created_at': now.toIso8601String(),
         'updated_at': now.toIso8601String(),
-        'user_id': userId,
-        'coordinates': coordinates,
+        'user_id': effectiveUserId,
+        'coordinates': validCoords,
         'priority': 'medium',
         'consolidated_reports': 1,
       };

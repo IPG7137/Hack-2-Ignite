@@ -347,10 +347,14 @@ class ComprehensiveDatabaseService {
       
       debugPrint('   Calculated Priority: $priority');
       
-      // Prepare coordinates as JSONB
+      // Prepare coordinates as JSONB with strict boundary validation (-90..90, -180..180)
       Map<String, dynamic>? coordinates;
-      if (latitude != null && longitude != null) {
-        coordinates = {'lat': latitude, 'lng': longitude};
+      double? safeLat;
+      double? safeLng;
+      if (latitude != null && longitude != null && latitude >= -90.0 && latitude <= 90.0 && longitude >= -180.0 && longitude <= 180.0) {
+        safeLat = latitude;
+        safeLng = longitude;
+        coordinates = {'lat': safeLat, 'lng': safeLng};
         debugPrint('   Coordinates: $coordinates');
       }
 
@@ -386,8 +390,8 @@ class ComprehensiveDatabaseService {
         'description': description,
         'category': category,
         'location': location,
-        'latitude': latitude,
-        'longitude': longitude,
+        'latitude': safeLat,
+        'longitude': safeLng,
         'image_urls': imageUrls ?? [],
         'coordinates': coordinates,
         'priority': priority,
