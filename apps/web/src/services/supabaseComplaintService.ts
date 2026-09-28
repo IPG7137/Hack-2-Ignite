@@ -22,6 +22,7 @@ import {
   MAHARASHTRA_DISTRICTS,
 } from '../data/maharashtraDistricts';
 import { isComplaintInDistrict } from '../lib/districtFilter';
+import { NotificationService } from './notificationService';
 
 export class SupabaseComplaintService implements IComplaintService {
   private rewardsService = new CivicRewardsService();
@@ -435,6 +436,20 @@ export class SupabaseComplaintService implements IComplaintService {
       });
     } catch (_) {}
 
+    // 4. Dispatch database-backed citizen notification
+    try {
+      NotificationService.dispatchNotification({
+        userId: userId || 'citizen-temp',
+        userRole: 'citizen',
+        notificationType: 'COMPLAINT_SUBMITTED',
+        variables: {
+          complaint_id: complaintId,
+        },
+        districtId: cleanDistrict,
+        complaintId,
+      });
+    } catch (_) {}
+
     return newComplaint;
   }
 
@@ -544,6 +559,50 @@ export class SupabaseComplaintService implements IComplaintService {
     if (!fresh) {
       throw new Error(`Complaint #${id} updated but could not be re-fetched.`);
     }
+
+    // Dispatch status change notification to citizen
+    try {
+      const citizenId = fresh.reporter?.userId || fresh.reporter?.name || 'citizen';
+      const districtId = fresh.location?.zone?.toLowerCase() || 'pune';
+      if (newStatus === 'in_progress') {
+        NotificationService.dispatchNotification({
+          userId: citizenId,
+          userRole: 'citizen',
+          notificationType: 'COMPLAINT_IN_PROGRESS',
+          variables: { complaint_id: id },
+          districtId,
+          complaintId: id,
+        });
+      } else if (newStatus === 'resolution_submitted' || newStatus === 'resolved' || newStatus === 'citizen_verification') {
+        NotificationService.dispatchNotification({
+          userId: citizenId,
+          userRole: 'citizen',
+          notificationType: 'COMPLAINT_VERIFICATION_REQUIRED',
+          variables: { complaint_id: id },
+          districtId,
+          complaintId: id,
+        });
+      } else if (newStatus === 'closed') {
+        NotificationService.dispatchNotification({
+          userId: citizenId,
+          userRole: 'citizen',
+          notificationType: 'COMPLAINT_CLOSED',
+          variables: { complaint_id: id },
+          districtId,
+          complaintId: id,
+        });
+      } else if (newStatus === 'reopened') {
+        NotificationService.dispatchNotification({
+          userId: citizenId,
+          userRole: 'citizen',
+          notificationType: 'COMPLAINT_REOPENED',
+          variables: { complaint_id: id, reason: notes || 'Citizen requested rework' },
+          districtId,
+          complaintId: id,
+        });
+      }
+    } catch (_) {}
+
     return fresh;
   }
 
@@ -766,22 +825,44 @@ export class SupabaseComplaintService implements IComplaintService {
       });
 
       // Award Civic Score points to citizen
+      const citizenUserId = current?.reporter?.userId || current?.reporter?.name || 'citizen';
+      const cleanDistrict = (current?.location?.zone || 'pune').toLowerCase().trim();
       try {
-        if (current?.reporter?.name) {
-          await this.rewardsService.recordContribution({
-            userId: current.reporter.name,
-            districtId: 'pune',
-            complaintId: id,
-            contributionType: 'resolution_verification',
-            customNotes: 'Civic points awarded for verifying municipal resolution.',
-          });
-        }
+        await this.rewardsService.recordContribution({
+          userId: citizenUserId,
+          districtId: cleanDistrict,
+          complaintId: id,
+          contributionType: 'resolution_verification',
+          customNotes: 'Civic points awarded for verifying municipal resolution (+10 pts).',
+        });
+      } catch (_) {}
+
+      // Dispatch verified & score notifications
+      try {
+        NotificationService.dispatchNotification({
+          userId: citizenUserId,
+          userRole: 'citizen',
+          notificationType: 'COMPLAINT_CLOSED',
+          variables: { complaint_id: id },
+          districtId: cleanDistrict,
+          complaintId: id,
+        });
+        NotificationService.dispatchNotification({
+          userId: citizenUserId,
+          userRole: 'citizen',
+          notificationType: 'CIVIC_SCORE_UPDATED',
+          variables: { points: '10' },
+          districtId: cleanDistrict,
+          complaintId: id,
+        });
       } catch (_) {}
 
     } else {
       // Citizen Rejected: Reopen Issue
       const reasonText = reopenReason || comment || 'Citizen reported issue remains unresolved.';
       const currentReopenCount = (current?.citizenVerification?.reopenCount || 0) + 1;
+      const citizenUserId = current?.reporter?.userId || current?.reporter?.name || 'citizen';
+      const cleanDistrict = (current?.location?.zone || 'pune').toLowerCase().trim();
 
       const { error } = await supabase
         .from('reports')
@@ -827,6 +908,18 @@ export class SupabaseComplaintService implements IComplaintService {
             notes: `Citizen rejected resolution: ${reasonText}`,
             proofImageUrl: proofPhotoUrl,
           });
+
+          try {
+            NotificationService.dispatchNotification({
+              userId: citizenUserId,
+              userRole: 'citizen',
+              notificationType: 'COMPLAINT_REOPENED',
+              variables: { complaint_id: id, reason: reasonText },
+              districtId: cleanDistrict,
+              complaintId: id,
+            });
+          } catch (_) {}
+
           return mock;
         }
       }
@@ -846,6 +939,17 @@ export class SupabaseComplaintService implements IComplaintService {
         `[Citizen Verification Rejected - Case Reopened]: ${reasonText}`,
         false
       );
+
+      try {
+        NotificationService.dispatchNotification({
+          userId: citizenUserId,
+          userRole: 'citizen',
+          notificationType: 'COMPLAINT_REOPENED',
+          variables: { complaint_id: id, reason: reasonText },
+          districtId: cleanDistrict,
+          complaintId: id,
+        });
+      } catch (_) {}
     }
 
     const fresh = await this.getComplaintById(id);
@@ -1041,6 +1145,24 @@ export class SupabaseComplaintService implements IComplaintService {
     if (!fresh) {
       throw new Error(`Complaint #${id} assigned but could not be re-fetched.`);
     }
+
+    try {
+      const citizenId = fresh.reporter?.userId || fresh.reporter?.name || 'citizen';
+      const cleanDistrict = (fresh.location?.zone || 'pune').toLowerCase().trim();
+      NotificationService.dispatchNotification({
+        userId: citizenId,
+        userRole: 'citizen',
+        notificationType: 'COMPLAINT_ASSIGNED',
+        variables: {
+          complaint_id: id,
+          officer_name: officerName,
+          department: departmentName,
+        },
+        districtId: cleanDistrict,
+        complaintId: id,
+      });
+    } catch (_) {}
+
     return fresh;
   }
 
