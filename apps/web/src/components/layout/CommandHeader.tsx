@@ -121,15 +121,15 @@ export const CommandHeader: React.FC<CommandHeaderProps> = ({
 
   return (
     <>
-      <header className="h-[74px] w-full max-w-full border-b border-[#D9E2EC] bg-white sticky top-0 z-40 px-3 sm:px-4 lg:px-6 flex items-center justify-between shadow-xs select-none gap-3 overflow-hidden">
+      <header className="h-[74px] w-full max-w-full border-b border-[#D9E2EC] bg-white sticky top-0 z-40 px-3 sm:px-4 lg:px-6 flex items-center justify-between shadow-xs select-none gap-2 lg:gap-4 overflow-hidden">
         {/* ==================================================
             ZONE 1 (LEFT): STATE / MUNICIPAL CORPORATION IDENTITY
             ================================================== */}
-        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0 min-w-0 max-w-[340px] xl:max-w-[420px]">
           {onToggleMobileMenu && (
             <button
               onClick={onToggleMobileMenu}
-              className="lg:hidden p-1.5 -ml-1 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
+              className="lg:hidden p-1.5 -ml-1 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors shrink-0"
               aria-label="Toggle navigation menu"
             >
               <Menu className="w-5 h-5" />
@@ -138,14 +138,14 @@ export const CommandHeader: React.FC<CommandHeaderProps> = ({
           <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-lg bg-[#123B6D] text-white flex items-center justify-center font-bold text-base sm:text-lg shadow-xs border border-blue-900 shrink-0">
             {isCitizen ? '👥' : isStateAdmin ? '🏛️' : '🏢'}
           </div>
-          <div className="flex flex-col justify-center">
-            <div className="text-xs sm:text-[13px] lg:text-[14px] font-bold text-[#123B6D] tracking-tight leading-snug whitespace-nowrap">
+          <div className="flex flex-col justify-center min-w-0 overflow-hidden">
+            <div className="text-xs sm:text-[13px] lg:text-[14px] font-bold text-[#123B6D] tracking-tight leading-snug truncate">
               {orgEmblemTitle}
             </div>
-            <div className="text-[10px] sm:text-[11px] font-semibold text-[#526581] leading-snug whitespace-nowrap">
+            <div className="text-[10px] sm:text-[11px] font-semibold text-[#526581] leading-snug truncate">
               {orgEmblemSubtitle}
             </div>
-            <div className="text-[9px] text-[#718096] uppercase tracking-wider leading-snug hidden md:block whitespace-nowrap">
+            <div className="text-[9px] text-[#718096] uppercase tracking-wider leading-snug hidden md:block truncate">
               {isStateAdmin
                 ? 'Government of Maharashtra • Level 1 Governance'
                 : `State of Maharashtra • Level 2 Municipal Administration`}
@@ -159,26 +159,20 @@ export const CommandHeader: React.FC<CommandHeaderProps> = ({
         {/* ==================================================
             ZONE 2 (CENTER): CIVICRESOLVE PORTAL BRANDING (ROLE SPECIFIC)
             ================================================== */}
-        <div className="hidden lg:flex flex-1 min-w-0 max-w-[560px] flex-col items-center justify-center px-2 text-center">
-          <div className="flex items-center justify-center gap-2 flex-wrap">
-            <span className="text-sm xl:text-[15px] font-bold text-[#123B6D] tracking-wide whitespace-nowrap">
+        <div className="hidden 2xl:flex flex-col items-center justify-center px-2 text-center min-w-0 max-w-[360px] overflow-hidden">
+          <div className="flex items-center justify-center gap-2">
+            <span className="text-sm font-bold text-[#123B6D] tracking-wide truncate">
               {headerTitle}
             </span>
-            <span className={`text-[10px] uppercase font-mono px-2 py-0.5 rounded font-bold whitespace-nowrap border ${
+            <span className={`text-[10px] uppercase font-mono px-2 py-0.5 rounded font-bold shrink-0 border ${
               isMunicipalAdmin
                 ? 'bg-blue-50 text-[#1769D2] border-blue-200'
                 : 'bg-emerald-50 text-emerald-700 border-emerald-200'
             }`}>
               {isMunicipalAdmin ? 'HQ Command' : 'Zone 2 Operations'}
             </span>
-            {isAuthenticated && (
-              <span className="hidden xl:inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded bg-slate-50 text-[#526581] border border-[#D9E2EC] whitespace-nowrap">
-                <ShieldCheck className="w-3 h-3 text-emerald-600" />
-                <span>AUTH SESSION</span>
-              </span>
-            )}
           </div>
-          <span className="text-[10.5px] xl:text-[11px] text-[#526581] font-medium tracking-tight mt-0.5 truncate max-w-full">
+          <span className="text-[10.5px] text-[#526581] font-medium tracking-tight mt-0.5 truncate max-w-full">
             {headerSubtitle}
           </span>
         </div>
@@ -186,7 +180,7 @@ export const CommandHeader: React.FC<CommandHeaderProps> = ({
         {/* ==================================================
             ZONE 3 (RIGHT): STATUS, TELEMETRY, ACTIONS & PROFILE
             ================================================== */}
-        <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 ml-auto">
           {/* Operational Telemetry & Time */}
           <div className="hidden md:flex items-center gap-1.5 xl:gap-2 text-xs font-mono shrink-0">
             {/* Jurisdiction Badge */}

@@ -177,7 +177,7 @@ export const CATEGORY_CONFIG: Record<
 // Used ONLY as ultimate fallback when no org context is available.
 // In practice, CommandMap receives explicit district coordinates via props.
 export const DEFAULT_MAP_CENTER = {
-  lng: 76.5,
-  lat: 18.8,
-  zoom: 7.5,
+  lng: 76.7,
+  lat: 18.9,
+  zoom: 6.2,
 };

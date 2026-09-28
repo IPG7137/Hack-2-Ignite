@@ -35,8 +35,8 @@ export interface OrganizationContextValue {
   resetToDefault: () => void;
 }
 
-// Maharashtra geographic center (fallback for state-level view)
-const MAHARASHTRA_CENTER: OrgMapCenter = { lat: 18.8, lng: 76.5, zoom: 7.0 };
+// Maharashtra geographic centroid (optimal center and zoom for statewide GIS framing)
+const MAHARASHTRA_CENTER: OrgMapCenter = { lat: 18.9, lng: 76.7, zoom: 6.2 };
 
 const OrganizationContext = createContext<OrganizationContextValue | undefined>(undefined);
 

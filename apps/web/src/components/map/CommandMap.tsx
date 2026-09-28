@@ -257,9 +257,18 @@ export const CommandMap: React.FC<CommandMapProps> = ({
       setMapLoaded(true);
     });
 
-    map.current = mapInstance;
+    // 1B. Responsive Container Resize Observer (keeps map centered and sized on layout shifts)
+    const resizeObserver = new ResizeObserver(() => {
+      if (map.current) {
+        map.current.resize();
+      }
+    });
+    if (mapContainer.current) {
+      resizeObserver.observe(mapContainer.current);
+    }
 
     return () => {
+      resizeObserver.disconnect();
       mapInstance.remove();
     };
   }, []);
@@ -296,13 +305,16 @@ export const CommandMap: React.FC<CommandMapProps> = ({
   // 4. Handle external focus coordinate changes
   useEffect(() => {
     if (focusCoordinates && map.current) {
+      const targetZoom = organizationType === 'STATE' && focusCoordinates.lat === orgCenter?.lat && focusCoordinates.lng === orgCenter?.lng
+        ? 6.2
+        : 14.5;
       map.current.flyTo({
         center: [focusCoordinates.lng, focusCoordinates.lat],
-        zoom: 15.5,
+        zoom: targetZoom,
         speed: 1.2,
       });
     }
-  }, [focusCoordinates]);
+  }, [focusCoordinates, organizationType, orgCenter]);
 
   // 5. Update Native Heatmap GeoJSON Source
   useEffect(() => {
@@ -841,11 +853,21 @@ export const CommandMap: React.FC<CommandMapProps> = ({
         markersRef.current[selected.id]?.togglePopup();
       }
     } else if (validComplaints.length > 0 && map.current && !initialFitDone.current) {
-      const bounds = new maplibregl.LngLatBounds();
-      validComplaints.forEach((c) => {
-        bounds.extend([c.location.longitude, c.location.latitude]);
-      });
-      map.current.fitBounds(bounds, { padding: 60, maxZoom: 14 });
+      if (organizationType === 'STATE') {
+        map.current.fitBounds(
+          [
+            [72.3, 15.6],
+            [81.1, 22.1],
+          ],
+          { padding: 35, maxZoom: 7.5 }
+        );
+      } else {
+        const bounds = new maplibregl.LngLatBounds();
+        validComplaints.forEach((c) => {
+          bounds.extend([c.location.longitude, c.location.latitude]);
+        });
+        map.current.fitBounds(bounds, { padding: 60, maxZoom: 14 });
+      }
       initialFitDone.current = true;
     }
   }, [
