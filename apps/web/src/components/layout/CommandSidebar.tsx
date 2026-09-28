@@ -239,7 +239,7 @@ export const CommandSidebar: React.FC<CommandSidebarProps> = ({
 
       <aside
         className={cn(
-          'w-64 border-r border-slate-200 bg-white flex flex-col shrink-0 select-none shadow-xs h-full min-h-0 z-50 transition-transform duration-200 ease-in-out',
+          'w-64 min-w-[256px] max-w-[256px] border-r border-slate-200 bg-white flex flex-col shrink-0 select-none shadow-xs h-full min-h-0 z-30 transition-transform duration-200 ease-in-out',
           'fixed inset-y-0 left-0 lg:static lg:translate-x-0',
           mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         )}

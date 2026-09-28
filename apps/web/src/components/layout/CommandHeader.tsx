@@ -121,11 +121,11 @@ export const CommandHeader: React.FC<CommandHeaderProps> = ({
 
   return (
     <>
-      <header className="h-[74px] w-full max-w-full border-b border-[#D9E2EC] bg-white sticky top-0 z-40 px-3 sm:px-4 lg:px-6 flex items-center justify-between shadow-xs select-none gap-2 lg:gap-4 overflow-hidden">
+      <header className="h-[68px] w-full max-w-full border-b border-[#D9E2EC] bg-white sticky top-0 z-40 px-3 sm:px-4 lg:px-5 flex items-center justify-between shadow-xs select-none gap-2 overflow-hidden shrink-0">
         {/* ==================================================
-            ZONE 1 (LEFT): STATE / MUNICIPAL CORPORATION IDENTITY
+            1. GOVERNMENT BRANDING (LEFT)
             ================================================== */}
-        <div className="flex items-center gap-2 sm:gap-3 shrink-0 min-w-0 max-w-[340px] xl:max-w-[420px]">
+        <div className="flex items-center gap-2 sm:gap-2.5 shrink-0 min-w-0 max-w-[260px] lg:max-w-[300px] xl:max-w-[340px]">
           {onToggleMobileMenu && (
             <button
               onClick={onToggleMobileMenu}
@@ -135,17 +135,17 @@ export const CommandHeader: React.FC<CommandHeaderProps> = ({
               <Menu className="w-5 h-5" />
             </button>
           )}
-          <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-lg bg-[#123B6D] text-white flex items-center justify-center font-bold text-base sm:text-lg shadow-xs border border-blue-900 shrink-0">
+          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-[#123B6D] text-white flex items-center justify-center font-bold text-base sm:text-lg shadow-xs border border-blue-900 shrink-0">
             {isCitizen ? '👥' : isStateAdmin ? '🏛️' : '🏢'}
           </div>
           <div className="flex flex-col justify-center min-w-0 overflow-hidden">
-            <div className="text-xs sm:text-[13px] lg:text-[14px] font-bold text-[#123B6D] tracking-tight leading-snug truncate">
+            <div className="text-xs sm:text-[13px] font-bold text-[#123B6D] tracking-tight leading-snug truncate">
               {orgEmblemTitle}
             </div>
-            <div className="text-[10px] sm:text-[11px] font-semibold text-[#526581] leading-snug truncate">
+            <div className="text-[10px] sm:text-[11px] font-medium text-[#526581] leading-snug truncate">
               {orgEmblemSubtitle}
             </div>
-            <div className="text-[9px] text-[#718096] uppercase tracking-wider leading-snug hidden md:block truncate">
+            <div className="text-[9px] text-[#718096] uppercase tracking-wider leading-none hidden xl:block truncate">
               {isStateAdmin
                 ? 'Government of Maharashtra • Level 1 Governance'
                 : `State of Maharashtra • Level 2 Municipal Administration`}
@@ -153,69 +153,69 @@ export const CommandHeader: React.FC<CommandHeaderProps> = ({
           </div>
         </div>
 
-        {/* Divider between Municipal Identity and CivicResolve Portal on large screens */}
-        <div className="hidden 2xl:block h-8 w-px bg-[#D9E2EC] shrink-0" />
-
         {/* ==================================================
-            ZONE 2 (CENTER): CIVICRESOLVE PORTAL BRANDING (ROLE SPECIFIC)
+            2. COMMAND TITLE (CENTER - FLEXIBLE)
             ================================================== */}
-        <div className="hidden 2xl:flex flex-col items-center justify-center px-2 text-center min-w-0 max-w-[360px] overflow-hidden">
-          <div className="flex items-center justify-center gap-2">
-            <span className="text-sm font-bold text-[#123B6D] tracking-wide truncate">
+        <div className="flex-1 min-w-0 px-2 flex flex-col items-center justify-center text-center">
+          <div className="flex items-center justify-center gap-1.5 max-w-full">
+            <span className="text-xs sm:text-[13px] lg:text-sm font-bold text-[#123B6D] tracking-tight truncate">
               {headerTitle}
             </span>
-            <span className={`text-[10px] uppercase font-mono px-2 py-0.5 rounded font-bold shrink-0 border ${
-              isMunicipalAdmin
-                ? 'bg-blue-50 text-[#1769D2] border-blue-200'
-                : 'bg-emerald-50 text-emerald-700 border-emerald-200'
-            }`}>
+            <span
+              className={`text-[9px] sm:text-[10px] uppercase font-mono px-1.5 py-0.5 rounded font-bold shrink-0 border ${
+                isMunicipalAdmin
+                  ? 'bg-blue-50 text-[#1769D2] border-blue-200'
+                  : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+              }`}
+            >
               {isMunicipalAdmin ? 'HQ Command' : 'Zone 2 Operations'}
             </span>
           </div>
-          <span className="text-[10.5px] text-[#526581] font-medium tracking-tight mt-0.5 truncate max-w-full">
+          <span className="text-[10px] text-[#526581] font-medium tracking-tight truncate max-w-full hidden md:block">
             {headerSubtitle}
           </span>
         </div>
 
         {/* ==================================================
-            ZONE 3 (RIGHT): STATUS, TELEMETRY, ACTIONS & PROFILE
+            3. RIGHT CONTROLS: [ Location ] [ Status ] [ Time ] [ Copilot ] [ Sync ] [ Notification ] [ User ]
             ================================================== */}
-        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 ml-auto">
-          {/* Operational Telemetry & Time */}
-          <div className="hidden md:flex items-center gap-1.5 xl:gap-2 text-xs font-mono shrink-0">
-            {/* Jurisdiction Badge */}
-            <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-md bg-[#F8FAFC] border border-[#D9E2EC] text-[#526581] shadow-2xs shrink-0">
-              <MapPin className="w-3.5 h-3.5 text-[#1769D2]" />
-              <span className="text-[#172B4D] font-bold text-xs whitespace-nowrap">{scopeBadgeLabel}</span>
-            </div>
-
-            {/* System Operational Heartbeat */}
-            <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-[#F8FAFC] border border-[#D9E2EC] shadow-2xs shrink-0">
-              <span className="w-2 h-2 rounded-full bg-[#16803C] live-pulse-dot" />
-              <span className="text-[#172B4D] text-[11px] font-bold tracking-wider whitespace-nowrap">
-                OPERATIONAL
-              </span>
-            </div>
-
-            {/* IST Clock */}
-            <div className="hidden 2xl:flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-[#F8FAFC] border border-[#D9E2EC] text-[#526581] shadow-2xs shrink-0">
-              <span className="text-[#718096] text-[10px] font-bold">IST</span>
-              <span className="text-[#172B4D] font-bold text-xs whitespace-nowrap">{timeString || '--:--:--'}</span>
-            </div>
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          {/* Location Badge */}
+          <div className="hidden sm:flex items-center gap-1 px-2 py-1 rounded-md bg-[#F8FAFC] border border-[#D9E2EC] text-[#526581] shadow-2xs shrink-0 max-w-[150px]">
+            <MapPin className="w-3 h-3 text-[#1769D2] shrink-0" />
+            <span className="text-[#172B4D] font-bold text-[11px] font-mono truncate">
+              {scopeBadgeLabel}
+            </span>
           </div>
 
-          {/* Report Grievance Action */}
+          {/* Status Heartbeat */}
+          <div className="hidden md:flex items-center gap-1.5 px-2 py-1 rounded-md bg-[#F8FAFC] border border-[#D9E2EC] shadow-2xs shrink-0">
+            <span className="w-2 h-2 rounded-full bg-[#16803C] live-pulse-dot shrink-0" />
+            <span className="text-[#172B4D] text-[10.5px] font-mono font-bold tracking-wider whitespace-nowrap">
+              OPERATIONAL
+            </span>
+          </div>
+
+          {/* Time (IST) */}
+          <div className="hidden lg:flex items-center gap-1 px-2 py-1 rounded-md bg-[#F8FAFC] border border-[#D9E2EC] text-[#526581] shadow-2xs shrink-0">
+            <span className="text-[#718096] text-[9px] font-bold font-mono">IST</span>
+            <span className="text-[#172B4D] font-bold text-[11px] font-mono whitespace-nowrap">
+              {timeString || '--:--:--'}
+            </span>
+          </div>
+
+          {/* Report Issue Action (if provided) */}
           {onOpenReport && (
             <div className="flex items-center shrink-0">
               <Button
                 variant="primary"
                 size="sm"
                 onClick={onOpenReport}
-                className="h-8.5 px-2.5 sm:px-3 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs shrink-0 flex items-center gap-1.5 rounded-lg border border-emerald-500 cursor-pointer"
+                className="h-8 px-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs shrink-0 flex items-center gap-1 rounded-lg border border-emerald-500 cursor-pointer"
                 title="Lodge a new civic grievance"
               >
-                <FilePlus className="w-3.5 h-3.5 text-emerald-100" />
-                <span className="hidden sm:inline font-bold whitespace-nowrap">Report Issue</span>
+                <FilePlus className="w-3.5 h-3.5 text-emerald-100 shrink-0" />
+                <span className="hidden xl:inline font-bold whitespace-nowrap">Report</span>
               </Button>
             </div>
           )}
@@ -227,27 +227,27 @@ export const CommandHeader: React.FC<CommandHeaderProps> = ({
                 variant="primary"
                 size="sm"
                 onClick={onOpenCopilot}
-                className="h-8.5 px-2.5 sm:px-3 bg-gradient-to-r from-blue-700 to-indigo-700 hover:from-blue-800 hover:to-indigo-800 text-white text-xs font-bold shadow-xs shrink-0 flex items-center gap-1.5 rounded-lg border border-blue-600"
+                className="h-8 px-2 sm:px-2.5 bg-gradient-to-r from-blue-700 to-indigo-700 hover:from-blue-800 hover:to-indigo-800 text-white text-xs font-bold shadow-xs shrink-0 flex items-center gap-1 rounded-lg border border-blue-600"
                 title="Open Civic Copilot AI Assistant"
               >
-                <Bot className="w-3.5 h-3.5 text-blue-200" />
+                <Bot className="w-3.5 h-3.5 text-blue-200 shrink-0" />
                 <span className="hidden sm:inline font-bold whitespace-nowrap">Civic Copilot</span>
               </Button>
             </div>
           )}
 
-          {/* Refresh Control */}
+          {/* Live Sync / Refresh */}
           <div className="flex items-center shrink-0">
             <Button
               variant="secondary"
               size="sm"
               onClick={onRefresh}
               loading={isRefreshing}
-              className="h-8.5 px-2 sm:px-2.5 text-[#526581] border-[#D9E2EC] hover:text-[#172B4D] hover:bg-slate-50 text-xs shadow-2xs shrink-0"
+              className="h-8 px-2 text-[#526581] border-[#D9E2EC] hover:text-[#172B4D] hover:bg-slate-50 text-xs shadow-2xs shrink-0"
               title="Synchronize incident feeds"
             >
-              <RefreshCw className="w-3.5 h-3.5 sm:mr-1 text-[#718096]" />
-              <span className="hidden sm:inline font-medium whitespace-nowrap">Live Sync</span>
+              <RefreshCw className="w-3.5 h-3.5 sm:mr-1 text-[#718096] shrink-0" />
+              <span className="hidden xl:inline font-medium whitespace-nowrap">Live Sync</span>
             </Button>
           </div>
 
@@ -257,29 +257,19 @@ export const CommandHeader: React.FC<CommandHeaderProps> = ({
           </div>
 
           {/* Divider */}
-          <div className="h-7 w-px bg-[#D9E2EC] mx-0.5 sm:mx-1 shrink-0" />
+          <div className="h-6 w-px bg-[#D9E2EC] mx-0.5 shrink-0" />
 
           {/* User Profile / Supabase Session Widget */}
           {isAuthenticated && user ? (
-            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-              <div className="w-8 h-8 rounded-full bg-blue-50 border border-blue-200 text-[#1769D2] flex items-center justify-center text-xs font-bold shadow-2xs shrink-0">
+            <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-blue-50 border border-blue-200 text-[#1769D2] flex items-center justify-center text-xs font-bold shadow-2xs shrink-0">
                 {getInitials(user.fullName, user.email)}
               </div>
-              <div className="text-left shrink-0 hidden xl:block max-w-[130px]">
+              <div className="text-left shrink-0 hidden 2xl:block max-w-[110px]">
                 <div className="text-xs font-bold text-[#172B4D] leading-tight truncate">
                   {user.fullName || getRoleLabel(user.role)}
                 </div>
-                <div className="text-[10px] text-[#526581] font-medium leading-tight truncate">
-                  {user.ward || user.departmentName || getRoleLabel(user.role)}
-                </div>
               </div>
-              <button
-                onClick={() => signOut()}
-                className="px-2 py-1 text-[11px] font-semibold text-[#526581] hover:text-[#123B6D] hover:bg-slate-100 rounded border border-[#D9E2EC] transition-colors shrink-0 hidden sm:flex items-center gap-1"
-                title="Switch Administrative Level or Corporation"
-              >
-                <span>Switch Org</span>
-              </button>
               <button
                 onClick={() => signOut()}
                 className="p-1.5 text-[#718096] hover:text-rose-600 hover:bg-rose-50 rounded-md transition-colors shrink-0"
@@ -294,10 +284,10 @@ export const CommandHeader: React.FC<CommandHeaderProps> = ({
                 variant="outline"
                 size="sm"
                 onClick={() => setIsLoginOpen(true)}
-                className="h-8.5 px-2.5 sm:px-3 text-[#123B6D] border-[#1769D2] hover:bg-blue-50 text-xs font-bold shadow-2xs shrink-0 flex items-center gap-1.5"
+                className="h-8 px-2.5 text-[#123B6D] border-[#1769D2] hover:bg-blue-50 text-xs font-bold shadow-2xs shrink-0 flex items-center gap-1"
               >
                 <LogIn className="w-3.5 h-3.5 text-[#1769D2]" />
-                <span className="whitespace-nowrap">Officer Login</span>
+                <span className="whitespace-nowrap">Login</span>
               </Button>
             </div>
           )}

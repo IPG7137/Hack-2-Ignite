@@ -143,6 +143,7 @@ export const CommandMap: React.FC<CommandMapProps> = ({
       zoom: initCenter.zoom,
       attributionControl: false,
     });
+    map.current = mapInstance;
 
     mapInstance.addControl(
       new maplibregl.NavigationControl({ showCompass: true }),
@@ -154,6 +155,16 @@ export const CommandMap: React.FC<CommandMapProps> = ({
     );
 
     mapInstance.on('load', () => {
+      if (organizationType === 'STATE') {
+        mapInstance.fitBounds(
+          [
+            [72.5, 15.6],
+            [81.0, 22.0],
+          ],
+          { padding: 35, duration: 0 }
+        );
+      }
+
       // 1. Setup Administrative Boundaries GeoJSON source & layers
       const boundariesGeoJSON = getAdministrativeBoundariesGeoJSON(
         organizationType,
@@ -302,19 +313,43 @@ export const CommandMap: React.FC<CommandMapProps> = ({
     });
   }, [orgCenter]);
 
-  // 4. Handle external focus coordinate changes
+  // 4. Handle external focus coordinate changes & Fit All actions
   useEffect(() => {
-    if (focusCoordinates && map.current) {
-      const targetZoom = organizationType === 'STATE' && focusCoordinates.lat === orgCenter?.lat && focusCoordinates.lng === orgCenter?.lng
-        ? 6.2
-        : 14.5;
+    if (!map.current) return;
+
+    if (focusCoordinates) {
+      const targetZoom =
+        organizationType === 'STATE' &&
+        focusCoordinates.lat === orgCenter?.lat &&
+        focusCoordinates.lng === orgCenter?.lng
+          ? 6.0
+          : 14.5;
       map.current.flyTo({
         center: [focusCoordinates.lng, focusCoordinates.lat],
         zoom: targetZoom,
         speed: 1.2,
       });
+    } else if (focusCoordinates === null && initialFitDone.current) {
+      if (organizationType === 'STATE') {
+        map.current.fitBounds(
+          [
+            [72.5, 15.6],
+            [81.0, 22.0],
+          ],
+          { padding: 35, duration: 800 }
+        );
+      } else {
+        const validComplaints = complaints.filter((c) => hasValidCoordinates(c));
+        if (validComplaints.length > 0) {
+          const bounds = new maplibregl.LngLatBounds();
+          validComplaints.forEach((c) => {
+            bounds.extend([c.location.longitude, c.location.latitude]);
+          });
+          map.current.fitBounds(bounds, { padding: 60, maxZoom: 14, duration: 800 });
+        }
+      }
     }
-  }, [focusCoordinates, organizationType, orgCenter]);
+  }, [focusCoordinates, organizationType, orgCenter, complaints]);
 
   // 5. Update Native Heatmap GeoJSON Source
   useEffect(() => {

@@ -380,7 +380,7 @@ export const LiveMap: React.FC<LiveMapProps> = ({
   }
 
   return (
-    <div className="space-y-3 h-[calc(100vh-5.5rem)] flex flex-col">
+    <div className="flex-1 flex flex-col gap-3 min-h-0 min-w-0 w-full">
       {/* Top Administrative & Tactical Intelligence Bar */}
       <div className="p-3 rounded-xl bg-white border border-slate-200 shadow-2xs shrink-0 space-y-2.5">
         {/* Row 1: Administrative Breadcrumbs & View Modes */}
@@ -654,9 +654,9 @@ export const LiveMap: React.FC<LiveMapProps> = ({
       </div>
 
       {/* Main Map & Side Flyout Inspection Grid */}
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-3 min-h-0">
-        {/* Map Canvas (8 or 9 cols) */}
-        <div className="lg:col-span-8 xl:col-span-8 h-full rounded-lg overflow-hidden border border-[#D9E2EC] shadow-sm relative">
+      <div className="flex-1 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_340px] xl:grid-cols-[minmax(0,1fr)_360px] gap-3 min-h-0 min-w-0">
+        {/* Map Canvas (Flex remaining space) */}
+        <div className="h-full rounded-lg overflow-hidden border border-[#D9E2EC] shadow-sm relative min-h-[480px] min-w-0">
           <CommandMap
             complaints={filteredComplaints}
             selectedId={activePinId}
@@ -731,8 +731,8 @@ export const LiveMap: React.FC<LiveMapProps> = ({
           )}
         </div>
 
-        {/* Right Sidebar: Dynamic Intelligence Inspector (4 cols) */}
-        <div className="lg:col-span-4 xl:col-span-4 h-full flex flex-col gap-2.5 min-h-0 overflow-y-auto">
+        {/* Right Sidebar: Dynamic Intelligence Inspector (controlled width) */}
+        <div className="h-full flex flex-col gap-2.5 min-h-0 min-w-0 overflow-y-auto">
           {/* Sidebar Tab Switcher */}
           <div className="flex items-center justify-between p-1 bg-slate-100 border border-[#D9E2EC] rounded-lg shrink-0 text-xs font-mono">
             <button

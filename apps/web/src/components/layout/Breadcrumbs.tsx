@@ -50,7 +50,7 @@ export const Breadcrumbs: React.FC<BreadcrumbsProps> = ({
   return (
     <nav
       aria-label="Breadcrumb"
-      className="flex items-center gap-1.5 text-xs text-[#526581] pb-3 mb-4 border-b border-[#E2E8F0] overflow-x-auto select-none"
+      className="flex items-center gap-1.5 text-xs text-[#526581] pb-2.5 mb-3 border-b border-[#E2E8F0] overflow-x-auto select-none shrink-0"
     >
       {/* 1. State Level */}
       {user?.role === 'state_admin' && organizationType !== 'STATE' ? (
