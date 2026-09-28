@@ -422,7 +422,7 @@ export class SupabaseComplaintService implements IComplaintService {
     // Cache locally for immediate reactivity
     SupabaseComplaintService.localComplaintsCache.unshift(newComplaint);
 
-    // 3. Award initial civic rewards points to citizen
+    // 3. Log provisional intake contribution (0 score inflation until municipal verification/resolution)
     try {
       await this.rewardsService.recordContribution({
         userId,
@@ -430,6 +430,8 @@ export class SupabaseComplaintService implements IComplaintService {
         complaintId,
         displayName: citizenName,
         contributionType: 'verified_report',
+        isProvisional: true,
+        customNotes: 'Provisional grievance registered (Recognition score verified upon municipal review/closure)',
       });
     } catch (_) {}
 

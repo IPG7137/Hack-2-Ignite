@@ -30,6 +30,7 @@ export interface RecordContributionParams {
   contributionType: CivicContributionType;
   isDuplicate?: boolean;
   isFakeOrSpam?: boolean;
+  isProvisional?: boolean;
   customNotes?: string;
 }
 
@@ -349,6 +350,7 @@ export class CivicRewardsService {
       contributionType,
       isDuplicate = false,
       isFakeOrSpam = false,
+      isProvisional = false,
       customNotes,
     } = params;
 
@@ -367,6 +369,11 @@ export class CivicRewardsService {
       pointsAwarded = 0;
       verificationStatus = 'verified';
       description = 'Duplicate incident report recorded for community clustering (0 full reward to prevent duplicate farming).';
+    } else if (isProvisional) {
+      // Provisional Intake: Raw reports start with 0 points and 'pending' status to prevent spam inflation
+      pointsAwarded = 0;
+      verificationStatus = 'pending';
+      description = description || 'Provisional grievance registered (Recognition score verified upon municipal review/closure)';
     } else {
       switch (contributionType) {
         case 'verified_report':
@@ -426,7 +433,7 @@ export class CivicRewardsService {
       // Update or create citizen profile in Supabase
       const existing = await this.getCitizenProfile(userId, cleanDist);
       const newScore = Math.max(0, (existing?.civicScore || 0) + pointsAwarded);
-      const newVerified = (existing?.verifiedReportsCount || 0) + (contributionType === 'verified_report' && !isDuplicate && !isFakeOrSpam ? 1 : 0);
+      const newVerified = (existing?.verifiedReportsCount || 0) + (contributionType === 'verified_report' && !isDuplicate && !isFakeOrSpam && !isProvisional ? 1 : 0);
       const newResolutions = (existing?.verifiedResolutionsCount || 0) + (contributionType === 'resolution_verification' ? 1 : 0);
       const newEvidence = (existing?.helpfulEvidenceCount || 0) + (contributionType === 'useful_evidence' ? 1 : 0);
       const newBadge = getBadgeLevelForScore(newScore, this.config);

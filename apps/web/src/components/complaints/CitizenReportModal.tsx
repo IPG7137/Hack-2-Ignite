@@ -208,9 +208,11 @@ export const CitizenReportModal: React.FC<CitizenReportModalProps> = ({
                   <span className="text-[#526581]">Status:</span>
                   <span className="font-semibold text-blue-600 uppercase text-[11px] font-mono">Submitted (Queue)</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-[#526581]">Civic Credits Awarded:</span>
-                  <span className="font-bold text-emerald-600">+10 Quality Points</span>
+                <div className="flex justify-between items-center">
+                  <span className="text-[#526581]">Civic Recognition:</span>
+                  <span className="font-semibold text-blue-700 text-[10px] bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                    Provisional Intake (Points credited upon verified resolution)
+                  </span>
                 </div>
               </div>
 

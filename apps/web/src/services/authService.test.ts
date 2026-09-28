@@ -364,6 +364,23 @@ export async function runAuthServiceTests(): Promise<{ passed: number; failed: n
     assert(newProfile.badgeLevel === 'starter', '15e. Brand new citizen starts with starter badge');
   }
 
+  // 16. Anti-Spam Provisional Intake Point Shield (0 score inflation for raw reports)
+  {
+    const { CivicRewardsService } = await import('./civicRewardsService');
+    const rewardsService = new CivicRewardsService();
+    const contrib = await rewardsService.recordContribution({
+      userId: 'usr-fresh-citizen-44',
+      districtId: 'solapur',
+      complaintId: 'CR-SOL-9901',
+      displayName: 'Karan Patil',
+      contributionType: 'verified_report',
+      isProvisional: true, // Raw intake is strictly provisional
+    });
+
+    assert(contrib.points === 0, '16a. Provisional intake awards exactly 0 initial points to block spamming');
+    assert(contrib.verificationStatus === 'pending', '16b. Provisional intake status is marked as pending');
+  }
+
   console.log(`✅ Phase 9B Authentication Tests Finished: ${passed} passed, ${failed} failed`);
   return { passed, failed, errors };
 }
