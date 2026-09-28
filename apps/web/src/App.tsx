@@ -28,11 +28,10 @@ import { StateDashboard } from './pages/StateDashboard';
 import { CivicChampions } from './pages/CivicChampions';
 import { PrivacyPolicy } from './pages/PrivacyPolicy';
 import { TermsOfService } from './pages/TermsOfService';
-import { CitizenReportModal } from './components/complaints/CitizenReportModal';
 import { useOrganization } from './context/OrganizationContext';
 import { isComplaintInZone } from './lib/zoneFilter';
 
-const ALLOWED_MUNICIPAL_ROLES = ['officer', 'dept_admin', 'municipal_admin', 'super_admin', 'state_admin', 'citizen'];
+const ALLOWED_MUNICIPAL_ROLES = ['officer', 'dept_admin', 'municipal_admin', 'super_admin', 'state_admin'];
 
 export function App() {
   const { user, isAuthenticated, loading: authLoading, signOut } = useAuthContext();
@@ -41,7 +40,6 @@ export function App() {
   const [selectedComplaintId, setSelectedComplaintId] = useState<string | null>(null);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
 
   const {
     complaints,
@@ -182,7 +180,6 @@ export function App() {
       complaints={visibleComplaints}
       selectedComplaintId={selectedComplaintId}
       onSelectComplaint={handleSelectComplaint}
-      onOpenReport={() => setIsReportModalOpen(true)}
       onRefresh={handleRefresh}
       isRefreshing={isRefreshing}
     >
@@ -332,13 +329,6 @@ export function App() {
       {activePage === 'privacy' && <PrivacyPolicy onBack={() => setActivePage('dashboard')} />}
 
       {activePage === 'terms' && <TermsOfService onBack={() => setActivePage('dashboard')} />}
-
-      <CitizenReportModal
-        isOpen={isReportModalOpen}
-        onClose={() => setIsReportModalOpen(false)}
-        onSubmit={submitComplaint}
-        existingComplaints={complaints}
-      />
     </MainLayout>
   );
 }
