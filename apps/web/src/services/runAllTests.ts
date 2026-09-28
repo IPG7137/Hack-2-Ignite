@@ -17,6 +17,7 @@ import { runComplaintLifecycleTests } from './complaintLifecycle.test';
 
 import { runSmartMapGisTests } from './smartMapGis.test';
 import { runSmartAlertsSLATests } from './smartAlertsSLA.test';
+import { runResolutionEvidenceTests } from './resolutionEvidence.test';
 
 async function main() {
   console.log('===========================================================');
@@ -129,6 +130,11 @@ async function main() {
   totalFailed += res16.failed;
   allErrors.push(...res16.errors);
 
+  // Phase 17: Feature 5 Before/After Resolution Verification
+  const res17 = await runResolutionEvidenceTests();
+  totalPassed += res17.passed;
+  totalFailed += res17.failed;
+
   console.log('\n===========================================================');
   console.log('📊 FINAL VERIFICATION SCORECARD:');
   console.log(`   3A Similarity:             ${res3A.passed}/${res3A.passed + res3A.failed}`);
@@ -148,6 +154,7 @@ async function main() {
   console.log(`   14 Auth Gate & Queue:      ${res14.passed}/${res14.passed + res14.failed}`);
   console.log(`   15 Smart Map & GIS Intel:  ${res15.passed}/${res15.passed + res15.failed}`);
   console.log(`   16 Smart Alerts & SLA:     ${res16.passed}/${res16.passed + res16.failed}`);
+  console.log(`   17 Resolution Evidence:    ${res17.passed}/${res17.passed + res17.failed}`);
   console.log('-----------------------------------------------------------');
   console.log(`   TOTAL:                     ${totalPassed} PASSED / ${totalFailed} FAILED`);
   console.log('===========================================================');

@@ -41,6 +41,8 @@ import { complaintService } from '../services/complaintService';
 import { PriorityEngine } from '../services/priorityEngine';
 import { IncidentGroupingEngine } from '../services/incidentGroupingEngine';
 import { ResolutionVerificationCard } from '../components/complaints/ResolutionVerificationCard';
+import { ResolutionHistoryTimeline } from '../components/complaints/ResolutionHistoryTimeline';
+import { ResolutionEvidenceService } from '../services/resolutionEvidenceService';
 
 interface ComplaintDetailsProps {
   complaint: Complaint | null;
@@ -354,6 +356,25 @@ export const ComplaintDetails: React.FC<ComplaintDetailsProps> = ({
       setActionLoading(true);
       setFeedbackMessage(null);
       const officer = resolutionOfficerName.trim() || complaint.assignment?.officerName || 'Field Duty Officer';
+      
+      // Submit resolution attempt into evidence ledger
+      const afterList = resolutionProofUrlInput.trim() ? [resolutionProofUrlInput.trim()] : [];
+      try {
+        ResolutionEvidenceService.submitResolutionAttempt({
+          complaintId: complaint.id,
+          resolvedBy: officer,
+          resolvedByRole: 'officer',
+          resolutionNote: resolutionNotesInput.trim(),
+          beforeImages: complaint.evidence?.before || [],
+          afterImages: afterList.length > 0 ? afterList : ['https://images.unsplash.com/photo-1515260268569-9271009adfdb?w=600&auto=format&fit=crop&q=80'],
+          originalLocation: complaint.location,
+          resolutionLocation: complaint.location,
+          districtId: (complaint as any).districtId || 'pune',
+        });
+      } catch (recErr) {
+        console.warn('Resolution evidence ledger note:', recErr);
+      }
+
       if (onSubmitResolution) {
         await onSubmitResolution(complaint.id, officer, resolutionNotesInput.trim(), resolutionProofUrlInput.trim() || undefined);
       } else {
@@ -421,6 +442,21 @@ export const ComplaintDetails: React.FC<ComplaintDetailsProps> = ({
     try {
       setActionLoading(true);
       setFeedbackMessage(null);
+
+      try {
+        ResolutionEvidenceService.processCitizenVerification({
+          complaintId: complaint.id,
+          satisfied,
+          reopenReason: (reopenReason as any) || (satisfied ? undefined : 'issue_still_exists'),
+          citizenComment: comment,
+          verificationPhotoUrl: proofPhotoUrl,
+          verifiedBy: complaint.reporter?.name || 'Citizen User',
+          districtId: (complaint as any).districtId || 'pune',
+        });
+      } catch (verErr) {
+        console.warn('Citizen verification ledger note:', verErr);
+      }
+
       if (onCitizenVerify) {
         await onCitizenVerify(complaint.id, satisfied, comment, reopenReason, proofPhotoUrl);
       } else {
@@ -690,6 +726,9 @@ export const ComplaintDetails: React.FC<ComplaintDetailsProps> = ({
             beforeImages={complaint.evidence.before}
             afterImages={complaint.evidence.after}
           />
+
+          {/* Phase 13 / Feature 5: Multi-Attempt Resolution History Ledger */}
+          <ResolutionHistoryTimeline complaintId={complaint.id} />
 
           {/* Phase 3D: Potential Common Incident Grouping Panel */}
           {(() => {
