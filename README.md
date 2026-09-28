@@ -23,7 +23,7 @@
 
 | Resource | Link | Description |
 |:---|:---|:---|
-| 🌐 **Live Web Command Center** | **[CivicResolve — Maharashtra Municipal Command Center](https://civicresolve-eosin.vercel.app/)** | Executive Command Center & Zone Operations dashboard deployed on Vercel |
+| 🌐 **Live Web Command Center** | **[CivicResolve — Maharashtra Municipal Command Center](https://civicresolve2.vercel.app/)** | Executive Command Center & Zone Operations dashboard deployed on Vercel |
 | 📱 **Android Release APK** | **[Download APK (Google Drive)](https://drive.google.com/drive/folders/1azDqGXinzO9kAdOr8b1ohYQV0zbtmmGa?usp=sharing)** | Direct download link for the compiled production-ready Flutter release APK |
 | 📺 **Video Demonstration** | **[Demonstration Video — Civic Resolve](https://www.youtube.com/watch?v=FCalhhiW2ds)** | Complete video walkthrough of citizen mobile reporting, GIS command map, and municipal triage |
 | 📊 **Citizen Feedback & Survey** | **[Civic Issue Reporting System Feedback (Responses)](https://docs.google.com/spreadsheets/d/1dCCleNU2lp0RIOz0-KM4JaEw3maJnhjTvF5sVgw2CgE/edit?gid=310055827#gid=310055827)** | Verified citizen feedback collected during field user testing across municipal wards |
