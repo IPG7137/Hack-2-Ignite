@@ -23,6 +23,7 @@ import { runGISReliabilityTests } from './gisReliability.test';
 import { runCivicFeedSupportTests } from './civicFeedSupport.test';
 import { runResolutionFeedbackIntegrityTests } from './resolutionFeedbackIntegrity.test';
 import { runCivicRecognitionTests } from './civicRecognition.test';
+import { runDashboardIntelligenceTests } from './dashboardIntelligence.test';
 
 async function main() {
   console.log('===========================================================');
@@ -168,6 +169,12 @@ async function main() {
   totalFailed += resRecognition.failed;
   allErrors.push(...resRecognition.errors);
 
+  // Unified Civic Intelligence Dashboard (Task 10)
+  const resDashboard = await runDashboardIntelligenceTests();
+  totalPassed += resDashboard.passed;
+  totalFailed += resDashboard.failed;
+  allErrors.push(...resDashboard.errors);
+
   console.log('\n===========================================================');
   console.log('📊 FINAL VERIFICATION SCORECARD:');
   console.log(`   3A Similarity:             ${res3A.passed}/${res3A.passed + res3A.failed}`);
@@ -193,6 +200,7 @@ async function main() {
   console.log(`   Civic Feed & Support:      ${resFeed.passed}/${resFeed.passed + resFeed.failed}`);
   console.log(`   Feedback & Integrity:      ${resFeedback.passed}/${resFeedback.passed + resFeedback.failed}`);
   console.log(`   Civic Recognition:         ${resRecognition.passed}/${resRecognition.passed + resRecognition.failed}`);
+  console.log(`   Unified Dashboard Intel:   ${resDashboard.passed}/${resDashboard.passed + resDashboard.failed}`);
   console.log('-----------------------------------------------------------');
   console.log(`   TOTAL:                     ${totalPassed} PASSED / ${totalFailed} FAILED`);
   console.log('===========================================================');
