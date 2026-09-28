@@ -142,7 +142,23 @@ export function App() {
     return isComplaintInZone(c, user.ward || 'Zone 2');
   });
 
-  const selectedComplaint = visibleComplaints.find((c) => c.id === selectedComplaintId) || complaints.find((c) => c.id === selectedComplaintId) || null;
+  const selectedComplaint = selectedComplaintId
+    ? visibleComplaints.find(
+        (c) =>
+          c.id === selectedComplaintId ||
+          String(c.dbId) === selectedComplaintId ||
+          c.id.replace('CR-2026-', 'CR-') === selectedComplaintId ||
+          c.id.endsWith(`-${selectedComplaintId}`)
+      ) ||
+      complaints.find(
+        (c) =>
+          c.id === selectedComplaintId ||
+          String(c.dbId) === selectedComplaintId ||
+          c.id.replace('CR-2026-', 'CR-') === selectedComplaintId ||
+          c.id.endsWith(`-${selectedComplaintId}`)
+      ) ||
+      null
+    : null;
 
   return (
     <MainLayout
