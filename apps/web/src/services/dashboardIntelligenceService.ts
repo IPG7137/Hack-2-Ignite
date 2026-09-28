@@ -187,16 +187,59 @@ export class DashboardIntelligenceService {
     ).length;
 
     const reopenRate =
-      resolvedByOfficer > 0
+      (resolvedByOfficer + reopened) > 0
         ? Math.round((reopened / (resolvedByOfficer + reopened)) * 100)
         : 0;
     const verificationRate =
       resolvedByOfficer > 0
         ? Math.round((verifiedByCitizen / resolvedByOfficer) * 100)
-        : 88;
+        : 0;
 
     // Pull feedback metrics from ResolutionFeedbackService
     const feedbackMetrics = ResolutionFeedbackService.getFeedbackMetrics(districtId);
+
+    // Compute blended citizen satisfaction rating from feedback store and complaint records
+    let totalFeedbacksCount = feedbackMetrics.totalFeedbacks;
+    let totalFeedbacksSum = feedbackMetrics.averageRating * feedbackMetrics.totalFeedbacks;
+
+    for (const c of filteredComplaints) {
+      if (c.citizenFeedback?.rating) {
+        totalFeedbacksCount++;
+        totalFeedbacksSum += c.citizenFeedback.rating;
+      }
+    }
+
+    const avgRating =
+      totalFeedbacksCount > 0
+        ? Math.round((totalFeedbacksSum / totalFeedbacksCount) * 10) / 10
+        : 0;
+
+    const satisfactionRatePct =
+      feedbackMetrics.totalFeedbacks > 0
+        ? feedbackMetrics.resolvedPercentage
+        : (verifiedByCitizen + reopened > 0
+            ? Math.round((verifiedByCitizen / (verifiedByCitizen + reopened)) * 100)
+            : (resolvedByOfficer > 0 ? 100 : 0));
+
+    // Structured reopen reasons from complaint verification audits
+    const reopenReasonsDistribution: Record<string, number> = {
+      partial_resolution: 0,
+      recurring_problem: 0,
+      poor_workmanship: 0,
+    };
+
+    for (const c of filteredComplaints) {
+      if (c.status === 'reopened' || (c.citizenVerification?.reopenCount && c.citizenVerification.reopenCount > 0)) {
+        const reason = (c.citizenVerification?.reopenReason || '').toLowerCase();
+        if (reason.includes('recur') || reason.includes('again')) {
+          reopenReasonsDistribution.recurring_problem++;
+        } else if (reason.includes('work') || reason.includes('quality') || reason.includes('poor')) {
+          reopenReasonsDistribution.poor_workmanship++;
+        } else {
+          reopenReasonsDistribution.partial_resolution++;
+        }
+      }
+    }
 
     // 3. Civic Signal (Supported issues & community votes)
     const supportedComplaints = filteredComplaints
@@ -286,24 +329,24 @@ export class DashboardIntelligenceService {
       });
     }
 
-    // Compose cohesive metrics
-    const avgRating =
-      feedbackMetrics.averageRating > 0
-        ? Math.round(feedbackMetrics.averageRating * 10) / 10
-        : 4.3;
+    // Backlog reduction rate based on resolved proportion
+    const resolvedTotal = filteredComplaints.filter(
+      (c) => c.status === 'resolved' || c.status === 'verified' || c.status === 'closed'
+    ).length;
+    const backlogChangePct = total > 0 ? -Math.round((resolvedTotal / total) * 100) : 0;
 
     return {
       executive: {
         totalComplaints: total,
         activeBacklog,
-        backlogChangePct: -8, // Factual reduction trend
+        backlogChangePct,
         slaRiskCount: overdueSLA + warningSLA,
         emergingHotspotsCount: hotspots.length,
-        citizenVerificationRatePct: Math.min(100, Math.max(75, verificationRate)),
+        citizenVerificationRatePct: verificationRate,
         averageSatisfactionRating: avgRating,
         communitySupportedIssuesCount: totalSupportedIssues,
         verifiedCivicContributionsCount:
-          verifiedByCitizen + recognitionMetrics.totalCertificatesIssued * 3,
+          verifiedByCitizen + recognitionMetrics.totalCertificatesIssued,
       },
       civicSignal: {
         totalSupportedIssues,
@@ -329,23 +372,16 @@ export class DashboardIntelligenceService {
         verifiedByCitizenCount: verifiedByCitizen,
         pendingCitizenVerificationCount: pendingCitizenVerification,
         reopenedCount: reopened,
-        reopenRatePct: Math.min(30, reopenRate),
-        satisfactionRatePct:
-          feedbackMetrics.resolvedPercentage > 0
-            ? feedbackMetrics.resolvedPercentage
-            : 87,
+        reopenRatePct: Math.min(100, reopenRate),
+        satisfactionRatePct,
         averageRating: avgRating,
         ratingBreakdown: feedbackMetrics.ratingDistribution,
-        reopenReasonsDistribution: {
-          partial_resolution: Math.max(1, Math.round(reopened * 0.6)),
-          recurring_problem: Math.max(0, Math.round(reopened * 0.3)),
-          poor_workmanship: Math.max(0, Math.round(reopened * 0.1)),
-        },
+        reopenReasonsDistribution,
       },
       recognition: {
-        contributorCount: Math.max(12, recognitionMetrics.tierDistribution.CONTRIBUTOR + 18),
-        supporterCount: Math.max(6, recognitionMetrics.tierDistribution.SUPPORTER + 8),
-        championCount: Math.max(2, recognitionMetrics.tierDistribution.CHAMPION + 3),
+        contributorCount: recognitionMetrics.tierDistribution.CONTRIBUTOR,
+        supporterCount: recognitionMetrics.tierDistribution.SUPPORTER,
+        championCount: recognitionMetrics.tierDistribution.CHAMPION,
         totalCertificatesIssued: recognitionMetrics.totalCertificatesIssued,
         activeOccasionName: 'Gandhi Jayanti Civic Recognition 2026',
         plantVouchersRequested: recognitionMetrics.totalPlantRedemptionsRequested,

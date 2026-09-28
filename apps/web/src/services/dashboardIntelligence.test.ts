@@ -146,6 +146,11 @@ export async function runDashboardIntelligenceTests(): Promise<{
       adminNotes: [],
       upvotesCount: 8,
       isDuplicateCluster: false,
+      citizenFeedback: {
+        rating: 5,
+        comment: 'Pothole neatly sealed with bitumen.',
+        satisfied: true,
+      },
       createdAt: '2026-09-26T08:00:00Z',
       updatedAt: '2026-09-28T12:00:00Z',
       sla: {
@@ -170,6 +175,11 @@ export async function runDashboardIntelligenceTests(): Promise<{
         verifiedByCitizen: false,
         reopenCount: 1,
         reopenReason: 'Water still bubbling up from side joint after patch.',
+      },
+      citizenFeedback: {
+        rating: 2,
+        comment: 'Leak recurring within 2 hours.',
+        satisfied: false,
       },
       location: {
         address: 'Station Road, Solapur',
@@ -202,7 +212,7 @@ export async function runDashboardIntelligenceTests(): Promise<{
     },
   ];
 
-  // 1. Executive Summary Metric Calculations
+  // 1. Executive Summary Metric Calculations (Realistic Data)
   const metrics = await DashboardIntelligenceService.getUnifiedMetrics({
     complaints: mockComplaints,
     districtId: 'solapur',
@@ -256,20 +266,23 @@ export async function runDashboardIntelligenceTests(): Promise<{
     'Resolution quality tracks citizen dispute / reopened counts'
   );
   assert(
-    metrics.resolutionQuality.averageRating >= 4.0,
-    'Resolution quality reports positive citizen satisfaction average rating'
+    metrics.resolutionQuality.averageRating === 3.5,
+    'Resolution quality reports exact mathematical average rating ((5 + 2) / 2 = 3.5)'
+  );
+  assert(
+    metrics.resolutionQuality.reopenReasonsDistribution.partial_resolution === 1,
+    'Structured dispute reasons correctly classifies partial resolution complaint'
   );
 
   // 5. Civic Recognition & Social Forestry Nursery Redemptions
   assert(
-    metrics.recognition.contributorCount >= 1 &&
-      metrics.recognition.supporterCount >= 1 &&
-      metrics.recognition.championCount >= 1,
-    'Civic recognition categorizes verified participation milestone tiers'
-  );
-  assert(
     metrics.recognition.activeOccasionName.includes('Gandhi Jayanti'),
     'Civic recognition references active civic occasion milestones'
+  );
+  assert(
+    typeof metrics.recognition.contributorCount === 'number' &&
+      typeof metrics.recognition.plantVouchersRequested === 'number',
+    'Civic recognition tracks non-competitive merit milestones and nursery sapling vouchers'
   );
 
   // 6. Actionable Directives ("Needs Attention") Generation
@@ -290,7 +303,20 @@ export async function runDashboardIntelligenceTests(): Promise<{
     'Actionable directives generate warning alert for citizen-reopened disputes'
   );
 
-  // 7. Security & Zero PII Protection in Dashboard Payload
+  // 7. Empty Dataset Graceful Handling
+  const emptyMetrics = await DashboardIntelligenceService.getUnifiedMetrics({
+    complaints: [],
+    districtId: 'nagpur',
+  });
+  assert(
+    emptyMetrics.executive.totalComplaints === 0 &&
+      emptyMetrics.executive.activeBacklog === 0 &&
+      typeof emptyMetrics.executive.averageSatisfactionRating === 'number' &&
+      emptyMetrics.actionableDirectives.length >= 1,
+    'Empty complaint datasets evaluate cleanly without null/divide-by-zero crashes'
+  );
+
+  // 8. Security & Zero PII Protection in Dashboard Payload
   const serialized = JSON.stringify(metrics);
   assert(
     !serialized.includes('aadhaar') &&
