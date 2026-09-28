@@ -489,6 +489,7 @@ class ComprehensiveDatabaseService {
   }
 
   /// Get live civic reports for nearby map visualization with distance filtering
+  /// Uses public map markers RPC / view to ensure citizens see city-wide public reports safely without RLS blockage
   Future<List<ComprehensiveReportModel>> getNearbyMapReports({
     double? latitude,
     double? longitude,
@@ -498,26 +499,78 @@ class ComprehensiveDatabaseService {
   }) async {
     try {
       debugPrint('🗺️ Fetching live reports for map view (lat: $latitude, lng: $longitude, radius: ${radiusKm}km)');
-      var query = _supabase.from('reports').select();
+      List<dynamic> rawRows = [];
 
-      if (category != null && category != 'All') {
-        query = query.ilike('category', '%$category%');
+      // 1. Primary Strategy: RPC get_public_map_markers() (Zero citizen PII, bypasses row isolation securely)
+      try {
+        final rpcRes = await _supabase.rpc('get_public_map_markers');
+        if (rpcRes is List && rpcRes.isNotEmpty) {
+          rawRows = rpcRes;
+          debugPrint('✅ Loaded ${rawRows.length} markers via get_public_map_markers RPC');
+        }
+      } catch (rpcError) {
+        debugPrint('ℹ️ get_public_map_markers RPC unavailable ($rpcError), trying views/tables...');
       }
 
-      if (statusFilter != null && statusFilter != 'All') {
-        if (statusFilter == 'Active') {
-          query = query.not('status', 'in', '(resolved,closed,rejected)');
-        } else if (statusFilter == 'Resolved') {
-          query = query.eq('status', 'resolved');
+      // 2. Secondary Strategy: public_report_markers view
+      if (rawRows.isEmpty) {
+        try {
+          final viewRes = await _supabase
+              .from('public_report_markers')
+              .select()
+              .order('created_at', ascending: false)
+              .limit(150);
+          if (viewRes.isNotEmpty) {
+            rawRows = viewRes;
+            debugPrint('✅ Loaded ${rawRows.length} markers via public_report_markers view');
+          }
+        } catch (viewError) {
+          debugPrint('ℹ️ public_report_markers view unavailable ($viewError), trying reports table...');
         }
       }
 
-      final response = await query.order('created_at', ascending: false).limit(150);
+      // 3. Fallback: reports table
+      if (rawRows.isEmpty) {
+        var query = _supabase.from('reports').select();
+        if (category != null && category != 'All') {
+          query = query.ilike('category', '%$category%');
+        }
+        if (statusFilter != null && statusFilter != 'All') {
+          if (statusFilter == 'Active') {
+            query = query.not('status', 'in', '(resolved,closed,rejected)');
+          } else if (statusFilter == 'Resolved') {
+            query = query.eq('status', 'resolved');
+          }
+        }
+        rawRows = await query.order('created_at', ascending: false).limit(150);
+      }
 
       final List<ComprehensiveReportModel> reports = [];
-      for (final json in response) {
+      for (final json in rawRows) {
         try {
+          if (json is! Map<String, dynamic>) continue;
           final model = ComprehensiveReportModel.fromJson(json);
+
+          // Category filter (for in-memory RPC results)
+          if (category != null && category != 'All') {
+            final targetCat = category.toLowerCase().trim();
+            final itemCat = model.category.toLowerCase().trim();
+            final itemDisplay = (model.categoryDisplayName ?? '').toLowerCase().trim();
+            if (!itemCat.contains(targetCat) && !itemDisplay.contains(targetCat)) {
+              continue;
+            }
+          }
+
+          // Status filter (for in-memory RPC results)
+          if (statusFilter != null && statusFilter != 'All') {
+            if (statusFilter == 'Active' && (model.status == ReportStatus.resolved || model.status == ReportStatus.closed)) {
+              continue;
+            }
+            if (statusFilter == 'Resolved' && model.status != ReportStatus.resolved) {
+              continue;
+            }
+          }
+
           if (model.latitude != null && model.longitude != null) {
             if (latitude != null && longitude != null) {
               final distMeters = calculateDistanceMeters(

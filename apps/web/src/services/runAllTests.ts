@@ -19,6 +19,7 @@ import { runSmartMapGisTests } from './smartMapGis.test';
 import { runSmartAlertsSLATests } from './smartAlertsSLA.test';
 import { runResolutionEvidenceTests } from './resolutionEvidence.test';
 import { runNotificationsTests } from './notifications.test';
+import { runGISReliabilityTests } from './gisReliability.test';
 
 async function main() {
   console.log('===========================================================');
@@ -141,6 +142,11 @@ async function main() {
   totalPassed += res18.passed;
   totalFailed += res18.failed;
 
+  // GIS Spatial Reliability & Public Map Security
+  const resGIS = runGISReliabilityTests();
+  totalPassed += resGIS.passed;
+  totalFailed += resGIS.failed;
+
   console.log('\n===========================================================');
   console.log('📊 FINAL VERIFICATION SCORECARD:');
   console.log(`   3A Similarity:             ${res3A.passed}/${res3A.passed + res3A.failed}`);
@@ -162,6 +168,7 @@ async function main() {
   console.log(`   16 Smart Alerts & SLA:     ${res16.passed}/${res16.passed + res16.failed}`);
   console.log(`   17 Resolution Evidence:    ${res17.passed}/${res17.passed + res17.failed}`);
   console.log(`   18 Notifications & Comm:   ${res18.passed}/${res18.passed + res18.failed}`);
+  console.log(`   GIS Spatial Reliability:   ${resGIS.passed}/${resGIS.passed + resGIS.failed}`);
   console.log('-----------------------------------------------------------');
   console.log(`   TOTAL:                     ${totalPassed} PASSED / ${totalFailed} FAILED`);
   console.log('===========================================================');

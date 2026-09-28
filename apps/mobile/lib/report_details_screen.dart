@@ -39,6 +39,7 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> with TickerPr
   double? currentLatitude;
   double? currentLongitude;
   bool isLoadingLocation = false;
+  bool isUsingFallbackLocation = false;
   bool showMap = false;
   
   // AI Priority Detection & Scanning Shimmer
@@ -297,6 +298,7 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> with TickerPr
           _addressController.text = address;
         }
         isLoadingLocation = false;
+        isUsingFallbackLocation = false;
       });
 
       // Update web map location
@@ -345,6 +347,7 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> with TickerPr
           _addressController.text = mockAddress;
         }
         isLoadingLocation = false;
+        isUsingFallbackLocation = true;
       });
       
       // Update web map with fallback location
@@ -440,6 +443,7 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> with TickerPr
     setState(() {
       currentLatitude = latitude;
       currentLongitude = longitude;
+      isUsingFallbackLocation = false;
     });
 
     // Reverse geocode the selected coordinates and update form
@@ -1748,6 +1752,29 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> with TickerPr
                       ),
                     ),
                     
+                    if (isUsingFallbackLocation) ...[
+                      const SizedBox(height: 10),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFFBEB),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: const Color(0xFFF79009)),
+                        ),
+                        child: const Row(
+                          children: [
+                            Icon(Icons.location_searching, color: Color(0xFFD97706), size: 16),
+                            SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Using default municipal center (GPS unavailable). Drag map or edit address to set exact location.',
+                                style: TextStyle(fontSize: 11, color: Color(0xFF92400E), fontWeight: FontWeight.w500),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 12),
                     
                     // Address Section
