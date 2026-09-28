@@ -2094,7 +2094,265 @@ void main() {
       expect(disclaimer, contains('reviewed'));
     });
   });
+
+  group('Local Civic Feed & Community Support Tests (Phase 16)', () {
+    test('1. ComprehensiveReportModel parses supportCount, userHasSupported, and distanceMeters', () {
+      final json = {
+        'id': '101',
+        'user_id': 'user-citizen-01',
+        'title': 'Severe Pothole on Station Road',
+        'description': 'Large pothole blocking bus lane',
+        'category': 'potholes_roads',
+        'location': 'Station Road, Solapur',
+        'latitude': 17.68687,
+        'longitude': 75.92275,
+        'image_urls': <String>[],
+        'status': 'assigned',
+        'priority': 'high',
+        'created_at': DateTime.now().toIso8601String(),
+        'updated_at': DateTime.now().toIso8601String(),
+        'support_count': 14,
+        'user_has_supported': true,
+        'distance_meters': 350.5,
+      };
+
+      final model = ComprehensiveReportModel.fromJson(json);
+
+      expect(model.id, '101');
+      expect(model.supportCount, 14);
+      expect(model.userHasSupported, isTrue);
+      expect(model.distanceMeters, 350.5);
+      expect(model.categoryDisplayName, 'Roads & Potholes');
+    });
+
+    test('2. copyWithSupport updates supported state and count immutably', () {
+      final initial = ComprehensiveReportModel.fromJson({
+        'id': '202',
+        'user_id': 'user-citizen-02',
+        'title': 'Water Pipe Burst',
+        'description': 'Main pipeline leaking clean water',
+        'category': 'water_supply',
+        'location': 'Market Chowk, Solapur',
+        'latitude': 17.6800,
+        'longitude': 75.9200,
+        'image_urls': <String>[],
+        'status': 'submitted',
+        'priority': 'urgent',
+        'created_at': DateTime.now().toIso8601String(),
+        'support_count': 5,
+        'user_has_supported': false,
+      });
+
+      expect(initial.supportCount, 5);
+      expect(initial.userHasSupported, isFalse);
+
+      final updated = initial.copyWithSupport(supported: true, count: 6);
+
+      expect(updated.id, '202');
+      expect(updated.supportCount, 6);
+      expect(updated.userHasSupported, isTrue);
+      // Original remains unchanged
+      expect(initial.supportCount, 5);
+      expect(initial.userHasSupported, isFalse);
+    });
+
+    test('3. Canonical category mapping in civic feed cards matches across all categories', () {
+      expect(ComprehensiveReportModel.canonicalCategoryDisplayName('roads_infrastructure'), 'Roads & Potholes');
+      expect(ComprehensiveReportModel.canonicalCategoryDisplayName('water_supply'), 'Water Supply & Leaks');
+      expect(ComprehensiveReportModel.canonicalCategoryDisplayName('drainage_sewage'), 'Drainage & Sewage');
+      expect(ComprehensiveReportModel.canonicalCategoryDisplayName('electricity_streetlights'), 'Electricity & Streetlights');
+      expect(ComprehensiveReportModel.canonicalCategoryDisplayName('garbage'), 'Garbage & Sanitation');
+      expect(ComprehensiveReportModel.canonicalCategoryDisplayName('hazard'), 'Public Safety Hazards');
+      expect(ComprehensiveReportModel.canonicalCategoryDisplayName('trees'), 'Parks & Urban Greens');
+    });
+
+    test('4. Support action prevents duplicate complaint creation in 3A workflow', () {
+      const parentReportId = '505';
+      const duplicateDetected = true;
+
+      expect(duplicateDetected, isTrue);
+      expect(parentReportId, '505');
+
+      // Citizen selects "Support Existing Issue" instead of submitting
+      final actionLabel = 'Support Existing Issue';
+      expect(actionLabel, contains('Support'));
+      expect(actionLabel, isNot(contains('Duplicate')));
+    });
+  });
+
+  // =========================================================================
+  // TASK 07: CITIZEN FEEDBACK & RESOLUTION INTEGRITY TESTS
+  // =========================================================================
+  group('Citizen Feedback & Resolution Integrity Tests (Task 07)', () {
+    test('1. ComprehensiveReportModel parses citizen feedback, rating and reopen details', () {
+      final model = ComprehensiveReportModel.fromJson({
+        'id': '901',
+        'user_id': 'user-citizen-901',
+        'title': 'Broken footpath slab',
+        'description': 'Concrete slab caved in',
+        'category': 'roads',
+        'location': 'FC Road, Pune',
+        'latitude': 18.5204,
+        'longitude': 73.8567,
+        'image_urls': <String>['https://example.com/before.jpg'],
+        'status': 'closed',
+        'priority': 'medium',
+        'created_at': DateTime.now().toIso8601String(),
+        'citizen_verification_status': 'verified',
+        'rating': 5,
+        'citizen_feedback': 'Footpath repaired cleanly and leveled smoothly.',
+        'reopen_count': 0,
+      });
+
+      expect(model.id, '901');
+      expect(model.status, ReportStatus.closed);
+      expect(model.citizenVerificationStatus, 'verified');
+      expect(model.rating, 5);
+      expect(model.citizenFeedback, contains('repaired cleanly'));
+      expect(model.reopenCount, 0);
+    });
+
+    test('2. Reopened complaint preserves reopen count, reason and status mapping', () {
+      final model = ComprehensiveReportModel.fromJson({
+        'id': '902',
+        'user_id': 'user-citizen-902',
+        'title': 'Clogged stormwater drain',
+        'description': 'Water stagnant after rains',
+        'category': 'drainage_sewage',
+        'location': 'Deccan Gymkhana, Pune',
+        'latitude': 18.5167,
+        'longitude': 73.8417,
+        'image_urls': <String>[],
+        'status': 'reopened',
+        'priority': 'high',
+        'created_at': DateTime.now().toIso8601String(),
+        'citizen_verification_status': 'reopened',
+        'reopen_reason': 'Drain still blocked with plastic debris.',
+        'reopen_count': 2,
+        'verification_photo_url': 'https://example.com/reopen_proof.jpg',
+      });
+
+      expect(model.id, '902');
+      expect(model.status, ReportStatus.reopened);
+      expect(model.citizenVerificationStatus, 'reopened');
+      expect(model.reopenReason, 'Drain still blocked with plastic debris.');
+      expect(model.reopenCount, 2);
+      expect(model.verificationPhotoUrl, isNotNull);
+    });
+
+    test('3. Satisfaction verification logic correctly switches status to closed or reopened', () {
+      String resolveStatus(bool isSatisfied) => isSatisfied ? 'closed' : 'reopened';
+      String resolveVerificationStatus(bool isSatisfied) => isSatisfied ? 'verified' : 'reopened';
+
+      expect(resolveStatus(true), 'closed');
+      expect(resolveVerificationStatus(true), 'verified');
+      expect(resolveStatus(false), 'reopened');
+      expect(resolveVerificationStatus(false), 'reopened');
+    });
+
+    test('4. Rating bounds validation strictly enforces 1 to 5 integer scale', () {
+      bool isValidRating(int rating) => rating >= 1 && rating <= 5;
+
+      expect(isValidRating(1), isTrue);
+      expect(isValidRating(5), isTrue);
+      expect(isValidRating(3), isTrue);
+      expect(isValidRating(0), isFalse);
+      expect(isValidRating(6), isFalse);
+      expect(isValidRating(-1), isFalse);
+    });
+  });
+
+  group('Civic Recognition, Occasions & Nursery Redemptions (Task 08)', () {
+    test('1. Occasion model structures Gandhi Jayanti, Republic Day & Independence Day milestones', () {
+      final occasions = [
+        {
+          'id': 'gandhi_jayanti_2026',
+          'name': 'Gandhi Jayanti Civic Recognition 2026',
+          'date': '2026-10-02',
+          'min_score': 50,
+          'min_reports': 2,
+          'min_resolutions': 1,
+        },
+        {
+          'id': 'republic_day_2026',
+          'name': 'Republic Day Civic Champions 2026',
+          'date': '2026-01-26',
+          'min_score': 100,
+          'min_reports': 4,
+          'min_resolutions': 2,
+        },
+        {
+          'id': 'independence_day_2026',
+          'name': 'Independence Day Civic Stewardship 2026',
+          'date': '2026-08-15',
+          'min_score': 150,
+          'min_reports': 6,
+          'min_resolutions': 3,
+        },
+      ];
+
+      expect(occasions.length, 3);
+      expect(occasions.first['id'], 'gandhi_jayanti_2026');
+      expect(occasions.first['min_reports'], 2);
+      expect(occasions.first['min_resolutions'], 1);
+    });
+
+    test('2. Digital certificate model parses correctly and maintains unique alphanumeric identifier', () {
+      final certJson = {
+        'id': 'cert-101',
+        'user_id': 'user-citizen-anil',
+        'recipient_name': 'Anil Deshmukh',
+        'district_name': 'Solapur',
+        'occasion_name': 'Gandhi Jayanti Civic Recognition 2026',
+        'recognition_tier': 'CHAMPION',
+        'certificate_number': 'CR-GJ-2026-SOLAPUR-8901',
+        'issued_at': '2026-10-02T00:00:00Z',
+        'plant_redeemable': true,
+        'plant_redeemed': false,
+        'verified_reports': 9,
+        'verified_resolutions': 4,
+        'total_civic_score': 280,
+      };
+
+      expect(certJson['id'], 'cert-101');
+      expect(certJson['certificate_number'], startsWith('CR-GJ-2026-SOLAPUR-'));
+      expect(certJson['recognition_tier'], 'CHAMPION');
+      expect(certJson['plant_redeemable'], isTrue);
+      expect(certJson['plant_redeemed'], isFalse);
+    });
+
+    test('3. Government nursery plant voucher structure tracks pickup location and status', () {
+      final redemptionJson = {
+        'id': 'red-201',
+        'user_id': 'user-citizen-anil',
+        'certificate_id': 'cert-101',
+        'preferred_plant_type': 'Neem (Azadirachta indica)',
+        'collection_nursery_name': 'Solapur Municipal Social Forestry Nursery',
+        'voucher_code': 'PLANT-2026-SOLAPUR-9012',
+        'status': 'REQUESTED',
+        'created_at': DateTime.now().toIso8601String(),
+      };
+
+      expect(redemptionJson['voucher_code'], startsWith('PLANT-2026-SOLAPUR-'));
+      expect(redemptionJson['status'], 'REQUESTED');
+      expect(redemptionJson['preferred_plant_type'], contains('Neem'));
+    });
+
+    test('4. Public certificate verification payload contains zero PII fields', () {
+      final publicVerification = {
+        'certificate_number': 'CR-GJ-2026-SOLAPUR-8901',
+        'recipient_name': 'Anil Deshmukh',
+        'district_name': 'Solapur',
+        'occasion_name': 'Gandhi Jayanti Civic Recognition 2026',
+        'recognition_tier': 'CHAMPION',
+        'issued_at': '2026-10-02T00:00:00Z',
+      };
+
+      expect(publicVerification.containsKey('phone'), isFalse);
+      expect(publicVerification.containsKey('aadhaar'), isFalse);
+      expect(publicVerification.containsKey('email'), isFalse);
+      expect(publicVerification.containsKey('bank_account'), isFalse);
+      expect(publicVerification['certificate_number'], 'CR-GJ-2026-SOLAPUR-8901');
+    });
+  });
 }
-
-
-

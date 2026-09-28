@@ -19,19 +19,49 @@ export const DATABASE_CATEGORY_MAP: Record<
     label: 'Roads & Potholes',
     department: 'Roads & Infrastructure',
   },
+  roads_infrastructure: {
+    key: 'roads',
+    label: 'Roads & Infrastructure',
+    department: 'Roads & Infrastructure',
+  },
   roads: {
     key: 'roads',
     label: 'Roads & Potholes',
     department: 'Roads & Infrastructure',
+  },
+  potholes: {
+    key: 'roads',
+    label: 'Potholes & Surface Damage',
+    department: 'Roads & Infrastructure',
+  },
+  public_transport: {
+    key: 'roads',
+    label: 'Public Transport & Traffic',
+    department: 'Traffic & Transit Authority',
+  },
+  traffic: {
+    key: 'roads',
+    label: 'Traffic & Transit',
+    department: 'Traffic & Transit Authority',
   },
   water_drainage: {
     key: 'water_sewage',
     label: 'Water Supply & Leaks',
     department: 'Water Works Dept',
   },
+  water_sewage: {
+    key: 'water_sewage',
+    label: 'Water Supply & Sewage',
+    department: 'Water Works Dept',
+  },
   water_supply: {
     key: 'water_sewage',
     label: 'Water Supply & Leaks',
+    department: 'Water Works Dept',
+  },
+  water: {
+    key: 'water_sewage',
+    label: 'Water Supply',
     department: 'Water Works Dept',
   },
   drainage_sewage: {
@@ -44,6 +74,11 @@ export const DATABASE_CATEGORY_MAP: Record<
     label: 'Drainage & Sewage',
     department: 'Sewerage & Drainage',
   },
+  sewage: {
+    key: 'drainage',
+    label: 'Sewage Issues',
+    department: 'Sewerage & Drainage',
+  },
   electricity_streetlights: {
     key: 'streetlights',
     label: 'Electricity & Streetlights',
@@ -54,9 +89,19 @@ export const DATABASE_CATEGORY_MAP: Record<
     label: 'Electricity & Streetlights',
     department: 'Electrical Engineering',
   },
+  streetlight: {
+    key: 'streetlights',
+    label: 'Street Lighting',
+    department: 'Electrical Engineering',
+  },
   lighting: {
     key: 'streetlights',
     label: 'Street Lighting',
+    department: 'Electrical Engineering',
+  },
+  electricity: {
+    key: 'streetlights',
+    label: 'Power & Electrical Grid',
     department: 'Electrical Engineering',
   },
   waste_management: {
@@ -64,10 +109,25 @@ export const DATABASE_CATEGORY_MAP: Record<
     label: 'Garbage & Sanitation',
     department: 'Public Health & Sanitation',
   },
+  garbage: {
+    key: 'waste_management',
+    label: 'Garbage & Solid Waste',
+    department: 'Public Health & Sanitation',
+  },
   cleanliness: {
     key: 'waste_management',
     label: 'Cleanliness & Sanitation',
     department: 'Public Health & Sanitation',
+  },
+  environmental: {
+    key: 'waste_management',
+    label: 'Environmental & Pollution',
+    department: 'Public Health & Sanitation',
+  },
+  noise_pollution: {
+    key: 'public_safety',
+    label: 'Noise Pollution',
+    department: 'Public Safety & Environment',
   },
   safety_hazard: {
     key: 'public_safety',
@@ -79,6 +139,11 @@ export const DATABASE_CATEGORY_MAP: Record<
     label: 'Public Safety Hazards',
     department: 'Disaster Management',
   },
+  hazard: {
+    key: 'public_safety',
+    label: 'Hazardous Conditions',
+    department: 'Disaster Management',
+  },
   parks_trees: {
     key: 'parks',
     label: 'Parks & Fallen Trees',
@@ -87,6 +152,11 @@ export const DATABASE_CATEGORY_MAP: Record<
   parks: {
     key: 'parks',
     label: 'Parks & Urban Greens',
+    department: 'Horticulture Dept',
+  },
+  trees: {
+    key: 'parks',
+    label: 'Trees & Vegetation',
     department: 'Horticulture Dept',
   },
   illegal_encroachment: {

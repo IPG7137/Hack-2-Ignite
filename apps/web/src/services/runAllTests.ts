@@ -20,6 +20,11 @@ import { runSmartAlertsSLATests } from './smartAlertsSLA.test';
 import { runResolutionEvidenceTests } from './resolutionEvidence.test';
 import { runNotificationsTests } from './notifications.test';
 import { runFullSecurityHardeningTests } from './fullSecurityHardening.test';
+import { runGISReliabilityTests } from './gisReliability.test';
+import { runCivicFeedSupportTests } from './civicFeedSupport.test';
+import { runResolutionFeedbackIntegrityTests } from './resolutionFeedbackIntegrity.test';
+import { runCivicRecognitionTests } from './civicRecognition.test';
+import { runDashboardIntelligenceTests } from './dashboardIntelligence.test';
 
 async function main() {
   console.log('===========================================================');
@@ -148,6 +153,35 @@ async function main() {
   totalFailed += res19.failed;
   allErrors.push(...res19.errors);
 
+  // GIS Spatial Reliability & Public Map Security
+  const resGIS = runGISReliabilityTests();
+  totalPassed += resGIS.passed;
+  totalFailed += resGIS.failed;
+
+  // Local Civic Feed & Report Support (Task 06)
+  const resFeed = await runCivicFeedSupportTests();
+  totalPassed += resFeed.passed;
+  totalFailed += resFeed.failed;
+  allErrors.push(...resFeed.errors);
+
+  // Citizen Feedback & Resolution Integrity (Task 07)
+  const resFeedback = runResolutionFeedbackIntegrityTests();
+  totalPassed += resFeedback.passed;
+  totalFailed += resFeedback.failed;
+  allErrors.push(...resFeedback.errors);
+
+  // Civic Recognition & Digital Certificates (Task 08)
+  const resRecognition = await runCivicRecognitionTests();
+  totalPassed += resRecognition.passed;
+  totalFailed += resRecognition.failed;
+  allErrors.push(...resRecognition.errors);
+
+  // Unified Civic Intelligence Dashboard (Task 10)
+  const resDashboard = await runDashboardIntelligenceTests();
+  totalPassed += resDashboard.passed;
+  totalFailed += resDashboard.failed;
+  allErrors.push(...resDashboard.errors);
+
   console.log('\n===========================================================');
   console.log('📊 FINAL VERIFICATION SCORECARD:');
   console.log(`   3A Similarity:             ${res3A.passed}/${res3A.passed + res3A.failed}`);
@@ -170,6 +204,11 @@ async function main() {
   console.log(`   17 Resolution Evidence:    ${res17.passed}/${res17.passed + res17.failed}`);
   console.log(`   18 Notifications & Comm:   ${res18.passed}/${res18.passed + res18.failed}`);
   console.log(`   19 Security Hardening:     ${res19.passed}/${res19.passed + res19.failed}`);
+  console.log(`   GIS Spatial Reliability:   ${resGIS.passed}/${resGIS.passed + resGIS.failed}`);
+  console.log(`   Civic Feed & Support:      ${resFeed.passed}/${resFeed.passed + resFeed.failed}`);
+  console.log(`   Feedback & Integrity:      ${resFeedback.passed}/${resFeedback.passed + resFeedback.failed}`);
+  console.log(`   Civic Recognition:         ${resRecognition.passed}/${resRecognition.passed + resRecognition.failed}`);
+  console.log(`   Unified Dashboard Intel:   ${resDashboard.passed}/${resDashboard.passed + resDashboard.failed}`);
   console.log('-----------------------------------------------------------');
   console.log(`   TOTAL:                     ${totalPassed} PASSED / ${totalFailed} FAILED`);
   console.log('===========================================================');

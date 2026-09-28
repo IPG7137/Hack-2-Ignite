@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Trophy,
   Award,
@@ -15,6 +15,7 @@ import {
   BarChart3,
   Calendar,
   Sparkles,
+  TreePine,
 } from 'lucide-react';
 import { useCivicRewards } from '../hooks/useCivicRewards';
 import { useOrganization } from '../context/OrganizationContext';
@@ -22,7 +23,13 @@ import { CitizenImpactCard } from '../components/rewards/CitizenImpactCard';
 import { DistrictLeaderboardCard } from '../components/rewards/DistrictLeaderboardCard';
 import { RecognitionFrameworkCard } from '../components/rewards/RecognitionFrameworkCard';
 import { ContributionHistoryModal } from '../components/rewards/ContributionHistoryModal';
+import { CivicOccasionRecognitionSection } from '../components/rewards/CivicOccasionRecognitionSection';
+import { CivicCertificateModal } from '../components/rewards/CivicCertificateModal';
+import { PlantRedemptionModal } from '../components/rewards/PlantRedemptionModal';
+import { MunicipalRedemptionQueue } from '../components/rewards/MunicipalRedemptionQueue';
 import { MAHARASHTRA_DISTRICTS, MaharashtraDistrict } from '../data/maharashtraDistricts';
+import { civicRecognitionService } from '../services/civicRecognitionService';
+import { CivicCertificate, CivicRedemption } from '../types/civicRecognition';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 
@@ -41,14 +48,53 @@ export const CivicChampions: React.FC = () => {
 
   const { organizationType, setOrganization } = useOrganization();
   const isStateAdmin = organizationType === 'STATE';
+  const isMunicipalStaff = organizationType === 'DISTRICT' || organizationType === 'STATE';
 
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [selectedStateDistrict, setSelectedStateDistrict] = useState<string>(activeDistrictId || 'pune');
+
+  // Task 08 Civic Recognition & Certificates State
+  const [userCertificates, setUserCertificates] = useState<CivicCertificate[]>([]);
+  const [userRedemptions, setUserRedemptions] = useState<CivicRedemption[]>([]);
+  const [districtRedemptions, setDistrictRedemptions] = useState<CivicRedemption[]>([]);
+  const [selectedCertificate, setSelectedCertificate] = useState<CivicCertificate | null>(null);
+  const [isCertificateModalOpen, setIsCertificateModalOpen] = useState(false);
+  const [selectedCertForPlant, setSelectedCertForPlant] = useState<CivicCertificate | null>(null);
+  const [isPlantModalOpen, setIsPlantModalOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<'RECOGNITION' | 'LEADERBOARD' | 'MUNICIPAL_DESK'>('RECOGNITION');
 
   // Resolve current district object
   const currentDistrictObj = MAHARASHTRA_DISTRICTS.find(
     (d) => d.id === (isStateAdmin ? selectedStateDistrict : activeDistrictId)
   ) || MAHARASHTRA_DISTRICTS[0];
+
+  const loadRecognitionData = async () => {
+    try {
+      const certs = await civicRecognitionService.getUserCertificates(citizenProfile?.userId);
+      const userReds = await civicRecognitionService.getUserRedemptions(citizenProfile?.userId);
+      const distReds = await civicRecognitionService.getDistrictRedemptions(currentDistrictObj.id);
+
+      setUserCertificates(certs);
+      setUserRedemptions(userReds);
+      setDistrictRedemptions(distReds);
+    } catch (err) {
+      console.error('Failed to load recognition data:', err);
+    }
+  };
+
+  useEffect(() => {
+    loadRecognitionData();
+  }, [citizenProfile?.userId, currentDistrictObj.id]);
+
+  const handleOpenCertificate = (cert: CivicCertificate) => {
+    setSelectedCertificate(cert);
+    setIsCertificateModalOpen(true);
+  };
+
+  const handleOpenPlantRedemption = (cert: CivicCertificate) => {
+    setSelectedCertForPlant(cert);
+    setIsPlantModalOpen(true);
+  };
 
   return (
     <div className="space-y-5 max-w-7xl mx-auto pb-12">
@@ -68,17 +114,15 @@ export const CivicChampions: React.FC = () => {
               <span className="text-slate-300">/</span>
               <h1 className="text-base sm:text-lg font-bold text-[#123B6D] tracking-tight">
                 {isStateAdmin
-                  ? 'Maharashtra Statewide Civic Champions & Citizen Engagement'
-                  : `${currentDistrictObj.name} District Civic Champions & Rewards`}
+                  ? 'Maharashtra Statewide Civic Champions & Citizen Recognition'
+                  : `${currentDistrictObj.name} District Civic Recognition & Champions`}
               </h1>
               <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-blue-50 text-[#1769D2] border border-blue-200 font-bold uppercase">
                 {isStateAdmin ? 'Level 1 Oversight' : `${currentDistrictObj.division} Division`}
               </span>
             </div>
             <p className="text-xs text-[#526581] mt-1">
-              {isStateAdmin
-                ? 'Statewide Citizen Recognition • Quality-Verified Civic Points & District Leaderboards'
-                : `Verified citizen contributions in ${currentDistrictObj.name} District • Anti-Spam Verified Civic Scores`}
+              Verified civic contributions • Official occasion recognition • Tamper-verified digital certificates • Municipal sapling redemptions
             </p>
           </div>
 
@@ -86,13 +130,70 @@ export const CivicChampions: React.FC = () => {
             <Button
               variant="outline"
               size="sm"
-              onClick={refresh}
+              onClick={() => {
+                refresh();
+                loadRecognitionData();
+              }}
               className="h-8 text-xs font-semibold text-[#1769D2] border-blue-200 hover:bg-blue-50 gap-1.5"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-              <span>Sync Leaderboard</span>
+              <span>Sync Recognition Data</span>
             </Button>
           </div>
+        </div>
+
+        {/* View Mode Navigation Tabs */}
+        <div className="flex items-center gap-2 pt-3 border-t border-[#E8EEF5]">
+          <button
+            type="button"
+            onClick={() => setActiveTab('RECOGNITION')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+              activeTab === 'RECOGNITION'
+                ? 'bg-[#1769D2] text-white shadow-xs'
+                : 'text-[#526581] hover:bg-slate-100'
+            }`}
+          >
+            <Award className="w-3.5 h-3.5" />
+            <span>Civic Recognition & Occasions</span>
+            {userCertificates.length > 0 && (
+              <span className="text-[10px] bg-white/20 px-1.5 py-0.2 rounded-full">
+                {userCertificates.length}
+              </span>
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('LEADERBOARD')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+              activeTab === 'LEADERBOARD'
+                ? 'bg-[#1769D2] text-white shadow-xs'
+                : 'text-[#526581] hover:bg-slate-100'
+            }`}
+          >
+            <Trophy className="w-3.5 h-3.5" />
+            <span>District Participation & Tiers</span>
+          </button>
+
+          {isMunicipalStaff && (
+            <button
+              type="button"
+              onClick={() => setActiveTab('MUNICIPAL_DESK')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                activeTab === 'MUNICIPAL_DESK'
+                  ? 'bg-emerald-700 text-white shadow-xs'
+                  : 'text-emerald-800 hover:bg-emerald-50'
+              }`}
+            >
+              <TreePine className="w-3.5 h-3.5" />
+              <span>Nursery Plant Desk</span>
+              {districtRedemptions.length > 0 && (
+                <span className="text-[10px] bg-white/20 px-1.5 py-0.2 rounded-full">
+                  {districtRedemptions.length}
+                </span>
+              )}
+            </button>
+          )}
         </div>
       </div>
 
@@ -213,7 +314,7 @@ export const CivicChampions: React.FC = () => {
                     }}
                     className="w-full h-7 text-[11px] text-[#1769D2] border-blue-200 hover:bg-blue-50 gap-1 font-semibold"
                   >
-                    <span>Inspect {d.districtName} Leaderboard</span>
+                    <span>Inspect {d.districtName} Recognition</span>
                     <ArrowRight className="w-3 h-3" />
                   </Button>
                 </div>
@@ -224,39 +325,82 @@ export const CivicChampions: React.FC = () => {
       )}
 
       {/* ==================================================
-          DISTRICT CITIZEN IMPACT & LEADERBOARD SECTION
+          TAB CONTENT
           ================================================== */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        {/* Left Column: Citizen Impact Card */}
-        <div className="space-y-5 lg:col-span-1">
-          <CitizenImpactCard
-            profile={citizenProfile}
-            rank={leaderboard.find((l) => l.isCurrentUser)?.rank || 1}
-            districtName={currentDistrictObj.name}
-            onOpenHistory={() => setIsHistoryModalOpen(true)}
-          />
+      {activeTab === 'RECOGNITION' && (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+            {/* Left Column: Citizen Impact Card */}
+            <div className="space-y-5 lg:col-span-1">
+              <CitizenImpactCard
+                profile={citizenProfile}
+                rank={leaderboard.find((l) => l.isCurrentUser)?.rank || 1}
+                districtName={currentDistrictObj.name}
+                onOpenHistory={() => setIsHistoryModalOpen(true)}
+              />
 
-          <RecognitionFrameworkCard
-            cycles={recognitionCycles}
-            leaderboard={leaderboard}
-            districtName={currentDistrictObj.name}
-          />
-        </div>
+              <RecognitionFrameworkCard
+                cycles={recognitionCycles}
+                leaderboard={leaderboard}
+                districtName={currentDistrictObj.name}
+              />
+            </div>
 
-        {/* Right Column: District Leaderboard */}
-        <div className="lg:col-span-2">
-          <DistrictLeaderboardCard
-            entries={leaderboard}
-            districtName={currentDistrictObj.name}
-            divisionName={currentDistrictObj.division}
-            currentUserId={citizenProfile?.userId}
-          />
+            {/* Right Column: Occasions & Certificates Section */}
+            <div className="lg:col-span-2 space-y-5">
+              <CivicOccasionRecognitionSection
+                profile={citizenProfile}
+                certificates={userCertificates}
+                redemptions={userRedemptions}
+                districtName={currentDistrictObj.name}
+                onViewCertificate={handleOpenCertificate}
+                onOpenPlantRedemption={handleOpenPlantRedemption}
+                onRefresh={() => {
+                  refresh();
+                  loadRecognitionData();
+                }}
+              />
+            </div>
+          </div>
         </div>
-      </div>
+      )}
+
+      {activeTab === 'LEADERBOARD' && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+          <div className="space-y-5 lg:col-span-1">
+            <CitizenImpactCard
+              profile={citizenProfile}
+              rank={leaderboard.find((l) => l.isCurrentUser)?.rank || 1}
+              districtName={currentDistrictObj.name}
+              onOpenHistory={() => setIsHistoryModalOpen(true)}
+            />
+          </div>
+
+          <div className="lg:col-span-2">
+            <DistrictLeaderboardCard
+              entries={leaderboard}
+              districtName={currentDistrictObj.name}
+              divisionName={currentDistrictObj.division}
+              currentUserId={citizenProfile?.userId}
+            />
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'MUNICIPAL_DESK' && (
+        <MunicipalRedemptionQueue
+          districtId={currentDistrictObj.id}
+          districtName={currentDistrictObj.name}
+          isStaff={isMunicipalStaff}
+          redemptions={districtRedemptions}
+          onRefresh={loadRecognitionData}
+        />
+      )}
 
       {/* ==================================================
-          CONTRIBUTION HISTORY AUDIT TRAIL MODAL
+          MODALS
           ================================================== */}
+      {/* Contribution History Audit Trail Modal */}
       <ContributionHistoryModal
         isOpen={isHistoryModalOpen}
         onClose={() => setIsHistoryModalOpen(false)}
@@ -264,6 +408,27 @@ export const CivicChampions: React.FC = () => {
         citizenName={citizenProfile?.displayName}
         civicScore={citizenProfile?.civicScore}
         districtName={currentDistrictObj.name}
+      />
+
+      {/* Official Digital Certificate Modal */}
+      <CivicCertificateModal
+        isOpen={isCertificateModalOpen}
+        onClose={() => setIsCertificateModalOpen(false)}
+        certificate={selectedCertificate}
+        onOpenPlantRedemption={handleOpenPlantRedemption}
+      />
+
+      {/* Government Nursery Plant Sapling Redemption Modal */}
+      <PlantRedemptionModal
+        isOpen={isPlantModalOpen}
+        onClose={() => setIsPlantModalOpen(false)}
+        certificate={selectedCertForPlant}
+        existingRedemption={
+          userRedemptions.find((r) => r.certificateId === selectedCertForPlant?.id) || null
+        }
+        onRedemptionCreated={() => {
+          loadRecognitionData();
+        }}
       />
     </div>
   );

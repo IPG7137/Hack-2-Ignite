@@ -50,6 +50,7 @@ export interface ReporterInfo {
   phone: string;
   aadharMasked: string;
   verifiedCitizen: boolean;
+  userId?: string;
 }
 
 export interface OfficerAssignment {
@@ -111,6 +112,7 @@ export interface AIClassification {
 export interface Complaint {
   id: string; // Formatted ID, e.g. "CR-2026-104"
   dbId: number; // Raw integer ID corresponding to Supabase
+  userId?: string;
   title: string;
   description: string;
   category: IncidentCategory;

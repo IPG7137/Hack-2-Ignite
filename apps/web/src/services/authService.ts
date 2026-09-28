@@ -37,6 +37,8 @@ export interface AuthUser {
   email: string;
   role: UserRole;
   fullName: string;
+  districtId?: string;
+  phone?: string;
   departmentId?: string;
   departmentName?: string;
   ward?: string;
@@ -48,6 +50,7 @@ export interface DatabaseProfile {
   email: string | null;
   full_name: string | null;
   phone: string | null;
+  district_id?: string | null;
   department_id: string | null;
   department_name: string | null;
   ward: string | null;
@@ -96,6 +99,8 @@ export class AuthService {
       email,
       role,
       fullName: dbProfile?.full_name || meta.full_name || meta.name || email.split('@')[0],
+      districtId: dbProfile?.district_id || meta.district_id || meta.districtId || 'pune',
+      phone: dbProfile?.phone || meta.phone || meta.phone_number || undefined,
       departmentId: dbProfile?.department_id || meta.department_id || 'DEP-GEN',
       departmentName: dbProfile?.department_name || meta.department_name || 'General Municipal Command',
       ward: dbProfile?.ward || meta.ward || 'Zone 2 Command',
@@ -214,21 +219,31 @@ export class AuthService {
   public static async signUp(
     email: string,
     password: string,
-    metadata?: { fullName?: string; departmentName?: string; ward?: string }
+    metadata?: {
+      fullName?: string;
+      departmentName?: string;
+      ward?: string;
+      districtId?: string;
+      phone?: string;
+    }
   ): Promise<{ user: AuthUser | null; error: string | null }> {
     try {
       // Hardcoded strictly to 'citizen' - client can never self-assign privileged roles
       const publicRole: UserRole = 'citizen';
+      const cleanDistrict = (metadata?.districtId || 'pune').toLowerCase().trim();
+      const displayName = metadata?.fullName || email.split('@')[0];
 
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: {
-            full_name: metadata?.fullName || email.split('@')[0],
+            full_name: displayName,
             role: publicRole,
             department_name: metadata?.departmentName || 'General Municipal Command',
             ward: metadata?.ward || 'Zone 2 Command',
+            district_id: cleanDistrict,
+            phone_number: metadata?.phone || '',
           },
         },
       });
@@ -238,6 +253,34 @@ export class AuthService {
       }
 
       if (data.user) {
+        // Idempotently create/update profile record if possible
+        try {
+          await supabase.from('profiles').upsert({
+            id: data.user.id,
+            email: data.user.email,
+            full_name: displayName,
+            phone: metadata?.phone || null,
+            ward: metadata?.ward || 'Zone 2 Command',
+            department_name: metadata?.departmentName || 'General Municipal Command',
+            is_active: true,
+          });
+        } catch (_) {}
+
+        // Idempotently initialize civic rewards profile
+        try {
+          await supabase.from('citizen_civic_profiles').upsert({
+            user_id: data.user.id,
+            district_id: cleanDistrict,
+            display_name: displayName,
+            civic_score: 0,
+            verified_reports_count: 0,
+            verified_resolutions_count: 0,
+            helpful_evidence_count: 0,
+            badge_level: 'starter',
+            is_flagged: false,
+          });
+        } catch (_) {}
+
         return { user: this.mapSupabaseUserToAuthUser(data.user, null, null), error: null };
       }
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { RefreshCw, LogIn, LogOut, ShieldCheck, MapPin, Building, Menu, Bot } from 'lucide-react';
+import { RefreshCw, LogIn, LogOut, ShieldCheck, MapPin, Building, Menu, Bot, FilePlus } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { useAuth } from '../../hooks/useAuth';
 import { useOrganization } from '../../context/OrganizationContext';
@@ -8,6 +8,7 @@ import { NotificationBell } from '../notifications/NotificationBell';
 
 interface CommandHeaderProps {
   onOpenCopilot?: () => void;
+  onOpenReport?: () => void;
   onRefresh: () => void;
   isRefreshing?: boolean;
   onToggleMobileMenu?: () => void;
@@ -16,6 +17,7 @@ interface CommandHeaderProps {
 
 export const CommandHeader: React.FC<CommandHeaderProps> = ({
   onOpenCopilot,
+  onOpenReport,
   onRefresh,
   isRefreshing = false,
   onToggleMobileMenu,
@@ -82,26 +84,38 @@ export const CommandHeader: React.FC<CommandHeaderProps> = ({
     }
   };
 
-  // Header Title and Subtitle dynamically formatted per State vs Municipal selection
-  const headerTitle = isStateAdmin
+  const isCitizen = user?.role === 'citizen';
+
+  // Header Title and Subtitle dynamically formatted per Role / State vs Municipal selection
+  const headerTitle = isCitizen
+    ? 'CivicResolve — Citizen Grievance Portal'
+    : isStateAdmin
     ? 'CivicResolve — Maharashtra State Command'
     : `CivicResolve — ${currentCorporation?.shortName || municipalCorporationName || 'Municipal'} Command`;
 
-  const headerSubtitle = isStateAdmin
+  const headerSubtitle = isCitizen
+    ? `District of ${(user?.districtId || district || 'Pune').toUpperCase()} • Participatory Governance`
+    : isStateAdmin
     ? 'Statewide Municipal Operations & Multi-Corporation Oversight'
     : `${municipalCorporationName || 'Municipal Corporation'} • Command Center Operations Desk`;
 
-  const scopeBadgeLabel = isStateAdmin
+  const scopeBadgeLabel = isCitizen
+    ? `${user?.districtId?.toUpperCase() || 'PUNE'} Citizen • ${user?.ward || 'Zone 2'}`
+    : isStateAdmin
     ? 'Maharashtra Statewide'
     : isMunicipalAdmin
     ? `${currentCorporation?.shortName || 'City-wide'} HQ`
     : user?.ward || `${currentCorporation?.shortName || 'Zone'} Command`;
 
-  const orgEmblemTitle = isStateAdmin
+  const orgEmblemTitle = isCitizen
+    ? `CITIZEN GRIEVANCE PORTAL — ${(user?.districtId || district || 'MAHARASHTRA').toUpperCase()}`
+    : isStateAdmin
     ? 'MAHARASHTRA STATE ADMINISTRATION'
     : (municipalCorporationName || 'MUNICIPAL CORPORATION').toUpperCase();
 
-  const orgEmblemSubtitle = isStateAdmin
+  const orgEmblemSubtitle = isCitizen
+    ? 'Public Grievance Redressal & Resolution Tracking'
+    : isStateAdmin
     ? 'Urban Development Department • State Oversight'
     : `District: ${district || 'Maharashtra'} • Municipal Command Center`;
 
@@ -122,7 +136,7 @@ export const CommandHeader: React.FC<CommandHeaderProps> = ({
             </button>
           )}
           <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-lg bg-[#123B6D] text-white flex items-center justify-center font-bold text-base sm:text-lg shadow-xs border border-blue-900 shrink-0">
-            {isStateAdmin ? '🏛️' : '🏢'}
+            {isCitizen ? '👥' : isStateAdmin ? '🏛️' : '🏢'}
           </div>
           <div className="flex flex-col justify-center">
             <div className="text-xs sm:text-[13px] lg:text-[14px] font-bold text-[#123B6D] tracking-tight leading-snug whitespace-nowrap">
@@ -195,6 +209,22 @@ export const CommandHeader: React.FC<CommandHeaderProps> = ({
               <span className="text-[#172B4D] font-bold text-xs whitespace-nowrap">{timeString || '--:--:--'}</span>
             </div>
           </div>
+
+          {/* Report Grievance Action */}
+          {onOpenReport && (
+            <div className="flex items-center shrink-0">
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={onOpenReport}
+                className="h-8.5 px-2.5 sm:px-3 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs shrink-0 flex items-center gap-1.5 rounded-lg border border-emerald-500 cursor-pointer"
+                title="Lodge a new civic grievance"
+              >
+                <FilePlus className="w-3.5 h-3.5 text-emerald-100" />
+                <span className="hidden sm:inline font-bold whitespace-nowrap">Report Issue</span>
+              </Button>
+            </div>
+          )}
 
           {/* AI Civic Copilot Launcher */}
           {onOpenCopilot && (

@@ -295,13 +295,13 @@ export class CopilotService {
     if (securityContext?.role === 'citizen') {
       return {
         id: `BRF-${Date.now()}`,
-        briefingId: `BRF-${Date.now()}`,
         timestamp: new Date().toISOString(),
-        generatedAt: new Date().toISOString(),
         datasetSize: 0,
         isAiGenerated: false,
         modelName: 'Grounded Intelligence Security Guard',
-        summary: 'Access restricted',
+        summary: 'Access restricted to authorized personnel.',
+        markdownContent: `### 🔒 Access Restricted\n\nExecutive municipal briefings are restricted to authorized municipal officers, ward engineers, and state administrators. Citizens may query the status of their individual complaints through the Citizen Copilot desk.`,
+        referencedComplaintIds: [],
         metrics: {
           totalComplaints: 0,
           activeComplaints: 0,
@@ -314,22 +314,20 @@ export class CopilotService {
           pendingVerificationCount: 0,
           departmentDistribution: {},
         },
-        referencedComplaintIds: [],
-        markdownContent: `### 🔒 Access Restricted\n\nExecutive municipal briefings are restricted to authorized municipal officers, ward engineers, and state administrators. Citizens may query the status of their individual complaints through the Citizen Copilot desk.`,
         topDirectives: [],
-      } as any;
+      };
     }
 
     if (!complaints || complaints.length === 0) {
       return {
         id: `BRF-${Date.now()}`,
-        briefingId: `BRF-${Date.now()}`,
         timestamp: new Date().toISOString(),
-        generatedAt: new Date().toISOString(),
         datasetSize: 0,
         isAiGenerated: false,
         modelName: 'Grounded Deterministic 3A-3E Engine',
-        summary: 'No active complaints',
+        summary: 'No active complaints in operational jurisdiction.',
+        markdownContent: `### 🏛️ Municipal Commissioner Executive Operational Briefing\n\nCurrently evaluating **0 complaints** on file. No active municipal reports recorded in this operational jurisdiction. Connect live telemetry or register new grievances to populate intelligence metrics.`,
+        referencedComplaintIds: [],
         metrics: {
           totalComplaints: 0,
           activeComplaints: 0,
@@ -342,10 +340,8 @@ export class CopilotService {
           pendingVerificationCount: 0,
           departmentDistribution: {},
         },
-        referencedComplaintIds: [],
-        markdownContent: `### 🏛️ Municipal Commissioner Executive Operational Briefing\n\nCurrently evaluating **0 complaints** on file. No active municipal reports recorded in this operational jurisdiction. Connect live telemetry or register new grievances to populate intelligence metrics.`,
         topDirectives: [],
-      } as any;
+      };
     }
 
     const safeComplaints = complaints.map((c) => GroundingSecurityGuard.sanitizeComplaintForTelemetry(c));
@@ -435,15 +431,23 @@ export class CopilotService {
     // PII Scrubbing
     const scrubbedContent = GroundingSecurityGuard.maskPII(md);
 
+    const departmentDistribution: { [key: string]: number } = {};
+    safeComplaints.forEach((c) => {
+      const dept = c.assignment?.departmentName || c.categoryLabel || 'General';
+      departmentDistribution[dept] = (departmentDistribution[dept] || 0) + 1;
+    });
+
+    const criticalPriorityCount = safeComplaints.filter((c) => c.priority === 'urgent').length;
+    const highPriorityCount = safeComplaints.filter((c) => c.priority === 'high').length;
+    const pendingVerification = safeComplaints.filter((c) => c.status === 'citizen_verification' || c.status === 'resolution_submitted').length;
+
     return {
       id: `BRF-${Date.now()}`,
-      briefingId: `BRF-${Date.now()}`,
       timestamp: new Date().toISOString(),
-      generatedAt: new Date().toISOString(),
       datasetSize: safeComplaints.length,
-      isAiGenerated: true,
+      isAiGenerated: false,
       modelName: 'Grounded Deterministic 3A-3E Engine + Gemini 1.5',
-      summary: `Grounded Municipal Briefing for ${safeComplaints.length} records`,
+      summary: `Evaluated ${safeComplaints.length} municipal records across active district.`,
       markdownContent: scrubbedContent,
       referencedComplaintIds: uniqueReferenced,
       metrics: {
@@ -451,18 +455,19 @@ export class CopilotService {
         activeComplaints: active.length,
         resolvedComplaints: resolved.length,
         overdueComplaints: overdue.length,
-        criticalPriorityCount: urgent.length,
-        highPriorityCount: high.length,
+        criticalPriorityCount,
+        highPriorityCount,
         emergingHotspotsCount: hotspots.length,
-        potentialIncidentsCount: commonIncidents.length,
-        pendingVerificationCount: pendingVerify.length,
-        departmentDistribution: deptCounts,
+        potentialIncidentsCount: incidentGroups.length,
+        pendingVerificationCount: pendingVerification,
+        departmentDistribution,
       },
       topDirectives: [
-        `Immediate dispatch of field response teams to ${urgent.length} high-priority grievances.`,
-        `Focused remediation on ${hotspots.length} detected spatial hotspots.`,
+        `Dispatch field teams to ${urgent.length} urgent/high priority complaints`,
+        `Inspect ${hotspots.length} detected spatial hotspots`,
+        `Process ${pendingVerification} verification records`,
       ],
-    } as any;
+    };
   }
 
   /**

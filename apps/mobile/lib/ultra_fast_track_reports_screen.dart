@@ -940,9 +940,9 @@ class _UltraFastTrackReportsScreenState extends State<UltraFastTrackReportsScree
       case ReportStatus.inProgress:
         return Colors.indigo;
       case ReportStatus.resolutionSubmitted:
-        return Colors.teal;
-      case ReportStatus.citizenVerification:
         return Colors.cyan;
+      case ReportStatus.citizenVerification:
+        return Colors.teal;
       case ReportStatus.resolved:
       case ReportStatus.verified:
       case ReportStatus.closed:

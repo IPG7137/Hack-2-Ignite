@@ -53,7 +53,7 @@ export function runSmartAlertsSLATests(): { passed: number; failed: number; erro
     categoryLabel: 'Water Supply',
     location: {
       address: 'Shivajinagar Chowk',
-      landmark: 'Near Bus Stand',
+      landmark: 'Shivajinagar Gate',
       ward: 'Ward 5',
       zone: 'Zone 1',
       latitude: 18.5314,

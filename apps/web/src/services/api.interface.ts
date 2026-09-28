@@ -20,9 +20,25 @@ export interface ComplaintFilterParams {
 
 import { JointActionRequest, JointActionResult, IncidentClusterRecord } from './incidentGroupingEngine';
 
+export interface CreateComplaintParams {
+  title: string;
+  description: string;
+  category: IncidentCategory;
+  location: string;
+  ward?: string;
+  districtId?: string;
+  latitude?: number;
+  longitude?: number;
+  imageUrl?: string;
+  userId?: string;
+  citizenName?: string;
+  contactNumber?: string;
+}
+
 export interface IComplaintService {
   getComplaints(filters?: ComplaintFilterParams): Promise<Complaint[]>;
   getComplaintById(id: string): Promise<Complaint | null>;
+  submitComplaint(params: CreateComplaintParams): Promise<Complaint>;
   updateStatus(id: string, newStatus: ComplaintStatus, officerName: string, notes?: string, proofImageUrl?: string): Promise<Complaint>;
   addAdminNote(id: string, author: string, text: string, isInternal?: boolean): Promise<Complaint>;
   assignOfficer(id: string, officerName: string, departmentName: string, contractorName?: string): Promise<Complaint>;

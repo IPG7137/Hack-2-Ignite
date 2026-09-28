@@ -128,6 +128,12 @@ class ComprehensiveReportModel {
   final String gpsDisplay;
   final int adminNotesCount;
 
+  // Civic Feed & Community Support (Phase 16)
+  final int supportCount;
+  final bool userHasSupported;
+  final int communityImpactScore;
+  final double? distanceMeters;
+
   ComprehensiveReportModel({
     required this.id,
     required this.userId,
@@ -173,6 +179,10 @@ class ComprehensiveReportModel {
     required this.lastUpdatedTime,
     required this.gpsDisplay,
     required this.adminNotesCount,
+    this.supportCount = 0,
+    this.userHasSupported = false,
+    this.communityImpactScore = 0,
+    this.distanceMeters,
   });
 
   factory ComprehensiveReportModel.fromJson(Map<String, dynamic> json) {
@@ -232,9 +242,15 @@ class ComprehensiveReportModel {
       reporterName: json['reporter_name'],
       contactNumber: json['contact_number'],
       aadharNumber: json['aadhar_number'],
-      createdAt: DateTime.parse(json['created_at']),
-      updatedAt: DateTime.parse(json['updated_at']),
-      lastStatusChange: DateTime.parse(json['last_status_change'] ?? json['updated_at']),
+      createdAt: json['created_at'] != null ? DateTime.parse(json['created_at'].toString()) : DateTime.now(),
+      updatedAt: json['updated_at'] != null
+          ? DateTime.parse(json['updated_at'].toString())
+          : (json['created_at'] != null ? DateTime.parse(json['created_at'].toString()) : DateTime.now()),
+      lastStatusChange: json['last_status_change'] != null
+          ? DateTime.parse(json['last_status_change'].toString())
+          : (json['updated_at'] != null
+              ? DateTime.parse(json['updated_at'].toString())
+              : (json['created_at'] != null ? DateTime.parse(json['created_at'].toString()) : DateTime.now())),
       assignedOfficerId: json['assigned_officer_id']?.toString(),
       assignedOfficerName: json['assigned_officer_name'],
       adminNotes: json['admin_notes'],
@@ -257,15 +273,131 @@ class ComprehensiveReportModel {
       userName: json['user_name'],
       userEmail: json['user_email'],
       userPhone: json['user_phone'],
-      categoryDisplayName: json['category_display_name'],
+      categoryDisplayName: json['category_display_name'] ?? canonicalCategoryDisplayName(json['category']?.toString()),
       categoryIcon: json['category_icon'],
       categoryColor: json['category_color'],
       statusDisplay: json['status_display'] ?? _mapStatusToDisplay(json['status'] ?? 'submitted'),
-      submittedTime: json['submitted_time'] ?? _formatDateTime(DateTime.parse(json['created_at'])),
-      lastUpdatedTime: json['last_updated_time'] ?? _formatDateTime(DateTime.parse(json['updated_at'])),
+      submittedTime: json['submitted_time'] ?? _formatDateTime(json['created_at'] != null ? DateTime.parse(json['created_at'].toString()) : DateTime.now()),
+      lastUpdatedTime: json['last_updated_time'] ?? _formatDateTime(json['updated_at'] != null ? DateTime.parse(json['updated_at'].toString()) : (json['created_at'] != null ? DateTime.parse(json['created_at'].toString()) : DateTime.now())),
       gpsDisplay: json['gps_display'] ?? (latitude != null && longitude != null ? '${latitude.toStringAsFixed(5)}, ${longitude.toStringAsFixed(5)}' : 'GPS coordinates not available'),
       adminNotesCount: json['admin_notes_count'] ?? 0,
+      supportCount: json['support_count'] is int
+          ? json['support_count']
+          : int.tryParse(json['support_count']?.toString() ?? '0') ?? 0,
+      userHasSupported: json['user_has_supported'] == true,
+      communityImpactScore: json['community_impact_score'] is int
+          ? json['community_impact_score']
+          : int.tryParse(json['community_impact_score']?.toString() ?? '0') ?? 0,
+      distanceMeters: json['distance_meters'] != null
+          ? double.tryParse(json['distance_meters'].toString())
+          : null,
     );
+  }
+
+  ComprehensiveReportModel copyWithSupport({
+    required bool supported,
+    required int count,
+  }) {
+    return ComprehensiveReportModel(
+      id: id,
+      userId: userId,
+      title: title,
+      description: description,
+      category: category,
+      location: location,
+      latitude: latitude,
+      longitude: longitude,
+      imageUrls: imageUrls,
+      status: status,
+      priority: priority,
+      reporterName: reporterName,
+      contactNumber: contactNumber,
+      aadharNumber: aadharNumber,
+      createdAt: createdAt,
+      updatedAt: updatedAt,
+      lastStatusChange: lastStatusChange,
+      assignedOfficerId: assignedOfficerId,
+      assignedOfficerName: assignedOfficerName,
+      adminNotes: adminNotes,
+      estimatedCompletionDate: estimatedCompletionDate,
+      completionDate: completionDate,
+      consolidatedReports: consolidatedReports,
+      citizenFeedback: citizenFeedback,
+      rating: rating,
+      isPotentialDuplicate: isPotentialDuplicate,
+      parentReportId: parentReportId,
+      resolutionNotes: resolutionNotes,
+      resolutionImageUrl: resolutionImageUrl,
+      citizenVerificationStatus: citizenVerificationStatus,
+      reopenReason: reopenReason,
+      reopenCount: reopenCount,
+      verificationPhotoUrl: verificationPhotoUrl,
+      userName: userName,
+      userEmail: userEmail,
+      userPhone: userPhone,
+      categoryDisplayName: categoryDisplayName,
+      categoryIcon: categoryIcon,
+      categoryColor: categoryColor,
+      statusDisplay: statusDisplay,
+      submittedTime: submittedTime,
+      lastUpdatedTime: lastUpdatedTime,
+      gpsDisplay: gpsDisplay,
+      adminNotesCount: adminNotesCount,
+      supportCount: count,
+      userHasSupported: supported,
+      communityImpactScore: communityImpactScore,
+      distanceMeters: distanceMeters,
+    );
+  }
+
+  static String canonicalCategoryDisplayName(String? rawCategory) {
+    if (rawCategory == null || rawCategory.isEmpty) return 'General Grievance';
+    final normalized = rawCategory.toLowerCase().trim();
+    switch (normalized) {
+      case 'roads':
+      case 'potholes':
+      case 'potholes_roads':
+      case 'roads_infrastructure':
+        return 'Roads & Potholes';
+      case 'water_supply':
+      case 'water_drainage':
+      case 'water_sewage':
+      case 'water':
+        return 'Water Supply & Leaks';
+      case 'drainage':
+      case 'drainage_sewage':
+      case 'sewage':
+        return 'Drainage & Sewage';
+      case 'streetlights':
+      case 'streetlight':
+      case 'electricity_streetlights':
+      case 'lighting':
+      case 'electricity':
+        return 'Electricity & Streetlights';
+      case 'waste_management':
+      case 'cleanliness':
+      case 'garbage':
+      case 'environmental':
+        return 'Garbage & Sanitation';
+      case 'public_safety':
+      case 'safety_hazard':
+      case 'hazard':
+      case 'noise_pollution':
+      case 'illegal_encroachment':
+        return 'Public Safety Hazards';
+      case 'parks':
+      case 'parks_trees':
+      case 'trees':
+        return 'Parks & Urban Greens';
+      case 'traffic':
+      case 'public_transport':
+        return 'Traffic & Transit';
+      default:
+        return rawCategory
+            .split('_')
+            .map((w) => w.isNotEmpty ? '${w[0].toUpperCase()}${w.substring(1)}' : '')
+            .join(' ');
+    }
   }
 
   Map<String, dynamic> toJson() {
@@ -301,6 +433,10 @@ class ComprehensiveReportModel {
       'consolidated_reports': consolidatedReports,
       'citizen_feedback': citizenFeedback,
       'rating': rating,
+      'support_count': supportCount,
+      'user_has_supported': userHasSupported,
+      'community_impact_score': communityImpactScore,
+      'distance_meters': distanceMeters,
     };
   }
 

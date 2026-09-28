@@ -489,6 +489,7 @@ class ComprehensiveDatabaseService {
   }
 
   /// Get live civic reports for nearby map visualization with distance filtering
+  /// Uses public map markers RPC / view to ensure citizens see city-wide public reports safely without RLS blockage
   Future<List<ComprehensiveReportModel>> getNearbyMapReports({
     double? latitude,
     double? longitude,
@@ -498,26 +499,78 @@ class ComprehensiveDatabaseService {
   }) async {
     try {
       debugPrint('🗺️ Fetching live reports for map view (lat: $latitude, lng: $longitude, radius: ${radiusKm}km)');
-      var query = _supabase.from('reports').select();
+      List<dynamic> rawRows = [];
 
-      if (category != null && category != 'All') {
-        query = query.ilike('category', '%$category%');
+      // 1. Primary Strategy: RPC get_public_map_markers() (Zero citizen PII, bypasses row isolation securely)
+      try {
+        final rpcRes = await _supabase.rpc('get_public_map_markers');
+        if (rpcRes is List && rpcRes.isNotEmpty) {
+          rawRows = rpcRes;
+          debugPrint('✅ Loaded ${rawRows.length} markers via get_public_map_markers RPC');
+        }
+      } catch (rpcError) {
+        debugPrint('ℹ️ get_public_map_markers RPC unavailable ($rpcError), trying views/tables...');
       }
 
-      if (statusFilter != null && statusFilter != 'All') {
-        if (statusFilter == 'Active') {
-          query = query.not('status', 'in', '(resolved,closed,rejected)');
-        } else if (statusFilter == 'Resolved') {
-          query = query.eq('status', 'resolved');
+      // 2. Secondary Strategy: public_report_markers view
+      if (rawRows.isEmpty) {
+        try {
+          final viewRes = await _supabase
+              .from('public_report_markers')
+              .select()
+              .order('created_at', ascending: false)
+              .limit(150);
+          if (viewRes.isNotEmpty) {
+            rawRows = viewRes;
+            debugPrint('✅ Loaded ${rawRows.length} markers via public_report_markers view');
+          }
+        } catch (viewError) {
+          debugPrint('ℹ️ public_report_markers view unavailable ($viewError), trying reports table...');
         }
       }
 
-      final response = await query.order('created_at', ascending: false).limit(150);
+      // 3. Fallback: reports table
+      if (rawRows.isEmpty) {
+        var query = _supabase.from('reports').select();
+        if (category != null && category != 'All') {
+          query = query.ilike('category', '%$category%');
+        }
+        if (statusFilter != null && statusFilter != 'All') {
+          if (statusFilter == 'Active') {
+            query = query.not('status', 'in', '(resolved,closed,rejected)');
+          } else if (statusFilter == 'Resolved') {
+            query = query.eq('status', 'resolved');
+          }
+        }
+        rawRows = await query.order('created_at', ascending: false).limit(150);
+      }
 
       final List<ComprehensiveReportModel> reports = [];
-      for (final json in response) {
+      for (final json in rawRows) {
         try {
+          if (json is! Map<String, dynamic>) continue;
           final model = ComprehensiveReportModel.fromJson(json);
+
+          // Category filter (for in-memory RPC results)
+          if (category != null && category != 'All') {
+            final targetCat = category.toLowerCase().trim();
+            final itemCat = model.category.toLowerCase().trim();
+            final itemDisplay = (model.categoryDisplayName ?? '').toLowerCase().trim();
+            if (!itemCat.contains(targetCat) && !itemDisplay.contains(targetCat)) {
+              continue;
+            }
+          }
+
+          // Status filter (for in-memory RPC results)
+          if (statusFilter != null && statusFilter != 'All') {
+            if (statusFilter == 'Active' && (model.status == ReportStatus.resolved || model.status == ReportStatus.closed)) {
+              continue;
+            }
+            if (statusFilter == 'Resolved' && model.status != ReportStatus.resolved) {
+              continue;
+            }
+          }
+
           if (model.latitude != null && model.longitude != null) {
             if (latitude != null && longitude != null) {
               final distMeters = calculateDistanceMeters(
@@ -960,7 +1013,12 @@ class ComprehensiveDatabaseService {
         // Award Civic Score / Credits (+15 pts for confirming resolution)
         if (userId != null) {
           try {
-            await CreditService.addCredits(15);
+            await CreditService.awardCredits(
+              userId: userId,
+              credits: 15,
+              earnedFor: 'citizen_verified',
+              reportId: reportId,
+            );
           } catch (_) {}
         }
       } else {
@@ -1284,5 +1342,158 @@ class ComprehensiveDatabaseService {
     }
 
     return updated;
+  }
+
+  // ========================================
+  // CIVIC FEED & REPORT SUPPORT (Phase 16)
+  // ========================================
+
+  /// Toggles citizen support for a civic report (Atomic via RPC with table fallback)
+  Future<Map<String, dynamic>> toggleReportSupport({
+    required int reportId,
+    required String userId,
+  }) async {
+    try {
+      debugPrint('🗳️ Toggling support for report #$reportId by user $userId');
+
+      // 1. Primary Strategy: RPC toggle_report_support
+      try {
+        final res = await _supabase.rpc('toggle_report_support', params: {
+          'p_report_id': reportId,
+          'p_user_id': userId,
+        });
+        if (res != null && res is Map) {
+          debugPrint('✅ toggle_report_support RPC succeeded: $res');
+          return {
+            'success': true,
+            'supported': res['supported'] == true,
+            'total_supports': int.tryParse(res['total_supports']?.toString() ?? '0') ?? 0,
+          };
+        }
+      } catch (rpcErr) {
+        debugPrint('ℹ️ toggle_report_support RPC unavailable ($rpcErr), trying direct table operations...');
+      }
+
+      // 2. Direct table fallback
+      final existing = await _supabase
+          .from('report_supports')
+          .select('id')
+          .eq('report_id', reportId)
+          .eq('user_id', userId)
+          .maybeSingle();
+
+      bool nowSupported = false;
+      if (existing != null) {
+        // Unsupport
+        await _supabase
+            .from('report_supports')
+            .delete()
+            .eq('report_id', reportId)
+            .eq('user_id', userId);
+        nowSupported = false;
+      } else {
+        // Support
+        await _supabase.from('report_supports').insert({
+          'report_id': reportId,
+          'user_id': userId,
+        });
+        nowSupported = true;
+      }
+
+      // Fetch updated count
+      final countRes = await _supabase
+          .from('report_supports')
+          .select('id')
+          .eq('report_id', reportId);
+      final totalSupports = countRes.length;
+
+      return {
+        'success': true,
+        'supported': nowSupported,
+        'total_supports': totalSupports,
+      };
+    } catch (e) {
+      debugPrint('❌ Error toggling report support: $e');
+      return {
+        'success': false,
+        'supported': false,
+        'total_supports': 0,
+        'error': e.toString(),
+      };
+    }
+  }
+
+  /// Gets the support count and whether a user has supported a specific report
+  Future<Map<String, dynamic>> getReportSupportStatus({
+    required int reportId,
+    required String userId,
+  }) async {
+    try {
+      final supports = await _supabase
+          .from('report_supports')
+          .select('user_id')
+          .eq('report_id', reportId);
+
+      final hasSupported = userId.isNotEmpty && supports.any((s) => s['user_id']?.toString() == userId);
+      return {
+        'supported': hasSupported,
+        'total_supports': supports.length,
+      };
+    } catch (e) {
+      debugPrint('Note: Could not fetch report support status: $e');
+      return {
+        'supported': false,
+        'total_supports': 0,
+      };
+    }
+  }
+
+  /// Fetches local civic feed reports with distance calculations and support tallies
+  Future<List<ComprehensiveReportModel>> getCivicFeed({
+    double? latitude,
+    double? longitude,
+    double radiusKm = 25.0,
+    String? category,
+    String? userId,
+    int limit = 50,
+    int offset = 0,
+  }) async {
+    try {
+      debugPrint('📰 Fetching local civic feed (lat: $latitude, lng: $longitude, radius: ${radiusKm}km)');
+
+      // 1. Primary Strategy: RPC get_civic_feed
+      try {
+        final rpcRes = await _supabase.rpc('get_civic_feed', params: {
+          'p_lat': latitude,
+          'p_lng': longitude,
+          'p_radius_km': radiusKm,
+          'p_category': category != null && category != 'All' ? category : null,
+          'p_user_id': userId,
+          'p_limit': limit,
+          'p_offset': offset,
+        });
+
+        if (rpcRes is List && rpcRes.isNotEmpty) {
+          debugPrint('✅ Loaded ${rpcRes.length} civic feed items via get_civic_feed RPC');
+          return rpcRes.map((json) => ComprehensiveReportModel.fromJson(json)).toList();
+        }
+      } catch (rpcErr) {
+        debugPrint('ℹ️ get_civic_feed RPC fallback ($rpcErr), aggregating from public markers...');
+      }
+
+      // 2. Fallback: Aggregate from getNearbyMapReports
+      final baseReports = await getNearbyMapReports(
+        latitude: latitude,
+        longitude: longitude,
+        radiusKm: radiusKm,
+        category: category,
+      );
+
+      // Populate support counts if available
+      return baseReports;
+    } catch (e) {
+      debugPrint('❌ Error fetching civic feed: $e');
+      return [];
+    }
   }
 }

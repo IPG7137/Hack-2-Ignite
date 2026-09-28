@@ -365,6 +365,7 @@ You can click any prompt chip below or type an inquiry regarding road safety clu
   {
     const citizenComplaint = createMockComplaint({
       id: 'CR-2026-001245',
+      userId: 'citizen-user-1',
       title: 'Deep pothole on Senapati Bapat Road',
       category: 'roads',
       categoryLabel: 'Roads & Pavements',

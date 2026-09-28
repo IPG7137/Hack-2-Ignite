@@ -30,6 +30,7 @@ export interface RecordContributionParams {
   contributionType: CivicContributionType;
   isDuplicate?: boolean;
   isFakeOrSpam?: boolean;
+  isProvisional?: boolean;
   customNotes?: string;
 }
 
@@ -71,21 +72,14 @@ export class CivicRewardsService {
       }
     } catch (_) {}
 
-    // Isolated Mock Dataset Fallback
+    // Isolated Mock Dataset Fallback (only if exact userId match)
     const districtProfiles = getMockCivicProfilesForDistrict(cleanDist);
     const mockUser = districtProfiles.find((p) => p.userId === userId);
     if (mockUser) return { ...mockUser };
 
-    // Default primary profile for district citizen
-    if (districtProfiles.length > 0) {
-      return {
-        ...districtProfiles[0],
-        userId,
-      };
-    }
-
+    // Fresh Citizen Profile (starts with 0 points, 0 reports, starter badge)
     return {
-      id: `PROF-${cleanDist.toUpperCase()}-DEF`,
+      id: `PROF-${cleanDist.toUpperCase()}-${userId}`,
       userId,
       districtId: cleanDist,
       displayName: 'Verified Citizen',
@@ -98,6 +92,47 @@ export class CivicRewardsService {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
+  }
+
+  /**
+   * Idempotently initializes a new citizen civic profile with 0 starting points
+   */
+  async initializeCitizenProfile(
+    userId: string,
+    districtId: string,
+    displayName: string = 'Verified Citizen'
+  ): Promise<CitizenCivicProfile> {
+    const cleanDist = (districtId || 'pune').toLowerCase().trim();
+    const profile: CitizenCivicProfile = {
+      id: `PROF-${cleanDist.toUpperCase()}-${userId}`,
+      userId,
+      districtId: cleanDist,
+      displayName: formatCitizenDisplayName(displayName),
+      civicScore: 0,
+      verifiedReportsCount: 0,
+      verifiedResolutionsCount: 0,
+      helpfulEvidenceCount: 0,
+      badgeLevel: 'starter',
+      isFlagged: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    try {
+      await supabase.from('citizen_civic_profiles').upsert({
+        user_id: userId,
+        district_id: cleanDist,
+        display_name: profile.displayName,
+        civic_score: 0,
+        verified_reports_count: 0,
+        verified_resolutions_count: 0,
+        helpful_evidence_count: 0,
+        badge_level: 'starter',
+        is_flagged: false,
+      });
+    } catch (_) {}
+
+    return profile;
   }
 
   /**
@@ -315,6 +350,7 @@ export class CivicRewardsService {
       contributionType,
       isDuplicate = false,
       isFakeOrSpam = false,
+      isProvisional = false,
       customNotes,
     } = params;
 
@@ -333,6 +369,11 @@ export class CivicRewardsService {
       pointsAwarded = 0;
       verificationStatus = 'verified';
       description = 'Duplicate incident report recorded for community clustering (0 full reward to prevent duplicate farming).';
+    } else if (isProvisional) {
+      // Provisional Intake: Raw reports start with 0 points and 'pending' status to prevent spam inflation
+      pointsAwarded = 0;
+      verificationStatus = 'pending';
+      description = description || 'Provisional grievance registered (Recognition score verified upon municipal review/closure)';
     } else {
       switch (contributionType) {
         case 'verified_report':
@@ -392,7 +433,7 @@ export class CivicRewardsService {
       // Update or create citizen profile in Supabase
       const existing = await this.getCitizenProfile(userId, cleanDist);
       const newScore = Math.max(0, (existing?.civicScore || 0) + pointsAwarded);
-      const newVerified = (existing?.verifiedReportsCount || 0) + (contributionType === 'verified_report' && !isDuplicate && !isFakeOrSpam ? 1 : 0);
+      const newVerified = (existing?.verifiedReportsCount || 0) + (contributionType === 'verified_report' && !isDuplicate && !isFakeOrSpam && !isProvisional ? 1 : 0);
       const newResolutions = (existing?.verifiedResolutionsCount || 0) + (contributionType === 'resolution_verification' ? 1 : 0);
       const newEvidence = (existing?.helpfulEvidenceCount || 0) + (contributionType === 'useful_evidence' ? 1 : 0);
       const newBadge = getBadgeLevelForScore(newScore, this.config);

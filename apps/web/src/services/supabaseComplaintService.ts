@@ -1,9 +1,11 @@
-import { Complaint, ComplaintStatus, ComplaintPriority } from '../types/complaint';
-import { IComplaintService, ComplaintFilterParams } from './api.interface';
+import { Complaint, ComplaintStatus, ComplaintPriority, IncidentLocation } from '../types/complaint';
+import { IComplaintService, ComplaintFilterParams, CreateComplaintParams } from './api.interface';
 import { supabase } from './supabaseClient';
-import { mapSupabaseRowToComplaint } from './reportAdapter';
+import { mapSupabaseRowToComplaint, calculateSLA, DATABASE_CATEGORY_MAP } from './reportAdapter';
 import { ALLOWED_STATUS_TRANSITIONS } from '../lib/constants';
 import { CivicRewardsService } from './civicRewardsService';
+import { PriorityEngine } from './priorityEngine';
+import { SimilarityEngine } from './similarityEngine';
 import {
   JointActionRequest,
   JointActionResult,
@@ -23,6 +25,7 @@ import { isComplaintInDistrict } from '../lib/districtFilter';
 
 export class SupabaseComplaintService implements IComplaintService {
   private rewardsService = new CivicRewardsService();
+  private static localComplaintsCache: Complaint[] = [];
   /**
    * Helper to parse string ID (e.g. "CR-12", "CR-PUN-101", or "12") to integer DB ID
    */
@@ -209,6 +212,17 @@ export class SupabaseComplaintService implements IComplaintService {
       });
     }
 
+    // Prepend locally created complaints that might not have indexed yet
+    if (SupabaseComplaintService.localComplaintsCache.length > 0) {
+      const existingIds = new Set(mapped.map((c) => c.id));
+      for (const localC of SupabaseComplaintService.localComplaintsCache) {
+        if (!existingIds.has(localC.id)) {
+          mapped.unshift(localC);
+          existingIds.add(localC.id);
+        }
+      }
+    }
+
     return mapped;
   }
 
@@ -252,6 +266,176 @@ export class SupabaseComplaintService implements IComplaintService {
 
     console.warn(`⚠️ Complaint ${id} not found in database or mock datasets.`);
     return null;
+  }
+
+  async submitComplaint(params: CreateComplaintParams): Promise<Complaint> {
+    const {
+      title,
+      description,
+      category,
+      location,
+      ward = 'Zone 2 Command',
+      districtId = 'pune',
+      latitude,
+      longitude,
+      imageUrl,
+      userId = 'anonymous-citizen',
+      citizenName = 'Verified Citizen',
+      contactNumber,
+    } = params;
+
+    const now = new Date();
+    const cleanDistrict = (districtId || 'pune').toLowerCase().trim();
+
+    const catConfig = DATABASE_CATEGORY_MAP[category] || {
+      key: 'roads',
+      label: 'General Grievance',
+      department: 'Public Works & Infrastructure',
+    };
+    const mappedCategory = catConfig.key;
+    const mappedCategoryLabel = catConfig.label;
+
+    const locObj: IncidentLocation = {
+      address: location,
+      landmark: '',
+      ward: ward || 'Zone 2 Command',
+      zone: 'Zone 2',
+      latitude: latitude || 18.5204,
+      longitude: longitude || 73.8567,
+    };
+
+    // 1. Calculate Priority using deterministic 3B Priority Engine
+    let calculatedPriority: ComplaintPriority = 'medium';
+    try {
+      const allComplaints = await this.getComplaints();
+      const mockCandidate: Complaint = {
+        id: `CR-${Date.now()}`,
+        dbId: Date.now(),
+        userId: userId || 'citizen-temp',
+        title,
+        description,
+        category: mappedCategory,
+        categoryLabel: mappedCategoryLabel,
+        location: locObj,
+        status: 'submitted',
+        priority: 'medium',
+        reporter: {
+          name: citizenName,
+          phone: contactNumber || '+91 98000 00000',
+          aadharMasked: 'XXXX-XXXX-1234',
+          verifiedCitizen: true,
+          userId,
+        },
+        evidence: { before: imageUrl ? [imageUrl] : [] },
+        statusHistory: [
+          {
+            id: `SH-${Date.now()}`,
+            toStatus: 'submitted',
+            changedBy: citizenName,
+            role: 'citizen',
+            timestamp: now.toISOString(),
+            action: 'Grievance submitted by citizen',
+          },
+        ],
+        adminNotes: [],
+        sla: calculateSLA(now.toISOString(), 'medium'),
+        upvotesCount: 0,
+        isDuplicateCluster: false,
+        createdAt: now.toISOString(),
+        updatedAt: now.toISOString(),
+      };
+      const priorityAnalysis = PriorityEngine.evaluateComplaintPriority(mockCandidate, allComplaints);
+      const lvl = priorityAnalysis.levelLabel.toLowerCase();
+      calculatedPriority = lvl === 'critical' ? 'urgent' : (lvl as ComplaintPriority);
+    } catch (_) {}
+
+    // 2. Prepare database payload
+    const dbPriority = calculatedPriority === 'urgent' ? 'critical' : calculatedPriority;
+    const dbPayload = {
+      title,
+      description,
+      category,
+      location,
+      ward,
+      latitude: latitude || null,
+      longitude: longitude || null,
+      image_urls: imageUrl ? [imageUrl] : [],
+      status: 'submitted',
+      priority: dbPriority,
+      user_id: userId.includes('-') && userId.length >= 30 ? userId : null,
+      created_at: now.toISOString(),
+      updated_at: now.toISOString(),
+    };
+
+    let createdDbId: number | null = null;
+    try {
+      const { data, error } = await supabase
+        .from('reports')
+        .insert(dbPayload)
+        .select('id')
+        .single();
+
+      if (!error && data?.id) {
+        createdDbId = data.id;
+      }
+    } catch (_) {}
+
+    const complaintId = createdDbId ? `CR-2026-${String(createdDbId).padStart(4, '0')}` : `CR-${Date.now()}`;
+
+    const newComplaint: Complaint = {
+      id: complaintId,
+      dbId: createdDbId || Date.now(),
+      userId: userId || undefined,
+      title,
+      description,
+      category: mappedCategory,
+      categoryLabel: mappedCategoryLabel,
+      location: locObj,
+      status: 'submitted',
+      priority: calculatedPriority,
+      reporter: {
+        name: citizenName,
+        phone: contactNumber || '+91 98000 00000',
+        aadharMasked: 'XXXX-XXXX-1234',
+        verifiedCitizen: true,
+        userId,
+      },
+      evidence: { before: imageUrl ? [imageUrl] : [] },
+      statusHistory: [
+        {
+          id: `SH-${Date.now()}`,
+          toStatus: 'submitted',
+          changedBy: citizenName,
+          role: 'citizen',
+          timestamp: now.toISOString(),
+          action: 'Grievance submitted by citizen',
+        },
+      ],
+      adminNotes: [],
+      sla: calculateSLA(now.toISOString(), calculatedPriority),
+      upvotesCount: 0,
+      isDuplicateCluster: false,
+      createdAt: now.toISOString(),
+      updatedAt: now.toISOString(),
+    };
+
+    // Cache locally for immediate reactivity
+    SupabaseComplaintService.localComplaintsCache.unshift(newComplaint);
+
+    // 3. Log provisional intake contribution (0 score inflation until municipal verification/resolution)
+    try {
+      await this.rewardsService.recordContribution({
+        userId,
+        districtId: cleanDistrict,
+        complaintId,
+        displayName: citizenName,
+        contributionType: 'verified_report',
+        isProvisional: true,
+        customNotes: 'Provisional grievance registered (Recognition score verified upon municipal review/closure)',
+      });
+    } catch (_) {}
+
+    return newComplaint;
   }
 
   async updateStatus(

@@ -335,12 +335,12 @@ class _ComprehensiveTrackReportsScreenState extends State<ComprehensiveTrackRepo
           statusMessage = 'Field officer submitted proof of resolution for complaint #${newReport.id}.';
           break;
         case ReportStatus.citizenVerification:
-          statusHeadline = 'Awaiting Verification';
-          statusMessage = 'Resolution proof uploaded for complaint #${newReport.id}. Please confirm quality.';
+          statusHeadline = 'Citizen Verification Required';
+          statusMessage = 'Resolution proof submitted for complaint #${newReport.id}. Please verify resolution.';
           break;
         case ReportStatus.reopened:
           statusHeadline = 'Complaint Reopened';
-          statusMessage = 'Complaint #${newReport.id} reopened for field follow-up.';
+          statusMessage = 'Complaint #${newReport.id} was reopened for rework.';
           break;
         case ReportStatus.resolved:
         case ReportStatus.verified:
@@ -1955,12 +1955,12 @@ class _ReportDetailsBottomSheetState extends State<_ReportDetailsBottomSheet> {
       case ReportStatus.verified:
         currentStageIndex = 5;
         break;
-      case ReportStatus.reopened:
-        currentStageIndex = 3;
-        break;
       case ReportStatus.closed:
       case ReportStatus.rejected:
         currentStageIndex = 6;
+        break;
+      case ReportStatus.reopened:
+        currentStageIndex = 3;
         break;
     }
 

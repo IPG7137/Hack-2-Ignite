@@ -13,6 +13,7 @@ import {
   NotificationSeverity,
   NotificationChannel,
   NotificationDeliveryAudit,
+  DeliveryStatus,
   UserNotificationPreferences,
   DeviceTokenRecord,
   NotificationFilterParams,
@@ -378,7 +379,7 @@ export class NotificationService {
 
     for (const ch of requestedChannels) {
       const auditId = `audit-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
-      let status: 'PENDING' | 'SENT' | 'DELIVERED' | 'FAILED' | 'SKIPPED' = 'DELIVERED';
+      let status: DeliveryStatus = 'DELIVERED';
       let failureReason: string | undefined;
 
       if (ch === 'in_app') {
@@ -412,7 +413,7 @@ export class NotificationService {
         createdAt: now,
         sentAt: status === 'SENT' || status === 'DELIVERED' ? now : undefined,
         deliveredAt: status === 'DELIVERED' ? now : undefined,
-        failedAt: (status as any) === 'FAILED' ? now : undefined,
+        failedAt: (status as DeliveryStatus) === 'FAILED' ? now : undefined,
         districtId: params.districtId,
       };
 

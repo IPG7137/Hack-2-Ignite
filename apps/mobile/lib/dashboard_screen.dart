@@ -13,6 +13,7 @@ import 'auth_service.dart';
 import 'comprehensive_database_service.dart';
 import 'comprehensive_report_models.dart';
 import 'ai_copilot_sheet.dart';
+import 'civic_feed_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   final bool isAdmin;
@@ -399,12 +400,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
       childAspectRatio: 1.55,
       children: [
         _buildActionTile(
-          title: 'Track Grievances',
-          subtitle: 'Live status timeline',
-          icon: Icons.track_changes_rounded,
-          iconColor: const Color(0xFF155EEF),
-          bgColor: const Color(0xFFEFF8FF),
-          onTap: _navigateToTrackReports,
+          title: 'Local Civic Feed',
+          subtitle: 'Discover & support',
+          icon: Icons.forum_rounded,
+          iconColor: const Color(0xFFD97706),
+          bgColor: const Color(0xFFFFFBEB),
+          onTap: _navigateToCivicFeed,
         ),
         _buildActionTile(
           title: 'Nearby Civic Map',
@@ -415,11 +416,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
           onTap: _navigateToMapView,
         ),
         _buildActionTile(
-          title: 'My Reports',
-          subtitle: 'History & feedback',
-          icon: Icons.assignment_outlined,
-          iconColor: const Color(0xFF7C3AED),
-          bgColor: const Color(0xFFF5F3FF),
+          title: 'Track Grievances',
+          subtitle: 'Live status timeline',
+          icon: Icons.track_changes_rounded,
+          iconColor: const Color(0xFF155EEF),
+          bgColor: const Color(0xFFEFF8FF),
           onTap: _navigateToTrackReports,
         ),
         _buildActionTile(
@@ -863,6 +864,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  void _navigateToCivicFeed() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const CivicFeedScreen()),
     );
   }
 

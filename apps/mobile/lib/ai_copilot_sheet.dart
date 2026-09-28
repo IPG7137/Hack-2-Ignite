@@ -156,7 +156,7 @@ class _AiCopilotSheetState extends State<AiCopilotSheet> {
       }
 
       final latest = widget.reports.first;
-      final statusStr = latest.status.name.toUpperCase();
+      final statusStr = latest.statusDisplay.toUpperCase();
       final categoryStr = latest.categoryDisplayName ?? latest.category;
       final timeStr = latest.createdAt.toLocal().toString().split('.')[0];
 
@@ -168,9 +168,9 @@ class _AiCopilotSheetState extends State<AiCopilotSheet> {
             '• **Category:** $categoryStr\n'
             '• **Location:** ${latest.location}\n'
             '• **Reported On:** $timeStr\n'
-            '• **Assigned Officer:** ${latest.assignedOfficerName ?? "Duty Desk"}\n'
-            '• **Priority:** ${latest.priority.name.toUpperCase()}\n\n'
-            '${latest.status == ReportStatus.inProgress ? "Work is actively underway by field crews." : latest.status == ReportStatus.resolved ? "Field work complete. Awaiting your citizen satisfaction verification." : "Assigned and queued in municipal dispatch."}',
+            '• **Assigned Department:** ${latest.assignedOfficerName != null ? 'Officer ${latest.assignedOfficerName}' : categoryStr}\n'
+            '• **Priority:** ${latest.priority.displayName.toUpperCase()}\n\n'
+            '${(latest.status == ReportStatus.inProgress || latest.status == ReportStatus.progress) ? "Work is actively underway by field crews." : (latest.status == ReportStatus.resolved || latest.status == ReportStatus.citizenVerification) ? "Field work complete. Awaiting your citizen satisfaction verification." : "Assigned and queued in municipal dispatch."}',
         timestamp: DateTime.now(),
         suggestedPrompts: ['What evidence should I upload?'],
       );
@@ -308,7 +308,7 @@ class _AiCopilotSheetState extends State<AiCopilotSheet> {
                   width: 38,
                   height: 38,
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.15),
+                    color: Colors.white24,
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: const Center(

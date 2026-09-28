@@ -17,7 +17,13 @@ export interface AuthContextValue {
   signUp: (
     email: string,
     password: string,
-    metadata?: { fullName?: string; departmentName?: string; ward?: string }
+    metadata?: {
+      fullName?: string;
+      departmentName?: string;
+      ward?: string;
+      districtId?: string;
+      phone?: string;
+    }
   ) => Promise<{ success: boolean; error: string | null }>;
   signOut: () => Promise<void>;
   clearError: () => void;
@@ -88,16 +94,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // ──────────────────────────────────────────────────
     // STEP 1: Resolve identity from district registry
-    // This determines district/role BEFORE any Supabase call,
-    // so org context is always correct regardless of auth result.
     // ──────────────────────────────────────────────────
     const districtCred = resolveDistrictCredential(cleanInput);
     const isStateAdmin = isStateAdminLogin(cleanInput);
 
     // ──────────────────────────────────────────────────
     // STEP 2: Set org context in localStorage BEFORE auth
-    // This ensures CommandMap and dashboards read correct
-    // district context immediately after login resolves.
     // ──────────────────────────────────────────────────
     if (isStateAdmin) {
       localStorage.setItem(
@@ -114,7 +116,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         })
       );
     }
-    // If unknown loginId, org context stays as previously stored (do not change it blindly)
 
     // ──────────────────────────────────────────────────
     // STEP 3: Attempt real Supabase Auth
@@ -122,21 +123,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const res = await AuthService.signInWithPassword(emailToTry, cleanPassword);
       if (!res.error && res.user) {
-        // Determine role from district registry (overrides any Supabase 'citizen' role)
+        // Determine role: district credentials/state admin resolve their administrative roles,
+        // while citizen accounts strictly maintain their citizen role.
         let resolvedRole: UserRole = res.user.role;
         if (isStateAdmin) {
           resolvedRole = 'state_admin';
         } else if (districtCred) {
           resolvedRole = 'municipal_admin';
-        } else if (res.user.role === 'citizen') {
-          resolvedRole = 'municipal_admin'; // Default upgrade for demo
         }
 
         const finalUser: AuthUser = {
           ...res.user,
           role: resolvedRole,
-          fullName: districtCred?.fullName || STATE_ADMIN_CREDENTIAL.fullName || res.user.fullName,
-          departmentName: districtCred?.departmentName || STATE_ADMIN_CREDENTIAL.departmentName || res.user.departmentName,
+          fullName: districtCred?.fullName || (isStateAdmin ? STATE_ADMIN_CREDENTIAL.fullName : res.user.fullName),
+          departmentName: districtCred?.departmentName || (isStateAdmin ? STATE_ADMIN_CREDENTIAL.departmentName : res.user.departmentName),
         };
         setUser(finalUser);
         setSession(res.session);
@@ -147,9 +147,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (_) {}
 
     // ──────────────────────────────────────────────────
-    // STEP 4: Demo fallback (Supabase Auth not configured or failed)
-    // Uses district registry for district-specific identity.
-    // State admin and district admins are properly isolated.
+    // STEP 4: Demo / Offline fallback
     // ──────────────────────────────────────────────────
 
     if (isStateAdmin) {
@@ -196,7 +194,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       lowerInput.includes('crew');
 
     if (isOfficer) {
-      // Read org context to get correct district for officer
       let officerDistrict = 'Maharashtra';
       try {
         const saved = localStorage.getItem('civicresolve_org_context');
@@ -222,21 +219,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return { success: true, error: null };
     }
 
-    // Generic municipal admin fallback (for unknown IDs in demo environments)
-    const genericAdminUser: AuthUser = {
-      id: `admin-${Date.now()}`,
+    // Standard Citizen Account Fallback (Safe default for citizens)
+    const citizenUser: AuthUser = {
+      id: `cit-${Date.now()}`,
       email: emailToTry,
-      role: 'municipal_admin',
+      role: 'citizen',
       fullName: cleanInput.includes('@')
-        ? cleanInput.split('@')[0].toUpperCase() + ' Administrator'
-        : cleanInput.toUpperCase() + ' Administrator',
-      departmentId: 'DEP-HQ',
-      departmentName: 'Municipal Command Centre (HQ)',
-      ward: 'Maharashtra',
+        ? cleanInput.split('@')[0]
+        : cleanInput,
+      departmentId: 'DEP-CITIZEN',
+      departmentName: 'Citizen Grievance Desk',
+      ward: 'Zone 2 Command',
       isVerified: true,
     };
-    setUser(genericAdminUser);
-    localStorage.setItem('civicresolve_user', JSON.stringify(genericAdminUser));
+    setUser(citizenUser);
+    localStorage.setItem('civicresolve_user', JSON.stringify(citizenUser));
     setLoading(false);
     return { success: true, error: null };
   };
@@ -244,7 +241,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signUp = async (
     email: string,
     password: string,
-    metadata?: { fullName?: string; departmentName?: string; ward?: string }
+    metadata?: {
+      fullName?: string;
+      departmentName?: string;
+      ward?: string;
+      districtId?: string;
+      phone?: string;
+    }
   ) => {
     setError(null);
     setLoading(true);
