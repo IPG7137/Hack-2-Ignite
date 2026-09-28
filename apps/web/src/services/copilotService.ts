@@ -1344,9 +1344,10 @@ export class CopilotService {
     content += `• **At-Risk (≤ 8 hours remaining):** ${atRisk.length}\n\n`;
 
     if (overdue.length > 0) {
-      content += `#### 🚨 Overdue Grievances Requiring Immediate Action:\n`;
+      content += `#### 🚨 Overdue Grievances Requiring Immediate Action:\n\n`;
       overdue.slice(0, 4).forEach((c, idx) => {
-        content += `${idx + 1}. **#${c.id} — ${c.title}** (${c.categoryLabel}) · Priority: \`${c.priority.toUpperCase()}\`\n`;
+        const catLabel = c.categoryLabel && c.categoryLabel.toLowerCase() !== c.title.toLowerCase() ? ` (${c.categoryLabel})` : '';
+        content += `${idx + 1}. **#${c.id} — ${c.title}**${catLabel} · Priority: \`${c.priority.toUpperCase()}\`\n`;
       });
     }
 

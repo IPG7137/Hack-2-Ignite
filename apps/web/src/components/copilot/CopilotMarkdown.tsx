@@ -10,7 +10,7 @@ interface CopilotMarkdownProps {
 /**
  * Pure, safe React Markdown parser and renderer designed specifically for CivicResolve Copilot.
  * Operates without dangerouslySetInnerHTML to guarantee 0 XSS vulnerabilities while properly
- * rendering headings, bold/italics, lists, blockquotes, code blocks, and interactive complaint citation pills.
+ * rendering headings, bold/italics, lists, blockquotes, code blocks, tables, and interactive complaint citation pills.
  */
 export const CopilotMarkdown: React.FC<CopilotMarkdownProps> = ({
   content,
@@ -27,7 +27,7 @@ export const CopilotMarkdown: React.FC<CopilotMarkdownProps> = ({
     let index = 0;
 
     while (remaining.length > 0) {
-      // 1. Complaint Citation Pill: e.g. #CR-101, #comp-1, #c-road-1, #CR-3, #123
+      // 1. Complaint Citation Pill: e.g. #CR-101, #comp-1, #c-road-1, #CR-3, #123, #CR-8
       const complaintMatch = remaining.match(/^(?:#)(CR-[\w-]+|c-[\w-]+|comp-[\w-]+|\d+)/i);
       if (complaintMatch) {
         const fullToken = complaintMatch[0];
@@ -41,12 +41,12 @@ export const CopilotMarkdown: React.FC<CopilotMarkdownProps> = ({
                 e.stopPropagation();
                 onSelectComplaint(complaintId);
               }}
-              className={`inline-flex items-center px-1.5 py-0.5 mx-0.5 rounded font-mono text-[10px] font-bold transition-all shadow-2xs ${
+              className={`inline-flex items-center px-1.5 py-0.5 mx-0.5 rounded font-mono text-[10.5px] font-bold transition-all shadow-xs ${
                 isUser
                   ? 'bg-white/20 hover:bg-white/30 text-white border border-white/30'
                   : 'bg-blue-50 hover:bg-blue-100 text-[#1769D2] border border-blue-200 hover:border-blue-300'
               }`}
-              title={`Inspect complaint #${complaintId}`}
+              title={`Inspect grievance #${complaintId}`}
             >
               #{complaintId}
             </button>
@@ -55,7 +55,7 @@ export const CopilotMarkdown: React.FC<CopilotMarkdownProps> = ({
           nodes.push(
             <span
               key={`${keyPrefix}-pill-${index}`}
-              className={`inline-block font-mono font-bold px-1 py-0.2 rounded text-[10px] ${
+              className={`inline-block font-mono font-bold px-1.5 py-0.5 mx-0.5 rounded text-[10.5px] ${
                 isUser ? 'bg-white/20 text-white' : 'bg-blue-50 text-[#1769D2] border border-blue-200'
               }`}
             >
@@ -92,7 +92,7 @@ export const CopilotMarkdown: React.FC<CopilotMarkdownProps> = ({
         nodes.push(
           <code
             key={`${keyPrefix}-code-${index}`}
-            className={`px-1.5 py-0.5 rounded font-mono text-[11px] ${
+            className={`px-1.5 py-0.5 rounded font-mono text-[11px] font-medium ${
               isUser
                 ? 'bg-white/20 text-white border border-white/30'
                 : 'bg-slate-100 text-[#172B4D] border border-slate-200'
@@ -156,7 +156,7 @@ export const CopilotMarkdown: React.FC<CopilotMarkdownProps> = ({
     return nodes;
   };
 
-  // Block Lexer: Parse multi-line string into structured blocks (Headings, Lists, Blockquotes, Paragraphs, Code Blocks, HR)
+  // Block Lexer: Parse multi-line string into structured blocks (Headings, Lists, Blockquotes, Paragraphs, Code Blocks, Tables, HR)
   const renderBlocks = (): React.ReactNode[] => {
     const blocks: React.ReactNode[] = [];
     const lines = content.replace(/\r\n/g, '\n').split('\n');
@@ -195,8 +195,8 @@ export const CopilotMarkdown: React.FC<CopilotMarkdownProps> = ({
         continue;
       }
 
-      // 2. Horizontal Rule (--- or ***)
-      if (/^(\-{3,}|\*{3,})$/.test(trimmed)) {
+      // 2. Horizontal Rule (---, ***, ━━━━, ___)
+      if (/^(\-{3,}|\*{3,}|━{3,}|_{3,})$/.test(trimmed)) {
         blocks.push(
           <hr
             key={`hr-${lineIdx}`}
@@ -250,7 +250,7 @@ export const CopilotMarkdown: React.FC<CopilotMarkdownProps> = ({
           blocks.push(
             <h4
               key={`h4-${lineIdx}`}
-              className={`text-[11px] sm:text-xs font-bold uppercase tracking-wider mb-1 pt-1 ${
+              className={`text-[11.5px] sm:text-xs font-bold uppercase tracking-wider mb-1.5 pt-1.5 ${
                 isUser ? 'text-white/90' : 'text-[#1769D2]'
               }`}
             >
@@ -297,16 +297,61 @@ export const CopilotMarkdown: React.FC<CopilotMarkdownProps> = ({
         continue;
       }
 
-      // 5. Unordered List Items (- , * , • )
-      if (/^[-*•]\s+/.test(trimmed) || /^\s+[-*•]\s+/.test(line)) {
+      // 5. Tables (| col 1 | col 2 |)
+      if (trimmed.startsWith('|') && trimmed.endsWith('|')) {
+        const tableLines: string[] = [];
+        while (lineIdx < lines.length && lines[lineIdx].trim().startsWith('|') && lines[lineIdx].trim().endsWith('|')) {
+          tableLines.push(lines[lineIdx].trim());
+          lineIdx++;
+        }
+
+        if (tableLines.length >= 2) {
+          const headerCells = tableLines[0].split('|').slice(1, -1).map((c) => c.trim());
+          const isSeparator = /^[\s|:-]+$/.test(tableLines[1]);
+          const dataRows = (isSeparator ? tableLines.slice(2) : tableLines.slice(1)).map((row) =>
+            row.split('|').slice(1, -1).map((c) => c.trim())
+          );
+
+          blocks.push(
+            <div key={`table-${lineIdx}`} className="overflow-x-auto my-2 rounded-lg border border-[#E8EEF5]">
+              <table className="min-w-full text-xs text-left">
+                <thead className="bg-slate-50 border-b border-[#E8EEF5] text-slate-700 font-semibold">
+                  <tr>
+                    {headerCells.map((h, hIdx) => (
+                      <th key={`th-${hIdx}`} className="px-3 py-2">
+                        {renderInline(h, `th-${lineIdx}-${hIdx}`)}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 bg-white">
+                  {dataRows.map((r, rIdx) => (
+                    <tr key={`tr-${rIdx}`} className="hover:bg-slate-50/60">
+                      {r.map((cell, cIdx) => (
+                        <td key={`td-${cIdx}`} className="px-3 py-1.5 text-slate-700">
+                          {renderInline(cell, `td-${lineIdx}-${rIdx}-${cIdx}`)}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          );
+          continue;
+        }
+      }
+
+      // 6. Unordered List Items (- , * , • , ● , ✓ , ⚠️ , ○ )
+      if (/^[-*•●○▪✓⚠️]\s+/.test(trimmed) || /^\s+[-*•●○▪✓⚠️]\s+/.test(line)) {
         const listItems: Array<{ indent: number; text: string }> = [];
         while (
           lineIdx < lines.length &&
-          (/^[-*•]\s+/.test(lines[lineIdx].trim()) || /^\s+[-*•]\s+/.test(lines[lineIdx]))
+          (/^[-*•●○▪✓⚠️]\s+/.test(lines[lineIdx].trim()) || /^\s+[-*•●○▪✓⚠️]\s+/.test(lines[lineIdx]))
         ) {
           const l = lines[lineIdx];
           const indent = l.search(/\S/) >= 2 ? 1 : 0;
-          const text = l.trim().replace(/^[-*•]\s+/, '');
+          const text = l.trim().replace(/^[-*•●○▪✓⚠️]\s+/, '');
           listItems.push({ indent, text });
           lineIdx++;
         }
@@ -316,7 +361,7 @@ export const CopilotMarkdown: React.FC<CopilotMarkdownProps> = ({
             {listItems.map((item, iIdx) => (
               <li
                 key={`li-${lineIdx}-${iIdx}`}
-                className={`flex items-start gap-1.5 leading-relaxed text-xs ${
+                className={`flex items-start gap-2 leading-relaxed text-xs ${
                   item.indent > 0 ? 'ml-4' : ''
                 }`}
               >
@@ -325,7 +370,7 @@ export const CopilotMarkdown: React.FC<CopilotMarkdownProps> = ({
                     isUser ? 'bg-white' : 'bg-[#1769D2]'
                   }`}
                 />
-                <div className="flex-1">
+                <div className="flex-1 text-slate-800">
                   {renderInline(item.text, `ul-li-${lineIdx}-${iIdx}`)}
                 </div>
               </li>
@@ -335,12 +380,12 @@ export const CopilotMarkdown: React.FC<CopilotMarkdownProps> = ({
         continue;
       }
 
-      // 6. Ordered List Items (1. , 2. )
-      if (/^\d+\.\s+/.test(trimmed)) {
+      // 7. Ordered List Items (1. , 2. )
+      if (/^\d+[\.\)]\s+/.test(trimmed)) {
         const listItems: Array<{ num: string; text: string }> = [];
-        while (lineIdx < lines.length && /^\d+\.\s+/.test(lines[lineIdx].trim())) {
+        while (lineIdx < lines.length && /^\d+[\.\)]\s+/.test(lines[lineIdx].trim())) {
           const l = lines[lineIdx].trim();
-          const match = l.match(/^(\d+)\.\s+(.*)$/);
+          const match = l.match(/^(\d+)[\.\)]\s+(.*)$/);
           if (match) {
             listItems.push({ num: match[1], text: match[2] });
           }
@@ -348,20 +393,20 @@ export const CopilotMarkdown: React.FC<CopilotMarkdownProps> = ({
         }
 
         blocks.push(
-          <ol key={`ol-${lineIdx}`} className="space-y-1 my-1.5 list-none">
+          <ol key={`ol-${lineIdx}`} className="space-y-1.5 my-1.5 list-none">
             {listItems.map((item, iIdx) => (
               <li
                 key={`oli-${lineIdx}-${iIdx}`}
-                className="flex items-start gap-1.5 leading-relaxed text-xs"
+                className="flex items-start gap-2 leading-relaxed text-xs"
               >
                 <span
-                  className={`font-mono text-[11px] font-bold shrink-0 min-w-[1.2rem] ${
+                  className={`font-mono text-[11px] font-bold shrink-0 min-w-[1.2rem] pt-0.5 ${
                     isUser ? 'text-white/80' : 'text-[#1769D2]'
                   }`}
                 >
                   {item.num}.
                 </span>
-                <div className="flex-1">
+                <div className="flex-1 text-slate-800">
                   {renderInline(item.text, `ol-li-${lineIdx}-${iIdx}`)}
                 </div>
               </li>
@@ -371,7 +416,7 @@ export const CopilotMarkdown: React.FC<CopilotMarkdownProps> = ({
         continue;
       }
 
-      // 7. Regular Paragraph
+      // 8. Regular Paragraph
       const paraLines: string[] = [];
       while (
         lineIdx < lines.length &&
@@ -379,9 +424,10 @@ export const CopilotMarkdown: React.FC<CopilotMarkdownProps> = ({
         !lines[lineIdx].trim().startsWith('#') &&
         !lines[lineIdx].trim().startsWith('```') &&
         !lines[lineIdx].trim().startsWith('>') &&
-        !/^[-*•]\s+/.test(lines[lineIdx].trim()) &&
-        !/^\d+\.\s+/.test(lines[lineIdx].trim()) &&
-        !/^(\-{3,}|\*{3,})$/.test(lines[lineIdx].trim())
+        !lines[lineIdx].trim().startsWith('|') &&
+        !/^[-*•●○▪✓⚠️]\s+/.test(lines[lineIdx].trim()) &&
+        !/^\d+[\.\)]\s+/.test(lines[lineIdx].trim()) &&
+        !/^(\-{3,}|\*{3,}|━{3,}|_{3,})$/.test(lines[lineIdx].trim())
       ) {
         paraLines.push(lines[lineIdx].trim());
         lineIdx++;
@@ -389,7 +435,7 @@ export const CopilotMarkdown: React.FC<CopilotMarkdownProps> = ({
 
       if (paraLines.length > 0) {
         blocks.push(
-          <p key={`p-${lineIdx}`} className="leading-relaxed text-xs my-1">
+          <p key={`p-${lineIdx}`} className="leading-relaxed text-xs my-1 text-slate-800">
             {renderInline(paraLines.join(' '), `p-${lineIdx}`)}
           </p>
         );

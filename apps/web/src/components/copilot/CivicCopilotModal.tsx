@@ -19,6 +19,7 @@ import {
 import { Complaint } from '../../types/complaint';
 import { CopilotMessage, CopilotActionProposal } from '../../types/ai';
 import { CopilotService, CopilotSecurityContext } from '../../services/copilotService';
+import { CopilotMarkdown } from './CopilotMarkdown';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 import { Input } from '../ui/Input';
@@ -292,44 +293,23 @@ export const CivicCopilotModal: React.FC<CivicCopilotModalProps> = ({
                     : 'bg-white text-slate-800 border border-[#E8EEF5] rounded-tl-none space-y-3'
                 }`}
               >
-                {/* Formatted Content */}
-                <div className="prose prose-sm max-w-none text-slate-800 dark:text-slate-200 space-y-2">
-                  {msg.content.split('\n\n').map((para, idx) => {
-                    if (para.startsWith('### ')) {
-                      return (
-                        <h4 key={idx} className="font-bold text-sm text-[#172B4D] mt-2 mb-1 flex items-center gap-1.5">
-                          {para.replace('### ', '')}
-                        </h4>
-                      );
-                    }
-                    if (para.startsWith('#### ')) {
-                      return (
-                        <h5 key={idx} className="font-semibold text-xs text-slate-700 uppercase tracking-wide mt-2 mb-1">
-                          {para.replace('#### ', '')}
-                        </h5>
-                      );
-                    }
-                    if (para.startsWith('> ')) {
-                      return (
-                        <div key={idx} className="p-2.5 rounded-lg bg-blue-50/70 border-l-4 border-blue-500 text-xs text-blue-900 my-2">
-                          {para.replace(/^>\s*/gm, '')}
-                        </div>
-                      );
-                    }
-                    if (para.startsWith('• ') || para.startsWith('- ') || /^\d+\.\s/.test(para)) {
-                      return (
-                        <div key={idx} className="text-xs text-slate-700 whitespace-pre-line pl-1 my-1">
-                          {para}
-                        </div>
-                      );
-                    }
-                    return (
-                      <p key={idx} className="text-xs leading-relaxed whitespace-pre-line">
-                        {para}
-                      </p>
+                {/* Formatted Content with Zero Raw Stars/Hashes and Rich Markdown */}
+                <CopilotMarkdown
+                  content={msg.content}
+                  isUser={msg.sender === 'user'}
+                  onSelectComplaint={(complaintId) => {
+                    const compObj = complaints.find(
+                      (c) =>
+                        c.id.toLowerCase() === complaintId.toLowerCase() ||
+                        c.id.endsWith(complaintId) ||
+                        c.dbId?.toString() === complaintId
                     );
-                  })}
-                </div>
+                    if (compObj && onSelectComplaint) {
+                      onSelectComplaint(compObj);
+                      onClose();
+                    }
+                  }}
+                />
 
                 {/* Referenced Complaint Action Badges */}
                 {msg.referencedComplaintIds && msg.referencedComplaintIds.length > 0 && (
