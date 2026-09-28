@@ -6,6 +6,7 @@ import { ComplaintFilterParams } from '../services/api.interface';
 import { Button } from '../components/ui/Button';
 import { Download, PlusCircle, RefreshCw } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
+import { useOrganization } from '../context/OrganizationContext';
 
 interface ComplaintsProps {
   complaints: Complaint[];
@@ -29,6 +30,8 @@ export const Complaints: React.FC<ComplaintsProps> = ({
   error = null,
 }) => {
   const { user } = useAuth();
+  const { organizationType, district } = useOrganization();
+  const isStateAdmin = organizationType === 'STATE' || user?.role === 'state_admin';
   const isMunicipalAdmin = user?.role === 'municipal_admin' || user?.role === 'super_admin';
 
   return (
@@ -40,8 +43,10 @@ export const Complaints: React.FC<ComplaintsProps> = ({
             <span>
               {user?.role === 'citizen'
                 ? 'Citizen Grievance Tracking & Status History'
+                : isStateAdmin
+                ? 'Maharashtra State Grievance Inventory & Triage'
                 : isMunicipalAdmin
-                ? 'Municipal Grievance Inventory & Triage'
+                ? `${district || 'Municipal'} Grievance Inventory & Triage`
                 : `${user?.ward || 'Zone 2'} Grievance Queue & Operational Triage`}
             </span>
             <span className="text-xs font-mono px-2 py-0.5 rounded bg-blue-50 text-[#1769D2] border border-blue-200 font-semibold">
@@ -51,8 +56,10 @@ export const Complaints: React.FC<ComplaintsProps> = ({
           <p className="text-xs text-[#526581]">
             {user?.role === 'citizen'
               ? 'Real-time grievance tracking with transparent 7-step lifecycle progress and on-site resolution verification.'
+              : isStateAdmin
+              ? 'State-wide intake queue across all monitored districts with 7-step lifecycle enforcement and SLA adherence tracking.'
               : isMunicipalAdmin
-              ? 'City-wide intake queue with 7-step lifecycle enforcement and SLA adherence tracking.'
+              ? `${district || 'City'}-wide intake queue with 7-step lifecycle enforcement and SLA adherence tracking.`
               : `${user?.ward || 'Zone 2'} operational grievance intake with on-site dispatch and resolution verification.`}
           </p>
         </div>

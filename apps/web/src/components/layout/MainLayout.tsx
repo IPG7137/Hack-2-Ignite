@@ -99,9 +99,9 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
         onClick={() => setCopilotOpen(true)}
         aria-label="Open AI Decision Support Copilot"
         title="Open AI Decision Support Copilot"
-        className="fixed bottom-[24px] right-[24px] z-40 w-[56px] h-[56px] rounded-full bg-gradient-to-r from-[#1769D2] to-[#1E3A8A] hover:from-[#123B6D] hover:to-[#0A2540] text-white flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 active:scale-95 border-2 border-white/30 cursor-pointer group"
+        className="fixed bottom-[24px] right-[24px] z-40 w-[56px] h-[56px] rounded-full bg-[#1769D2] hover:bg-[#123B6D] text-white flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 active:scale-95 border-2 border-white/25 cursor-pointer group"
       >
-        <Bot className="w-6 h-6 text-white group-hover:scale-110 transition-transform duration-200" />
+        <Sparkles className="w-6 h-6 text-white group-hover:rotate-12 transition-transform duration-200" />
       </button>
 
       {/* Grounded Copilot Modal */}

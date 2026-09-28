@@ -173,6 +173,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         email: emailToTry,
         role: 'municipal_admin',
         fullName: districtCred.fullName,
+        districtId: districtCred.districtId,
         departmentId: `DEP-${districtCred.districtId.toUpperCase()}`,
         departmentName: districtCred.departmentName,
         ward: `${districtCred.districtName} District — Command HQ`,

@@ -73,7 +73,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const [radarTab, setRadarTab] = useState<'hotspots' | 'incidents'>('hotspots');
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const { isAuthenticated, user } = useAuth();
-  const { municipalCorporationName, currentCorporation, district, mapCenter } = useOrganization();
+  const { municipalCorporationName, currentCorporation, district, districtId, mapCenter } = useOrganization();
   const [lastSyncTime, setLastSyncTime] = useState<string>('');
   const [unifiedMetrics, setUnifiedMetrics] = useState<UnifiedDashboardMetrics | null>(null);
 
@@ -90,10 +90,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
     DashboardIntelligenceService.getUnifiedMetrics({
       complaints,
-      districtId: district?.toLowerCase() || 'solapur',
+      districtId: districtId || district?.toLowerCase() || 'pune',
       userRole: user?.role,
     }).then(setUnifiedMetrics);
-  }, [complaints, district, user?.role]);
+  }, [complaints, district, districtId, user?.role]);
 
   // Compute live active hotspot and incident counts for tab badges
   const intelligenceCounts = useMemo(() => {
