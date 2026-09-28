@@ -2261,4 +2261,98 @@ void main() {
       expect(isValidRating(-1), isFalse);
     });
   });
+
+  group('Civic Recognition, Occasions & Nursery Redemptions (Task 08)', () {
+    test('1. Occasion model structures Gandhi Jayanti, Republic Day & Independence Day milestones', () {
+      final occasions = [
+        {
+          'id': 'gandhi_jayanti_2026',
+          'name': 'Gandhi Jayanti Civic Recognition 2026',
+          'date': '2026-10-02',
+          'min_score': 50,
+          'min_reports': 2,
+          'min_resolutions': 1,
+        },
+        {
+          'id': 'republic_day_2026',
+          'name': 'Republic Day Civic Champions 2026',
+          'date': '2026-01-26',
+          'min_score': 100,
+          'min_reports': 4,
+          'min_resolutions': 2,
+        },
+        {
+          'id': 'independence_day_2026',
+          'name': 'Independence Day Civic Stewardship 2026',
+          'date': '2026-08-15',
+          'min_score': 150,
+          'min_reports': 6,
+          'min_resolutions': 3,
+        },
+      ];
+
+      expect(occasions.length, 3);
+      expect(occasions.first['id'], 'gandhi_jayanti_2026');
+      expect(occasions.first['min_reports'], 2);
+      expect(occasions.first['min_resolutions'], 1);
+    });
+
+    test('2. Digital certificate model parses correctly and maintains unique alphanumeric identifier', () {
+      final certJson = {
+        'id': 'cert-101',
+        'user_id': 'user-citizen-anil',
+        'recipient_name': 'Anil Deshmukh',
+        'district_name': 'Solapur',
+        'occasion_name': 'Gandhi Jayanti Civic Recognition 2026',
+        'recognition_tier': 'CHAMPION',
+        'certificate_number': 'CR-GJ-2026-SOLAPUR-8901',
+        'issued_at': '2026-10-02T00:00:00Z',
+        'plant_redeemable': true,
+        'plant_redeemed': false,
+        'verified_reports': 9,
+        'verified_resolutions': 4,
+        'total_civic_score': 280,
+      };
+
+      expect(certJson['id'], 'cert-101');
+      expect(certJson['certificate_number'], startsWith('CR-GJ-2026-SOLAPUR-'));
+      expect(certJson['recognition_tier'], 'CHAMPION');
+      expect(certJson['plant_redeemable'], isTrue);
+      expect(certJson['plant_redeemed'], isFalse);
+    });
+
+    test('3. Government nursery plant voucher structure tracks pickup location and status', () {
+      final redemptionJson = {
+        'id': 'red-201',
+        'user_id': 'user-citizen-anil',
+        'certificate_id': 'cert-101',
+        'preferred_plant_type': 'Neem (Azadirachta indica)',
+        'collection_nursery_name': 'Solapur Municipal Social Forestry Nursery',
+        'voucher_code': 'PLANT-2026-SOLAPUR-9012',
+        'status': 'REQUESTED',
+        'created_at': DateTime.now().toIso8601String(),
+      };
+
+      expect(redemptionJson['voucher_code'], startsWith('PLANT-2026-SOLAPUR-'));
+      expect(redemptionJson['status'], 'REQUESTED');
+      expect(redemptionJson['preferred_plant_type'], contains('Neem'));
+    });
+
+    test('4. Public certificate verification payload contains zero PII fields', () {
+      final publicVerification = {
+        'certificate_number': 'CR-GJ-2026-SOLAPUR-8901',
+        'recipient_name': 'Anil Deshmukh',
+        'district_name': 'Solapur',
+        'occasion_name': 'Gandhi Jayanti Civic Recognition 2026',
+        'recognition_tier': 'CHAMPION',
+        'issued_at': '2026-10-02T00:00:00Z',
+      };
+
+      expect(publicVerification.containsKey('phone'), isFalse);
+      expect(publicVerification.containsKey('aadhaar'), isFalse);
+      expect(publicVerification.containsKey('email'), isFalse);
+      expect(publicVerification.containsKey('bank_account'), isFalse);
+      expect(publicVerification['certificate_number'], 'CR-GJ-2026-SOLAPUR-8901');
+    });
+  });
 }

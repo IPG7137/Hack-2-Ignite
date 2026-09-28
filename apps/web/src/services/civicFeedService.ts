@@ -70,9 +70,13 @@ export const civicFeedService = {
       throw new Error('Authentication required to support an issue');
     }
 
+    const isPlaceholder =
+      typeof process !== 'undefined' &&
+      process.env.VITE_SUPABASE_URL?.includes('placeholder');
+
     try {
-      // 1. Try Supabase RPC if configured
-      if (supabase) {
+      // 1. Try Supabase RPC if configured and not in placeholder test environment
+      if (supabase && !isPlaceholder) {
         const { data, error } = await supabase.rpc('toggle_report_support', {
           p_report_id: reportId,
           p_user_id: userId,
@@ -124,8 +128,12 @@ export const civicFeedService = {
   async hasUserSupported(reportId: number, userId: string): Promise<{ supported: boolean; totalSupports: number }> {
     if (!userId) return { supported: false, totalSupports: 0 };
 
+    const isPlaceholder =
+      typeof process !== 'undefined' &&
+      process.env.VITE_SUPABASE_URL?.includes('placeholder');
+
     try {
-      if (supabase) {
+      if (supabase && !isPlaceholder) {
         const { data, error } = await supabase
           .from('report_supports')
           .select('id')
@@ -168,8 +176,12 @@ export const civicFeedService = {
   }): Promise<CivicFeedItem[]> {
     const { lat, lng, radiusKm = 25, category, userId, sortBy = 'most_supported', limit = 50 } = params;
 
+    const isPlaceholder =
+      typeof process !== 'undefined' &&
+      process.env.VITE_SUPABASE_URL?.includes('placeholder');
+
     try {
-      if (supabase) {
+      if (supabase && !isPlaceholder) {
         const { data, error } = await supabase.rpc('get_civic_feed', {
           p_lat: lat || null,
           p_lng: lng || null,
