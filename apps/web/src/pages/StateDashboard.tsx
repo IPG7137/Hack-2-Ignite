@@ -531,12 +531,23 @@ export const StateDashboard: React.FC<StateDashboardProps> = ({
                     onClick={() => setSelectedCorp(corp)}
                   >
                     <td className="py-3 px-4">
-                      <div className="font-bold text-[#123B6D] flex items-center gap-1.5">
-                        <Building2 className="w-3.5 h-3.5 text-[#1769D2] shrink-0" />
-                        <span>{corp.name}</span>
-                      </div>
-                      <div className="text-[10px] text-[#718096] font-mono mt-0.5">
-                        HQ: {corp.headquarters}
+                      <div className="font-bold text-[#123B6D] flex items-center gap-2.5">
+                        <div className="w-7 h-7 rounded bg-white p-0.5 border border-slate-200 shrink-0 shadow-2xs flex items-center justify-center overflow-hidden">
+                          <img
+                            src={corp.logoUrl}
+                            alt={corp.shortName}
+                            className="w-full h-full object-contain"
+                            onError={(e) => {
+                              (e.currentTarget as HTMLImageElement).src = '/assets/images/corporations/state.png';
+                            }}
+                          />
+                        </div>
+                        <div>
+                          <div className="leading-snug">{corp.name}</div>
+                          <div className="text-[10px] text-[#718096] font-mono">
+                            HQ: {corp.headquarters}
+                          </div>
+                        </div>
                       </div>
                     </td>
 
@@ -606,8 +617,17 @@ export const StateDashboard: React.FC<StateDashboardProps> = ({
           <Card className="w-full max-w-xl bg-white border-[#D9E2EC] shadow-2xl overflow-hidden animate-in fade-in zoom-in-95">
             {/* Modal Header */}
             <div className="bg-gradient-to-r from-[#123B6D] to-[#1E4E8C] px-5 py-4 text-white flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <Building2 className="w-5 h-5 text-blue-200" />
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-white p-1 border border-white/20 shrink-0 shadow-sm flex items-center justify-center overflow-hidden">
+                  <img
+                    src={selectedCorp.logoUrl}
+                    alt={selectedCorp.shortName}
+                    className="w-full h-full object-contain"
+                    onError={(e) => {
+                      (e.currentTarget as HTMLImageElement).src = '/assets/images/corporations/state.png';
+                    }}
+                  />
+                </div>
                 <div>
                   <h3 className="text-sm font-bold tracking-tight">{selectedCorp.name}</h3>
                   <p className="text-[11px] text-blue-100 font-mono">
@@ -647,6 +667,21 @@ export const StateDashboard: React.FC<StateDashboardProps> = ({
                   <span className="font-mono text-[#172B4D]">
                     {selectedCorp.coordinates.lat.toFixed(4)}°N, {selectedCorp.coordinates.lng.toFixed(4)}°E
                   </span>
+                </div>
+                <div className="col-span-2 pt-1 border-t border-slate-100 flex items-center justify-between">
+                  <div>
+                    <span className="text-[10px] uppercase font-bold text-[#718096] block">Official Website</span>
+                    <span className="text-[11px] text-[#526581] font-mono">{selectedCorp.emblemSource || 'Official Government Portal'}</span>
+                  </div>
+                  <a
+                    href={selectedCorp.officialWebsite}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-[#1769D2]/10 text-[#1769D2] hover:bg-[#1769D2]/20 font-bold text-[11px] transition-colors"
+                  >
+                    <span>Visit Portal</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
                 </div>
               </div>
 

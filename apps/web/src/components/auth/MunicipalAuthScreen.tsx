@@ -314,9 +314,25 @@ export const MunicipalAuthScreen: React.FC = () => {
                           ))}
                         </select>
                         {selectedCorpObj && (
-                          <div className="mt-1 text-[10px] text-[#526581] font-mono flex items-center gap-1">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                            <span>HQ: {selectedCorpObj.headquarters} • Status: {selectedCorpObj.status.toUpperCase()}</span>
+                          <div className="mt-2 p-2 rounded-lg bg-slate-50 border border-slate-200 flex items-center gap-2.5">
+                            <div className="w-8 h-8 rounded bg-white p-0.5 border border-slate-200 shrink-0 shadow-2xs flex items-center justify-center overflow-hidden">
+                              <img
+                                src={selectedCorpObj.logoUrl}
+                                alt={selectedCorpObj.shortName}
+                                className="w-full h-full object-contain"
+                                onError={(e) => {
+                                  (e.currentTarget as HTMLImageElement).src = '/assets/images/corporations/state.png';
+                                }}
+                              />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="text-[11px] font-bold text-[#123B6D] truncate">
+                                {selectedCorpObj.name}
+                              </div>
+                              <div className="text-[10px] text-[#526581] font-mono truncate">
+                                HQ: {selectedCorpObj.headquarters} • Status: {selectedCorpObj.status.toUpperCase()}
+                              </div>
+                            </div>
                           </div>
                         )}
                       </div>

@@ -5,6 +5,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { useOrganization } from '../../context/OrganizationContext';
 import { LoginModal } from '../auth/LoginModal';
 import { NotificationBell } from '../notifications/NotificationBell';
+import { STATE_OF_MAHARASHTRA_SEAL } from '../../data/maharashtraDistricts';
 
 interface CommandHeaderProps {
   onOpenCopilot?: () => void;
@@ -135,8 +136,19 @@ export const CommandHeader: React.FC<CommandHeaderProps> = ({
               <Menu className="w-5 h-5" />
             </button>
           )}
-          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-[#123B6D] text-white flex items-center justify-center font-bold text-base sm:text-lg shadow-xs border border-blue-900 shrink-0">
-            {isCitizen ? '👥' : isStateAdmin ? '🏛️' : '🏢'}
+          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-white overflow-hidden flex items-center justify-center p-0.5 shadow-2xs border border-slate-200 shrink-0">
+            <img
+              src={
+                isStateAdmin
+                  ? STATE_OF_MAHARASHTRA_SEAL
+                  : currentCorporation?.logoUrl || STATE_OF_MAHARASHTRA_SEAL
+              }
+              alt={currentCorporation?.name || 'Maharashtra Emblem'}
+              className="w-full h-full object-contain"
+              onError={(e) => {
+                (e.currentTarget as HTMLImageElement).src = STATE_OF_MAHARASHTRA_SEAL;
+              }}
+            />
           </div>
           <div className="flex flex-col justify-center min-w-0 overflow-hidden">
             <div className="text-xs sm:text-[13px] font-bold text-[#123B6D] tracking-tight leading-snug truncate">

@@ -23,6 +23,7 @@ import { cn } from '../../lib/utils';
 import { useAuth } from '../../hooks/useAuth';
 
 import { useOrganization } from '../../context/OrganizationContext';
+import { STATE_OF_MAHARASHTRA_SEAL } from '../../data/maharashtraDistricts';
 
 export type ActivePage =
   | 'dashboard'
@@ -245,20 +246,31 @@ export const CommandSidebar: React.FC<CommandSidebarProps> = ({
         )}
       >
         {/* Sidebar Header / Brand Indicator */}
-        <div className="p-3.5 border-b border-slate-100 flex items-center justify-between shrink-0 bg-slate-50/70">
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-md bg-[#123B6D] text-white flex items-center justify-center font-bold text-xs shadow-xs">
-              CR
+        <div className="p-3 border-b border-slate-100 flex items-center justify-between shrink-0 bg-slate-50/70">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-8 h-8 rounded-lg bg-white overflow-hidden flex items-center justify-center p-0.5 border border-slate-200 shadow-2xs shrink-0">
+              <img
+                src={
+                  isStateAdmin
+                    ? STATE_OF_MAHARASHTRA_SEAL
+                    : currentCorporation?.logoUrl || STATE_OF_MAHARASHTRA_SEAL
+                }
+                alt={currentCorporation?.shortName || 'Logo'}
+                className="w-full h-full object-contain"
+                onError={(e) => {
+                  (e.currentTarget as HTMLImageElement).src = STATE_OF_MAHARASHTRA_SEAL;
+                }}
+              />
             </div>
-            <div>
-              <div className="text-xs font-bold tracking-tight text-[#123B6D]">
-                CIVICRESOLVE
+            <div className="min-w-0">
+              <div className="text-xs font-bold tracking-tight text-[#123B6D] truncate">
+                {isStateAdmin ? 'MAHARASHTRA' : currentCorporation?.shortName || 'CIVICRESOLVE'}
               </div>
-              <div className="text-[10px] text-slate-500 font-medium truncate max-w-[160px]">
+              <div className="text-[10px] text-slate-500 font-medium truncate max-w-[150px]">
                 {isStateAdmin
-                  ? 'Maharashtra State Admin'
-                  : currentCorporation?.shortName
-                  ? `${currentCorporation.shortName} Command HQ`
+                  ? 'State Admin HQ'
+                  : currentCorporation?.name
+                  ? currentCorporation.name
                   : isMunicipalAdmin
                   ? 'Command HQ'
                   : user?.ward || 'Zone 2 Desk'}
