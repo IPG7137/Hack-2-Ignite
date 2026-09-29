@@ -9,9 +9,76 @@ import { PriorityEngine } from '../../services/priorityEngine';
 import { EmergingProblemEngine, EmergingHotspotResult } from '../../services/emergingProblemEngine';
 import { IncidentGroupingEngine, PotentialIncidentResult } from '../../services/incidentGroupingEngine';
 import { getAdministrativeBoundariesGeoJSON } from '../../data/maharashtraBoundaries';
-import { ChevronDown, ChevronUp, Layers, Flame, MapPin, Eye, Compass } from 'lucide-react';
+import {
+  ChevronDown,
+  ChevronUp,
+  Layers,
+  Flame,
+  MapPin,
+  Eye,
+  Compass,
+  Globe,
+  Crosshair,
+  Loader2,
+  Navigation,
+  Check,
+  AlertCircle,
+  X,
+} from 'lucide-react';
 
 export type MapViewMode = 'hybrid' | 'markers' | 'heatmap' | 'hotspots';
+export type BaseMapStyle = 'voyager' | 'satellite' | 'positron' | 'dark';
+
+export const BASEMAPS: Record<
+  BaseMapStyle,
+  { name: string; icon: string; tiles: string[]; maxZoom: number; attribution: string }
+> = {
+  voyager: {
+    name: 'Streets & Terrain',
+    icon: '🗺️',
+    tiles: [
+      'https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
+      'https://b.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
+      'https://c.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
+      'https://d.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
+    ],
+    maxZoom: 20,
+    attribution: '&copy; CARTO &copy; OpenStreetMap contributors',
+  },
+  satellite: {
+    name: 'Satellite View',
+    icon: '🛰️',
+    tiles: [
+      'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    ],
+    maxZoom: 19,
+    attribution: '&copy; Esri World Imagery',
+  },
+  positron: {
+    name: 'Clean Light',
+    icon: '🏙️',
+    tiles: [
+      'https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
+      'https://b.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
+      'https://c.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
+      'https://d.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
+    ],
+    maxZoom: 20,
+    attribution: '&copy; CARTO &copy; OpenStreetMap contributors',
+  },
+  dark: {
+    name: 'Night Ops',
+    icon: '🌙',
+    tiles: [
+      'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
+      'https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
+      'https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
+      'https://d.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
+    ],
+    maxZoom: 20,
+    attribution: '&copy; CARTO &copy; OpenStreetMap contributors',
+  },
+};
 
 export interface HotspotThresholdConfig {
   clusterRadiusMeters: number;
@@ -110,27 +177,61 @@ export const CommandMap: React.FC<CommandMapProps> = ({
   const [legendCollapsed, setLegendCollapsed] = useState(false);
   const prevOrgCenterRef = useRef<string>('');
 
-  // 1. Initialize MapLibre
+  // Enhanced Basemap & Geolocation State
+  const [activeBasemap, setActiveBasemap] = useState<BaseMapStyle>('voyager');
+  const [liveLocation, setLiveLocation] = useState<{ lat: number; lng: number; accuracy: number } | null>(null);
+  const [isLocating, setIsLocating] = useState(false);
+  const [gpsToast, setGpsToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+  const [cursorCoords, setCursorCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [currentZoom, setCurrentZoom] = useState<number>(orgCenter?.zoom ?? DEFAULT_MAP_CENTER.zoom);
+  const liveGpsMarkerRef = useRef<maplibregl.Marker | null>(null);
+
+  // 1. Initialize MapLibre with High-Fidelity Multi-Source Basemaps & Ocean Background
   useEffect(() => {
     if (!mapContainer.current) return;
 
     const mapStyle: maplibregl.StyleSpecification = {
       version: 8,
       sources: {
-        'osm-tiles': {
+        'basemap-source-voyager': {
           type: 'raster',
-          tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+          tiles: BASEMAPS.voyager.tiles,
           tileSize: 256,
-          attribution: '&copy; OpenStreetMap contributors',
+          attribution: BASEMAPS.voyager.attribution,
+        },
+        'basemap-source-satellite': {
+          type: 'raster',
+          tiles: BASEMAPS.satellite.tiles,
+          tileSize: 256,
+          attribution: BASEMAPS.satellite.attribution,
+        },
+        'basemap-source-positron': {
+          type: 'raster',
+          tiles: BASEMAPS.positron.tiles,
+          tileSize: 256,
+          attribution: BASEMAPS.positron.attribution,
+        },
+        'basemap-source-dark': {
+          type: 'raster',
+          tiles: BASEMAPS.dark.tiles,
+          tileSize: 256,
+          attribution: BASEMAPS.dark.attribution,
         },
       },
       layers: [
         {
-          id: 'osm-layer',
+          id: 'map-ocean-bg',
+          type: 'background',
+          paint: {
+            'background-color': '#d2e4f5',
+          },
+        },
+        {
+          id: 'basemap-raster-layer',
           type: 'raster',
-          source: 'osm-tiles',
+          source: 'basemap-source-voyager',
           minzoom: 0,
-          maxzoom: 19,
+          maxzoom: 20,
         },
       ],
     };
@@ -141,6 +242,8 @@ export const CommandMap: React.FC<CommandMapProps> = ({
       style: mapStyle,
       center: [initCenter.lng, initCenter.lat],
       zoom: initCenter.zoom,
+      minZoom: 1.5,
+      maxZoom: 20,
       attributionControl: false,
     });
     map.current = mapInstance;
@@ -153,6 +256,14 @@ export const CommandMap: React.FC<CommandMapProps> = ({
       new maplibregl.AttributionControl({ compact: true }),
       'bottom-right'
     );
+
+    mapInstance.on('mousemove', (e) => {
+      setCursorCoords({ lat: e.lngLat.lat, lng: e.lngLat.lng });
+    });
+
+    mapInstance.on('zoom', () => {
+      setCurrentZoom(Number(mapInstance.getZoom().toFixed(1)));
+    });
 
     mapInstance.on('load', () => {
       if (organizationType === 'STATE') {
@@ -280,6 +391,9 @@ export const CommandMap: React.FC<CommandMapProps> = ({
 
     return () => {
       resizeObserver.disconnect();
+      if (liveGpsMarkerRef.current) {
+        liveGpsMarkerRef.current.remove();
+      }
       mapInstance.remove();
     };
   }, []);
@@ -920,9 +1034,314 @@ export const CommandMap: React.FC<CommandMapProps> = ({
     onSelectIncident,
   ]);
 
+  // Basemap switching handler
+  const handleSelectBasemap = (style: BaseMapStyle) => {
+    setActiveBasemap(style);
+    if (!map.current) return;
+    try {
+      if (map.current.getLayer('basemap-raster-layer')) {
+        map.current.removeLayer('basemap-raster-layer');
+      }
+      const firstDataLayer = map.current.getLayer('admin-boundaries-fill')
+        ? 'admin-boundaries-fill'
+        : map.current.getLayer('complaints-heatmap-layer')
+        ? 'complaints-heatmap-layer'
+        : undefined;
+
+      map.current.addLayer(
+        {
+          id: 'basemap-raster-layer',
+          type: 'raster',
+          source: `basemap-source-${style}`,
+          minzoom: 0,
+          maxzoom: BASEMAPS[style].maxZoom,
+        },
+        firstDataLayer
+      );
+    } catch (err) {
+      console.warn('Error switching basemap:', err);
+    }
+  };
+
+  // Live Geolocation API Handler
+  const handleFetchLiveLocation = () => {
+    if (!('geolocation' in navigator)) {
+      setGpsToast({
+        message: 'Geolocation is not supported by your browser.',
+        type: 'error',
+      });
+      return;
+    }
+
+    setIsLocating(true);
+    setGpsToast({
+      message: 'Acquiring high-accuracy live GPS coordinates...',
+      type: 'info',
+    });
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setIsLocating(false);
+        const { latitude, longitude, accuracy } = pos.coords;
+        setLiveLocation({ lat: latitude, lng: longitude, accuracy });
+
+        setGpsToast({
+          message: `Live Location: ${latitude.toFixed(4)}°, ${longitude.toFixed(4)}° (±${Math.round(accuracy)}m)`,
+          type: 'success',
+        });
+
+        setTimeout(() => {
+          setGpsToast((curr) => (curr?.type === 'success' ? null : curr));
+        }, 4500);
+
+        if (map.current) {
+          map.current.flyTo({
+            center: [longitude, latitude],
+            zoom: 15,
+            speed: 1.5,
+            curve: 1.4,
+            essential: true,
+          });
+
+          if (liveGpsMarkerRef.current) {
+            liveGpsMarkerRef.current.setLngLat([longitude, latitude]);
+          } else {
+            const el = document.createElement('div');
+            el.className = 'live-gps-beacon-node';
+            el.setAttribute('title', 'Your Live Location');
+            el.innerHTML = `
+              <div style="position: relative; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; cursor: pointer;">
+                <div style="position: absolute; width: 34px; height: 34px; border-radius: 50%; background: rgba(37, 99, 235, 0.28); animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;"></div>
+                <div style="position: absolute; width: 20px; height: 20px; border-radius: 50%; background: rgba(59, 130, 246, 0.35); border: 1.5px solid rgba(255, 255, 255, 0.9);"></div>
+                <div style="position: relative; width: 11px; height: 11px; border-radius: 50%; background: #2563EB; border: 2px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.4);"></div>
+              </div>
+            `;
+
+            const popup = new maplibregl.Popup({ offset: 16 }).setHTML(`
+              <div style="font-family: system-ui, -apple-system, sans-serif; padding: 4px; min-width: 140px; color: #1E293B;">
+                <div style="display: flex; align-items: center; gap: 4px; font-weight: 700; color: #1D4ED8; font-size: 11px;">
+                  <span>🎯</span> Live GPS Location
+                </div>
+                <div style="font-size: 10px; color: #475569; margin-top: 2px; font-family: monospace;">
+                  ${latitude.toFixed(5)}°, ${longitude.toFixed(5)}°
+                </div>
+                <div style="font-size: 9px; color: #16A34A; font-weight: 600; margin-top: 2px;">
+                  GPS Accuracy: ±${Math.round(accuracy)}m
+                </div>
+              </div>
+            `);
+
+            const marker = new maplibregl.Marker({ element: el })
+              .setLngLat([longitude, latitude])
+              .setPopup(popup)
+              .addTo(map.current);
+
+            liveGpsMarkerRef.current = marker;
+          }
+        }
+      },
+      (err) => {
+        setIsLocating(false);
+        let errMsg = 'Failed to fetch live GPS location.';
+        if (err.code === 1) {
+          errMsg = 'Location permission was denied. Please allow location access in your browser.';
+        } else if (err.code === 2) {
+          errMsg = 'Position unavailable. Check device GPS or network.';
+        } else if (err.code === 3) {
+          errMsg = 'Location request timed out. Please try again.';
+        }
+        setGpsToast({
+          message: errMsg,
+          type: 'error',
+        });
+        setTimeout(() => {
+          setGpsToast((curr) => (curr?.type === 'error' ? null : curr));
+        }, 5000);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 12000,
+        maximumAge: 30000,
+      }
+    );
+  };
+
+  // Macro World / Subcontinent View
+  const handleZoomToWorld = () => {
+    if (!map.current) return;
+    map.current.flyTo({
+      center: [78.9629, 20.5937],
+      zoom: 3.8,
+      speed: 1.2,
+      curve: 1.4,
+      essential: true,
+    });
+  };
+
+  // State View
+  const handleZoomToState = () => {
+    if (!map.current) return;
+    map.current.fitBounds(
+      [
+        [72.5, 15.6],
+        [81.0, 22.0],
+      ],
+      { padding: 35, duration: 1000 }
+    );
+  };
+
+  // District / Corporation HQ View
+  const handleZoomToHQ = () => {
+    if (!map.current) return;
+    const target = orgCenter ?? DEFAULT_MAP_CENTER;
+    map.current.flyTo({
+      center: [target.lng, target.lat],
+      zoom: target.zoom ?? 12,
+      speed: 1.2,
+      essential: true,
+    });
+  };
+
+  // Fit all complaints on screen
+  const handleFitAll = () => {
+    if (!map.current) return;
+    const validComplaints = complaints.filter((c) => hasValidCoordinates(c));
+    if (validComplaints.length > 0) {
+      const bounds = new maplibregl.LngLatBounds();
+      validComplaints.forEach((c) => {
+        bounds.extend([c.location.longitude, c.location.latitude]);
+      });
+      map.current.fitBounds(bounds, { padding: 60, maxZoom: 14, duration: 800 });
+    } else if (organizationType === 'STATE') {
+      handleZoomToState();
+    } else {
+      handleZoomToHQ();
+    }
+  };
+
   return (
-    <div className="relative w-full h-full min-h-[400px] rounded-lg overflow-hidden border border-[#D9E2EC] bg-[#F8FAFC] shadow-sm">
+    <div className="relative w-full h-full min-h-[300px] rounded-lg overflow-hidden border border-[#D9E2EC] bg-[#eef4f8] shadow-sm select-none">
       <div ref={mapContainer} className="w-full h-full" />
+
+      {/* Top Left: Basemap Switcher Pill */}
+      <div className="absolute top-2.5 left-2.5 z-10 flex items-center bg-white/95 backdrop-blur-md rounded-lg p-0.5 border border-slate-200/90 shadow-md">
+        {(Object.keys(BASEMAPS) as BaseMapStyle[]).map((key) => {
+          const b = BASEMAPS[key];
+          const isActive = activeBasemap === key;
+          return (
+            <button
+              key={key}
+              type="button"
+              onClick={() => handleSelectBasemap(key)}
+              className={`flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-semibold transition-all ${
+                isActive
+                  ? 'bg-[#1769D2] text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              }`}
+              title={`Switch to ${b.name}`}
+            >
+              <span>{b.icon}</span>
+              <span className="hidden sm:inline">{b.name}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Top Right: Quick Views & Live Location (Positioned to the left of MapLibre Navigation Control) */}
+      <div className="absolute top-2.5 right-12 z-10 flex items-center gap-1 bg-white/95 backdrop-blur-md rounded-lg p-0.5 border border-slate-200/90 shadow-md">
+        {/* Live GPS Locate Me Button */}
+        <button
+          type="button"
+          onClick={handleFetchLiveLocation}
+          disabled={isLocating}
+          className={`flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-bold transition-all ${
+            liveLocation
+              ? 'bg-emerald-600 text-white shadow-xs'
+              : 'bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200'
+          }`}
+          title="Fetch Live GPS Location using Geolocation API"
+        >
+          {isLocating ? (
+            <Loader2 className="w-3 h-3 animate-spin text-blue-600" />
+          ) : (
+            <Crosshair className={`w-3 h-3 ${liveLocation ? 'text-white' : 'text-blue-600'}`} />
+          )}
+          <span className="font-semibold">{isLocating ? 'Locating...' : liveLocation ? 'Live GPS' : 'Locate Me'}</span>
+        </button>
+
+        {/* World / India Macro View */}
+        <button
+          type="button"
+          onClick={handleZoomToWorld}
+          className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-semibold text-slate-700 hover:text-slate-900 hover:bg-slate-100 transition-colors"
+          title="Macro World & India View"
+        >
+          <Globe className="w-3 h-3 text-indigo-600" />
+          <span className="hidden sm:inline">World</span>
+        </button>
+
+        {/* Maharashtra State View */}
+        <button
+          type="button"
+          onClick={handleZoomToState}
+          className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-semibold text-slate-700 hover:text-slate-900 hover:bg-slate-100 transition-colors"
+          title="Zoom to Maharashtra State View"
+        >
+          <Navigation className="w-3 h-3 text-amber-600" />
+          <span className="hidden sm:inline">State</span>
+        </button>
+
+        {/* District / Corporation HQ View */}
+        <button
+          type="button"
+          onClick={handleZoomToHQ}
+          className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-semibold text-slate-700 hover:text-slate-900 hover:bg-slate-100 transition-colors"
+          title="Center on District / Municipal HQ"
+        >
+          <Compass className="w-3 h-3 text-[#1769D2]" />
+          <span className="hidden sm:inline">HQ</span>
+        </button>
+
+        {/* Fit All Incidents */}
+        <button
+          type="button"
+          onClick={handleFitAll}
+          className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-semibold text-slate-700 hover:text-slate-900 hover:bg-slate-100 transition-colors"
+          title="Fit all complaints on screen"
+        >
+          <Layers className="w-3 h-3 text-slate-600" />
+          <span className="hidden sm:inline">Fit All</span>
+        </button>
+      </div>
+
+      {/* Top Center: GPS Toast Notification Banner */}
+      {gpsToast && (
+        <div
+          className={`absolute top-12 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 px-3 py-1.5 rounded-full text-[11px] font-medium shadow-lg backdrop-blur-md transition-all ${
+            gpsToast.type === 'success'
+              ? 'bg-emerald-900/90 text-emerald-100 border border-emerald-500/50'
+              : gpsToast.type === 'error'
+              ? 'bg-rose-900/90 text-rose-100 border border-rose-500/50'
+              : 'bg-slate-900/90 text-blue-100 border border-blue-500/50'
+          }`}
+        >
+          {gpsToast.type === 'success' ? (
+            <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+          ) : gpsToast.type === 'error' ? (
+            <AlertCircle className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+          ) : (
+            <Loader2 className="w-3.5 h-3.5 text-blue-400 animate-spin shrink-0" />
+          )}
+          <span className="truncate max-w-[280px] sm:max-w-md">{gpsToast.message}</span>
+          <button
+            type="button"
+            onClick={() => setGpsToast(null)}
+            className="ml-1 text-white/60 hover:text-white"
+          >
+            <X className="w-3 h-3" />
+          </button>
+        </div>
+      )}
 
       {/* Accessible Collapsible Map Legend (Section 15) */}
       <div
@@ -1018,6 +1437,23 @@ export const CommandMap: React.FC<CommandMapProps> = ({
             </div>
           </div>
         )}
+      </div>
+
+      {/* Bottom Right: Live Cursor Coordinate & Zoom Telemetry HUD */}
+      <div className="absolute bottom-2 right-12 z-10 hidden sm:flex items-center gap-2 bg-slate-900/85 backdrop-blur-md text-white font-mono text-[9px] px-2.5 py-1 rounded-md border border-slate-700/60 shadow-sm pointer-events-none">
+        {cursorCoords ? (
+          <>
+            <span className="text-slate-400">Lat:</span>
+            <span className="text-emerald-400 font-semibold">{cursorCoords.lat.toFixed(4)}°</span>
+            <span className="text-slate-400">Lng:</span>
+            <span className="text-emerald-400 font-semibold">{cursorCoords.lng.toFixed(4)}°</span>
+          </>
+        ) : (
+          <span className="text-slate-400">Coordinates HUD</span>
+        )}
+        <span className="text-slate-600">|</span>
+        <span className="text-slate-400">Zoom:</span>
+        <span className="text-blue-300 font-semibold">{currentZoom.toFixed(1)}</span>
       </div>
     </div>
   );

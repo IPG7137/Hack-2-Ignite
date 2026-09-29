@@ -680,27 +680,6 @@ export const LiveMap: React.FC<LiveMapProps> = ({
             corporationId={municipalCorporationId}
           />
 
-          {/* Floating Map Controls (Top Right) */}
-          <div className="absolute top-3 right-3 z-10 flex flex-col gap-1.5 pointer-events-auto">
-            <button
-              type="button"
-              onClick={() => setFocusCoords({ lat: mapCenter.lat, lng: mapCenter.lng })}
-              className="px-2.5 py-1.5 rounded-lg bg-white/95 backdrop-blur-xs border border-slate-200 text-slate-700 text-[11px] font-mono font-bold shadow-md hover:bg-slate-50 transition-colors flex items-center gap-1.5"
-              title="Reset center to current district HQ"
-            >
-              <Compass className="w-3.5 h-3.5 text-[#1769D2]" />
-              <span>Center HQ</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setFocusCoords(null)}
-              className="px-2.5 py-1.5 rounded-lg bg-white/95 backdrop-blur-xs border border-slate-200 text-slate-700 text-[11px] font-mono font-bold shadow-md hover:bg-slate-50 transition-colors flex items-center gap-1.5"
-              title="Fit all incidents on screen"
-            >
-              <Layers className="w-3.5 h-3.5 text-slate-600" />
-              <span>Fit All</span>
-            </button>
-          </div>
 
           {/* Empty state banner when no complaints match (Section 26) */}
           {filteredComplaints.length === 0 && (
