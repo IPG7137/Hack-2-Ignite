@@ -27,37 +27,50 @@ import {
 } from 'lucide-react';
 
 export type MapViewMode = 'hybrid' | 'markers' | 'heatmap' | 'hotspots';
-export type BaseMapStyle = 'osm' | 'voyager' | 'satellite' | 'dark';
+export type BaseMapStyle = 'google' | 'googleHybrid' | 'googleTerrain' | 'satellite' | 'dark';
 
 export const BASEMAPS: Record<
   BaseMapStyle,
   { name: string; icon: string; tiles: string[]; maxZoom: number; attribution: string }
 > = {
-  osm: {
-    name: 'OpenStreetMap',
+  google: {
+    name: 'Google Maps',
     icon: '🗺️',
     tiles: [
-      'https://tile.openstreetmap.de/{z}/{x}/{y}.png',
-      'https://a.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png',
-      'https://b.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png',
+      'https://mt0.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
+      'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
+      'https://mt2.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
+      'https://mt3.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
     ],
-    maxZoom: 19,
-    attribution: '&copy; OpenStreetMap contributors',
+    maxZoom: 22,
+    attribution: '&copy; Google Maps',
   },
-  voyager: {
-    name: 'CARTO Streets',
-    icon: '🏙️',
+  googleHybrid: {
+    name: 'Google Satellite',
+    icon: '🛰️',
     tiles: [
-      'https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
-      'https://b.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
-      'https://c.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
-      'https://d.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
+      'https://mt0.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',
+      'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',
+      'https://mt2.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',
+      'https://mt3.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',
+    ],
+    maxZoom: 22,
+    attribution: '&copy; Google Maps',
+  },
+  googleTerrain: {
+    name: 'Google Terrain',
+    icon: '⛰️',
+    tiles: [
+      'https://mt0.google.com/vt/lyrs=p&x={x}&y={y}&z={z}',
+      'https://mt1.google.com/vt/lyrs=p&x={x}&y={y}&z={z}',
+      'https://mt2.google.com/vt/lyrs=p&x={x}&y={y}&z={z}',
+      'https://mt3.google.com/vt/lyrs=p&x={x}&y={y}&z={z}',
     ],
     maxZoom: 20,
-    attribution: '&copy; CARTO &copy; OpenStreetMap contributors',
+    attribution: '&copy; Google Maps',
   },
   satellite: {
-    name: 'Satellite View',
+    name: 'Esri Satellite',
     icon: '🛰️',
     tiles: [
       'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
@@ -177,7 +190,7 @@ export const CommandMap: React.FC<CommandMapProps> = ({
   const prevOrgCenterRef = useRef<string>('');
 
   // Enhanced Basemap & Geolocation State
-  const [activeBasemap, setActiveBasemap] = useState<BaseMapStyle>('osm');
+  const [activeBasemap, setActiveBasemap] = useState<BaseMapStyle>('google');
   const [liveLocation, setLiveLocation] = useState<{ lat: number; lng: number; accuracy: number } | null>(null);
   const [isLocating, setIsLocating] = useState(false);
   const [gpsToast, setGpsToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
@@ -192,17 +205,23 @@ export const CommandMap: React.FC<CommandMapProps> = ({
     const mapStyle: maplibregl.StyleSpecification = {
       version: 8,
       sources: {
-        'basemap-source-osm': {
+        'basemap-source-google': {
           type: 'raster',
-          tiles: BASEMAPS.osm.tiles,
+          tiles: BASEMAPS.google.tiles,
           tileSize: 256,
-          attribution: BASEMAPS.osm.attribution,
+          attribution: BASEMAPS.google.attribution,
         },
-        'basemap-source-voyager': {
+        'basemap-source-googleHybrid': {
           type: 'raster',
-          tiles: BASEMAPS.voyager.tiles,
+          tiles: BASEMAPS.googleHybrid.tiles,
           tileSize: 256,
-          attribution: BASEMAPS.voyager.attribution,
+          attribution: BASEMAPS.googleHybrid.attribution,
+        },
+        'basemap-source-googleTerrain': {
+          type: 'raster',
+          tiles: BASEMAPS.googleTerrain.tiles,
+          tileSize: 256,
+          attribution: BASEMAPS.googleTerrain.attribution,
         },
         'basemap-source-satellite': {
           type: 'raster',
@@ -222,15 +241,15 @@ export const CommandMap: React.FC<CommandMapProps> = ({
           id: 'map-land-bg',
           type: 'background',
           paint: {
-            'background-color': '#f2efe9',
+            'background-color': '#e5e3df',
           },
         },
         {
           id: 'basemap-raster-layer',
           type: 'raster',
-          source: 'basemap-source-osm',
+          source: 'basemap-source-google',
           minzoom: 0,
-          maxzoom: 19,
+          maxzoom: 22,
         },
       ],
     };
@@ -444,8 +463,8 @@ export const CommandMap: React.FC<CommandMapProps> = ({
   const allActiveComplaints = React.useMemo(() => {
     if (!liveLocation) return complaints;
 
-    // Check if any existing complaints are already within 25km of user
-    const hasNearby = complaints.some((c) => {
+    // Check how many complaints are within 1.5km of user
+    const closeComplaints = complaints.filter((c) => {
       if (!c.location?.latitude || !c.location?.longitude) return false;
       const d = getHaversineDistanceMeters(
         liveLocation.lat,
@@ -453,18 +472,18 @@ export const CommandMap: React.FC<CommandMapProps> = ({
         c.location.latitude,
         c.location.longitude
       );
-      return d < 25000;
+      return d < 1500;
     });
 
-    if (hasNearby) return complaints;
+    if (closeComplaints.length >= 4) return complaints;
 
-    // Generate local civic issues situated around the user's real live location
+    // Generate 5 distinct, unclustered civic issues situated in 5 directions around user's live location (~400-650m)
     const localIssues: Complaint[] = [
       {
         id: 'CR-LIVE-01',
         dbId: 999901,
-        title: 'Water Supply Pipeline Rupture & Leakage',
-        description: 'High-pressure distribution main crack causing localized street flooding and low water pressure.',
+        title: 'Water Supply Pipeline Rupture & High Pressure Leakage',
+        description: 'Main municipal water supply pipeline damaged causing severe road flooding and potable water supply cutoff.',
         category: 'water_sewage',
         categoryLabel: 'Water & Sewage',
         priority: 'urgent',
@@ -472,10 +491,10 @@ export const CommandMap: React.FC<CommandMapProps> = ({
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         location: {
-          latitude: Number((liveLocation.lat + 0.0028).toFixed(5)),
-          longitude: Number((liveLocation.lng - 0.0025).toFixed(5)),
-          address: 'Main Arterial Road Junction',
-          landmark: 'Live GPS Sector',
+          latitude: Number((liveLocation.lat + 0.0042).toFixed(5)),
+          longitude: Number((liveLocation.lng + 0.0018).toFixed(5)),
+          address: 'North Arterial Road Junction',
+          landmark: 'Water Supply Sector',
           ward: 'Central Ward',
           zone: 'Zone 1',
         },
@@ -488,21 +507,21 @@ export const CommandMap: React.FC<CommandMapProps> = ({
         evidence: { before: [] },
         statusHistory: [],
         adminNotes: [],
-        upvotesCount: 8,
+        upvotesCount: 14,
         isDuplicateCluster: false,
         sla: {
           targetHours: 24,
-          hoursRemaining: 8,
-          slaStatus: 'on_track',
+          hoursRemaining: 6,
+          slaStatus: 'warning',
           isOverdue: false,
-          deadline: new Date(Date.now() + 8 * 3600000).toISOString(),
+          deadline: new Date(Date.now() + 6 * 3600000).toISOString(),
         },
       },
       {
         id: 'CR-LIVE-02',
         dbId: 999902,
-        title: 'Hazardous Road Pothole & Cave-in',
-        description: 'Deep road surface crater creating severe traffic hazard and accident risk.',
+        title: 'Hazardous Road Pothole & Surface Cave-in',
+        description: 'Major road surface crater creating severe traffic hazard and accident risk on transit route.',
         category: 'roads',
         categoryLabel: 'Roads & Infrastructure',
         priority: 'high',
@@ -510,10 +529,10 @@ export const CommandMap: React.FC<CommandMapProps> = ({
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         location: {
-          latitude: Number((liveLocation.lat - 0.0022).toFixed(5)),
-          longitude: Number((liveLocation.lng + 0.0031).toFixed(5)),
-          address: 'Market Access Road',
-          landmark: 'Market Square',
+          latitude: Number((liveLocation.lat - 0.0038).toFixed(5)),
+          longitude: Number((liveLocation.lng - 0.0028).toFixed(5)),
+          address: 'South Market Access Road',
+          landmark: 'Near Market Square',
           ward: 'Central Ward',
           zone: 'Zone 1',
         },
@@ -526,7 +545,7 @@ export const CommandMap: React.FC<CommandMapProps> = ({
         evidence: { before: [] },
         statusHistory: [],
         adminNotes: [],
-        upvotesCount: 5,
+        upvotesCount: 9,
         isDuplicateCluster: false,
         sla: {
           targetHours: 48,
@@ -540,7 +559,7 @@ export const CommandMap: React.FC<CommandMapProps> = ({
         id: 'CR-LIVE-03',
         dbId: 999903,
         title: 'Streetlight Circuit Failure (Dark Corridor)',
-        description: 'Cluster of 4 streetlights dark along primary transit path.',
+        description: 'Series of 5 consecutive municipal streetlights dark along primary pedestrian corridor.',
         category: 'streetlights',
         categoryLabel: 'Streetlights & Electricity',
         priority: 'medium',
@@ -548,10 +567,10 @@ export const CommandMap: React.FC<CommandMapProps> = ({
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         location: {
-          latitude: Number((liveLocation.lat + 0.0035).toFixed(5)),
-          longitude: Number((liveLocation.lng + 0.0020).toFixed(5)),
+          latitude: Number((liveLocation.lat + 0.0022).toFixed(5)),
+          longitude: Number((liveLocation.lng + 0.0052).toFixed(5)),
           address: 'Station Approach Corridor',
-          landmark: 'Transit Hub',
+          landmark: 'Railway Transit Hub',
           ward: 'Central Ward',
           zone: 'Zone 1',
         },
@@ -564,7 +583,7 @@ export const CommandMap: React.FC<CommandMapProps> = ({
         evidence: { before: [] },
         statusHistory: [],
         adminNotes: [],
-        upvotesCount: 3,
+        upvotesCount: 6,
         isDuplicateCluster: false,
         sla: {
           targetHours: 48,
@@ -577,8 +596,8 @@ export const CommandMap: React.FC<CommandMapProps> = ({
       {
         id: 'CR-LIVE-04',
         dbId: 999904,
-        title: 'Municipal Garbage Bin Overflow',
-        description: 'Solid waste accumulation obstructing pedestrian walkway and causing public health hazard.',
+        title: 'Municipal Solid Waste & Garbage Overflow',
+        description: 'Community garbage dumpster overflowing onto walkway and roadway causing serious health hazard.',
         category: 'waste_management',
         categoryLabel: 'Waste Management',
         priority: 'high',
@@ -586,10 +605,10 @@ export const CommandMap: React.FC<CommandMapProps> = ({
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         location: {
-          latitude: Number((liveLocation.lat - 0.0032).toFixed(5)),
-          longitude: Number((liveLocation.lng - 0.0028).toFixed(5)),
+          latitude: Number((liveLocation.lat - 0.0020).toFixed(5)),
+          longitude: Number((liveLocation.lng - 0.0048).toFixed(5)),
           address: 'Commercial Sector Crossroad',
-          landmark: 'Commercial Plaza',
+          landmark: 'Commercial Plaza Frontage',
           ward: 'Central Ward',
           zone: 'Zone 1',
         },
@@ -602,32 +621,32 @@ export const CommandMap: React.FC<CommandMapProps> = ({
         evidence: { before: [] },
         statusHistory: [],
         adminNotes: [],
-        upvotesCount: 7,
+        upvotesCount: 11,
         isDuplicateCluster: false,
         sla: {
           targetHours: 24,
-          hoursRemaining: 14,
+          hoursRemaining: 12,
           slaStatus: 'on_track',
           isOverdue: false,
-          deadline: new Date(Date.now() + 14 * 3600000).toISOString(),
+          deadline: new Date(Date.now() + 12 * 3600000).toISOString(),
         },
       },
       {
         id: 'CR-LIVE-05',
         dbId: 999905,
-        title: 'Underground Sewer Blockage & Manhole Overflow',
-        description: 'Underground sewage line backflow spilling onto municipal roadway.',
+        title: 'Underground Sewer Drainage Blockage & Overflow',
+        description: 'Underground municipal sewage drain blocked, spilling untreated wastewater onto public roadway.',
         category: 'drainage',
         categoryLabel: 'Drainage & Sewage',
-        priority: 'medium',
-        status: 'under_review',
+        priority: 'urgent',
+        status: 'in_progress',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         location: {
-          latitude: Number((liveLocation.lat + 0.0015).toFixed(5)),
-          longitude: Number((liveLocation.lng + 0.0038).toFixed(5)),
-          address: 'Residential Sector 4',
-          landmark: 'Community Garden',
+          latitude: Number((liveLocation.lat + 0.0055).toFixed(5)),
+          longitude: Number((liveLocation.lng - 0.0035).toFixed(5)),
+          address: 'Main Drainage Crossroad',
+          landmark: 'Community Health Center Crossway',
           ward: 'Central Ward',
           zone: 'Zone 1',
         },
@@ -640,14 +659,14 @@ export const CommandMap: React.FC<CommandMapProps> = ({
         evidence: { before: [] },
         statusHistory: [],
         adminNotes: [],
-        upvotesCount: 4,
+        upvotesCount: 16,
         isDuplicateCluster: false,
         sla: {
-          targetHours: 48,
-          hoursRemaining: 30,
-          slaStatus: 'on_track',
+          targetHours: 24,
+          hoursRemaining: 4,
+          slaStatus: 'warning',
           isOverdue: false,
-          deadline: new Date(Date.now() + 30 * 3600000).toISOString(),
+          deadline: new Date(Date.now() + 4 * 3600000).toISOString(),
         },
       },
     ];
@@ -1330,7 +1349,7 @@ export const CommandMap: React.FC<CommandMapProps> = ({
         if (map.current) {
           map.current.flyTo({
             center: [longitude, latitude],
-            zoom: 15,
+            zoom: 14.5,
             speed: 1.5,
             curve: 1.4,
             essential: true,

@@ -430,21 +430,21 @@ class LeafletMapService {
         var hotspotsLayer = L.layerGroup().addTo(map);
         var userMarkersLayer = L.layerGroup().addTo(map);
         
-        // Base layers
-        var osmLayer = L.tileLayer('https://tile.openstreetmap.de/{z}/{x}/{y}.png', {
-            maxZoom: 19,
-            attribution: '© OpenStreetMap contributors'
+        // Base layers (Google Maps Standard Roadmap & Hybrid)
+        var googleRoadmapLayer = L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+            maxZoom: 22,
+            attribution: '© Google Maps'
         });
         
-        var satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-            maxZoom: 19,
-            attribution: '© Esri'
+        var googleHybridLayer = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+            maxZoom: 22,
+            attribution: '© Google Maps'
         });
         
-        // Add default layer
-        osmLayer.addTo(map);
-        baseLayers['Streets'] = osmLayer;
-        baseLayers['Satellite'] = satelliteLayer;
+        // Add default Google layer
+        googleRoadmapLayer.addTo(map);
+        baseLayers['Google Maps'] = googleRoadmapLayer;
+        baseLayers['Satellite'] = googleHybridLayer;
         
         // Enhanced current location marker
         var currentLocationMarker = L.circleMarker([$latitude, $longitude], {
