@@ -27,15 +27,26 @@ import {
 } from 'lucide-react';
 
 export type MapViewMode = 'hybrid' | 'markers' | 'heatmap' | 'hotspots';
-export type BaseMapStyle = 'voyager' | 'satellite' | 'positron' | 'dark';
+export type BaseMapStyle = 'osm' | 'voyager' | 'satellite' | 'dark';
 
 export const BASEMAPS: Record<
   BaseMapStyle,
   { name: string; icon: string; tiles: string[]; maxZoom: number; attribution: string }
 > = {
-  voyager: {
-    name: 'Streets & Terrain',
+  osm: {
+    name: 'OpenStreetMap',
     icon: '🗺️',
+    tiles: [
+      'https://tile.openstreetmap.de/{z}/{x}/{y}.png',
+      'https://a.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png',
+      'https://b.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png',
+    ],
+    maxZoom: 19,
+    attribution: '&copy; OpenStreetMap contributors',
+  },
+  voyager: {
+    name: 'CARTO Streets',
+    icon: '🏙️',
     tiles: [
       'https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
       'https://b.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
@@ -53,18 +64,6 @@ export const BASEMAPS: Record<
     ],
     maxZoom: 19,
     attribution: '&copy; Esri World Imagery',
-  },
-  positron: {
-    name: 'Clean Light',
-    icon: '🏙️',
-    tiles: [
-      'https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
-      'https://b.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
-      'https://c.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
-      'https://d.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
-    ],
-    maxZoom: 20,
-    attribution: '&copy; CARTO &copy; OpenStreetMap contributors',
   },
   dark: {
     name: 'Night Ops',
@@ -178,7 +177,7 @@ export const CommandMap: React.FC<CommandMapProps> = ({
   const prevOrgCenterRef = useRef<string>('');
 
   // Enhanced Basemap & Geolocation State
-  const [activeBasemap, setActiveBasemap] = useState<BaseMapStyle>('voyager');
+  const [activeBasemap, setActiveBasemap] = useState<BaseMapStyle>('osm');
   const [liveLocation, setLiveLocation] = useState<{ lat: number; lng: number; accuracy: number } | null>(null);
   const [isLocating, setIsLocating] = useState(false);
   const [gpsToast, setGpsToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
@@ -186,13 +185,19 @@ export const CommandMap: React.FC<CommandMapProps> = ({
   const [currentZoom, setCurrentZoom] = useState<number>(orgCenter?.zoom ?? DEFAULT_MAP_CENTER.zoom);
   const liveGpsMarkerRef = useRef<maplibregl.Marker | null>(null);
 
-  // 1. Initialize MapLibre with High-Fidelity Multi-Source Basemaps & Ocean Background
+  // 1. Initialize MapLibre with High-Fidelity Multi-Source Basemaps & Natural Land Background
   useEffect(() => {
     if (!mapContainer.current) return;
 
     const mapStyle: maplibregl.StyleSpecification = {
       version: 8,
       sources: {
+        'basemap-source-osm': {
+          type: 'raster',
+          tiles: BASEMAPS.osm.tiles,
+          tileSize: 256,
+          attribution: BASEMAPS.osm.attribution,
+        },
         'basemap-source-voyager': {
           type: 'raster',
           tiles: BASEMAPS.voyager.tiles,
@@ -205,12 +210,6 @@ export const CommandMap: React.FC<CommandMapProps> = ({
           tileSize: 256,
           attribution: BASEMAPS.satellite.attribution,
         },
-        'basemap-source-positron': {
-          type: 'raster',
-          tiles: BASEMAPS.positron.tiles,
-          tileSize: 256,
-          attribution: BASEMAPS.positron.attribution,
-        },
         'basemap-source-dark': {
           type: 'raster',
           tiles: BASEMAPS.dark.tiles,
@@ -220,18 +219,18 @@ export const CommandMap: React.FC<CommandMapProps> = ({
       },
       layers: [
         {
-          id: 'map-ocean-bg',
+          id: 'map-land-bg',
           type: 'background',
           paint: {
-            'background-color': '#d2e4f5',
+            'background-color': '#f2efe9',
           },
         },
         {
           id: 'basemap-raster-layer',
           type: 'raster',
-          source: 'basemap-source-voyager',
+          source: 'basemap-source-osm',
           minzoom: 0,
-          maxzoom: 20,
+          maxzoom: 19,
         },
       ],
     };
@@ -247,6 +246,20 @@ export const CommandMap: React.FC<CommandMapProps> = ({
       attributionControl: false,
     });
     map.current = mapInstance;
+
+    // Add Solapur / HQ Center Marker (blue dot with white border matching user reference)
+    const centerEl = document.createElement('div');
+    centerEl.className = 'hq-center-pin';
+    centerEl.title = 'Administrative Center';
+    centerEl.innerHTML = `
+      <div style="position: relative; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; pointer-events: none;">
+        <div style="position: absolute; width: 18px; height: 18px; border-radius: 50%; background: rgba(30, 136, 229, 0.28); animation: pulse 2s infinite ease-in-out;"></div>
+        <div style="position: relative; width: 14px; height: 14px; border-radius: 50%; background: #1E88E5; border: 2.5px solid #FFFFFF; box-shadow: 0 1px 6px rgba(0,0,0,0.35);"></div>
+      </div>
+    `;
+    new maplibregl.Marker({ element: centerEl })
+      .setLngLat([initCenter.lng, initCenter.lat])
+      .addTo(mapInstance);
 
     mapInstance.addControl(
       new maplibregl.NavigationControl({ showCompass: true }),
@@ -614,22 +627,20 @@ export const CommandMap: React.FC<CommandMapProps> = ({
             <div style="
               position: relative;
               z-index: ${isSelected ? '20' : '8'};
-              padding: ${isSelected ? '3px 8px' : '2px 6px'};
-              border-radius: 12px;
+              width: ${isSelected ? '32px' : '28px'};
+              height: ${isSelected ? '32px' : '28px'};
+              border-radius: 50%;
               background: ${ringColor};
               border: ${isSelected ? '2.5px solid #FEF08A' : '2px solid #FFFFFF'};
-              box-shadow: 0 3px 12px rgba(0,0,0,0.35);
+              box-shadow: 0 3px 10px rgba(0,0,0,0.35);
               color: #FFFFFF;
-              font-size: ${isSelected ? '11px' : '10px'};
+              font-size: 11px;
               font-weight: 800;
-              font-family: monospace;
               display: flex;
               align-items: center;
-              gap: 3px;
-              white-space: nowrap;
-            ">
-              <span>🔥</span>
-              <span>${hotspot.shortLabel.toUpperCase()} · ${hotspot.scoreDisplay}</span>
+              justify-content: center;
+            " title="Civic Hotspot: ${hotspot.complaintCount} reports (${hotspot.scoreDisplay})">
+              🔥
             </div>
           </div>
         `;
@@ -740,22 +751,20 @@ export const CommandMap: React.FC<CommandMapProps> = ({
             <div style="
               position: relative;
               z-index: ${isSelected ? '18' : '7'};
-              padding: 2px 5px;
-              border-radius: 10px;
+              width: ${isSelected ? '32px' : '28px'};
+              height: ${isSelected ? '32px' : '28px'};
+              border-radius: 50%;
               background: ${incColor};
-              border: 1.5px solid #FFFFFF;
-              box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+              border: 2px solid #FFFFFF;
+              box-shadow: 0 3px 8px rgba(0,0,0,0.3);
               color: #FFFFFF;
-              font-size: 9px;
-              font-weight: 700;
-              font-family: monospace;
+              font-size: 11px;
+              font-weight: 800;
               display: flex;
               align-items: center;
-              gap: 2px;
-              white-space: nowrap;
-            ">
-              <span>⚡</span>
-              <span>${incident.incidentId} (${incident.complaintCount})</span>
+              justify-content: center;
+            " title="3D Incident: ${incident.incidentLabel} (${incident.complaintCount} reports)">
+              ⚡
             </div>
           </div>
         `;
@@ -846,16 +855,25 @@ export const CommandMap: React.FC<CommandMapProps> = ({
 
         const prioritySymbol = isUrgent ? '!' : isHigh ? '▲' : isMedium ? '●' : '▼';
 
+        const categoryStr = (c.categoryLabel || c.category || '').toLowerCase();
+        let badgeCode = 'C';
+        if (categoryStr.includes('water')) badgeCode = 'W';
+        else if (categoryStr.includes('sewag') || categoryStr.includes('waste')) badgeCode = 'SW';
+        else if (categoryStr.includes('sanitat') || categoryStr.includes('drain') || categoryStr.includes('garbag')) badgeCode = 'S';
+        else if (categoryStr.includes('electr') || categoryStr.includes('street') || categoryStr.includes('light')) badgeCode = 'E';
+        else if (categoryStr.includes('road') || categoryStr.includes('pothol')) badgeCode = 'R';
+        else badgeCode = (c.categoryLabel || c.category || '!').charAt(0).toUpperCase();
+
         el.innerHTML = `
           <div style="position: relative; display: flex; align-items: center; justify-content: center;">
             ${
               isHotspotMember
                 ? `<div style="
                     position: absolute;
-                    width: 38px;
-                    height: 38px;
+                    width: 40px;
+                    height: 40px;
                     border-radius: 50%;
-                    background: #EA580C30;
+                    background: #EA580C25;
                     border: 2px solid #EA580C;
                     animation: pulse 2s infinite ease-in-out;
                   "></div>`
@@ -872,22 +890,22 @@ export const CommandMap: React.FC<CommandMapProps> = ({
                 : ''
             }
             <div style="
-              width: ${isSelected ? '28px' : isHotspotMember ? '24px' : '22px'};
-              height: ${isSelected ? '28px' : isHotspotMember ? '24px' : '22px'};
+              width: ${isSelected ? '32px' : isHotspotMember ? '28px' : '26px'};
+              height: ${isSelected ? '32px' : isHotspotMember ? '28px' : '26px'};
               border-radius: 50%;
               background: ${color};
-              border: ${isSelected ? '2.5px solid #FEF08A' : isHotspotMember ? '2px solid #FED7AA' : '2px solid #FFFFFF'};
-              box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+              border: ${isSelected ? '2.5px solid #FEF08A' : isHotspotMember ? '2px solid #FED7AA' : '2.5px solid #FFFFFF'};
+              box-shadow: 0 3px 8px rgba(0,0,0,0.3);
               display: flex;
               align-items: center;
               justify-content: center;
               color: #FFFFFF;
-              font-size: 11px;
-              font-weight: bold;
-              font-family: monospace;
+              font-size: ${badgeCode.length > 1 ? '9px' : '11px'};
+              font-weight: 800;
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
               transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-            " title="${c.priority.toUpperCase()} - ${c.title}">
-              ${prioritySymbol}
+            " title="${c.priority.toUpperCase()} - ${c.title} (${badgeCode})">
+              ${badgeCode}
             </div>
           </div>
         `;
