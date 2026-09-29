@@ -10,6 +10,12 @@ import { EmergingProblemEngine, EmergingHotspotResult } from '../../services/eme
 import { IncidentGroupingEngine, PotentialIncidentResult } from '../../services/incidentGroupingEngine';
 import { getAdministrativeBoundariesGeoJSON } from '../../data/maharashtraBoundaries';
 import {
+  LiveCommuteHazardRadarService,
+  CommuteHazardAlert,
+  CommuteLocation,
+  playHazardAlertAudio,
+} from '../../services/liveCommuteHazardRadar';
+import {
   ChevronDown,
   ChevronUp,
   Layers,
@@ -19,6 +25,13 @@ import {
   Compass,
   Globe,
   Navigation,
+  X,
+  Volume2,
+  VolumeX,
+  Square,
+  ShieldAlert,
+  AlertTriangle,
+  Radio,
 } from 'lucide-react';
 
 export type MapViewMode = 'hybrid' | 'markers' | 'heatmap' | 'hotspots';
@@ -188,6 +201,22 @@ export const CommandMap: React.FC<CommandMapProps> = ({
   const [activeBasemap, setActiveBasemap] = useState<BaseMapStyle>('google');
   const [cursorCoords, setCursorCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [currentZoom, setCurrentZoom] = useState<number>(orgCenter?.zoom ?? DEFAULT_MAP_CENTER.zoom);
+
+  // Live Commute Tracking & Hazard Alert Radar State
+  const [commuteActive, setCommuteActive] = useState<boolean>(false);
+  const [isSimulating, setIsSimulating] = useState<boolean>(false);
+  const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
+  const [commuteLocation, setCommuteLocation] = useState<CommuteLocation | null>(null);
+  const [hazardAlerts, setHazardAlerts] = useState<CommuteHazardAlert[]>([]);
+  const [dismissedHazardIds, setDismissedHazardIds] = useState<Set<string>>(new Set());
+  const [trackingStatusMessage, setTrackingStatusMessage] = useState<string | null>(null);
+
+  const radarServiceRef = useRef<LiveCommuteHazardRadarService | null>(null);
+  const commuterMarkerRef = useRef<maplibregl.Marker | null>(null);
+  const soundEnabledRef = useRef<boolean>(true);
+  soundEnabledRef.current = soundEnabled;
+  const dismissedHazardIdsRef = useRef<Set<string>>(new Set());
+  dismissedHazardIdsRef.current = dismissedHazardIds;
 
   // 1. Initialize MapLibre with High-Fidelity Multi-Source Basemaps & Natural Land Background
   useEffect(() => {
@@ -1144,9 +1173,347 @@ export const CommandMap: React.FC<CommandMapProps> = ({
     }
   };
 
+  // 12. Commute Radar Lifecycle Cleanup
+  useEffect(() => {
+    return () => {
+      LiveCommuteHazardRadarService.stopTracking();
+    };
+  }, []);
+
+  // Update or render the live commuter marker on MapLibre map
+  useEffect(() => {
+    if (!map.current || !mapLoaded) return;
+
+    if (!commuteActive || !commuteLocation) {
+      if (commuterMarkerRef.current) {
+        commuterMarkerRef.current.remove();
+        commuterMarkerRef.current = null;
+      }
+      return;
+    }
+
+    const { latitude, longitude, heading = 0, speed } = commuteLocation;
+
+    if (!commuterMarkerRef.current) {
+      const el = document.createElement('div');
+      el.className = 'commuter-live-marker-container pointer-events-none select-none';
+      el.style.zIndex = '40';
+
+      el.innerHTML = `
+        <div class="relative flex items-center justify-center" style="width: 58px; height: 58px;">
+          <!-- 300m Radar pulse ring representation -->
+          <div class="absolute inset-0 rounded-full bg-blue-500/20 animate-ping"></div>
+          <div class="absolute inset-2 rounded-full bg-blue-500/30 animate-pulse border border-blue-400"></div>
+          <!-- Vehicle / Commuter Icon Circle with heading bearing -->
+          <div id="commuter-car-icon" class="relative w-9 h-9 rounded-full bg-[#1769D2] border-2 border-white shadow-xl flex items-center justify-center text-white text-base transition-transform duration-300" style="transform: rotate(${heading}deg);">
+            🚗
+          </div>
+          <!-- Speed / Mode Tag -->
+          <div id="commuter-speed-badge" class="absolute -bottom-2 bg-slate-900/95 text-white font-mono text-[9px] font-bold px-1.5 py-0.5 rounded shadow-md border border-slate-700 whitespace-nowrap">
+            ${speed ? `${Math.round(speed * 3.6)} km/h` : 'Tracking'}
+          </div>
+        </div>
+      `;
+
+      const marker = new maplibregl.Marker({
+        element: el,
+        anchor: 'center',
+      })
+        .setLngLat([longitude, latitude])
+        .addTo(map.current);
+
+      commuterMarkerRef.current = marker;
+    } else {
+      commuterMarkerRef.current.setLngLat([longitude, latitude]);
+      const carIcon = commuterMarkerRef.current.getElement().querySelector('#commuter-car-icon') as HTMLElement | null;
+      if (carIcon) {
+        carIcon.style.transform = `rotate(${heading}deg)`;
+      }
+      const speedBadge = commuterMarkerRef.current.getElement().querySelector('#commuter-speed-badge') as HTMLElement | null;
+      if (speedBadge) {
+        speedBadge.textContent = speed ? `${Math.round(speed * 3.6)} km/h` : 'Tracking';
+      }
+    }
+  }, [commuteActive, commuteLocation, mapLoaded]);
+
+  // Commute Simulation Action (Test Drive toward active civic problem)
+  const handleStartSimulation = () => {
+    // Prioritize an active unresolved complaint
+    const activeValid = allActiveComplaints.filter((c) => hasValidCoordinates(c));
+    const target =
+      activeValid.find((c) => c.status !== 'verified' && c.status !== 'closed' && (c.priority === 'urgent' || c.priority === 'high')) ||
+      activeValid.find((c) => c.status !== 'verified' && c.status !== 'closed') ||
+      activeValid[0];
+
+    if (!target) return;
+
+    const destLat = target.location.latitude;
+    const destLng = target.location.longitude;
+
+    // Compute start point ~650m southwest of the hazard so it crosses 300m -> 150m -> 80m proximity thresholds smoothly
+    const originLat = destLat - 0.0050;
+    const originLng = destLng - 0.0050;
+
+    // Frame the simulated commute route on screen
+    if (map.current) {
+      const bounds = new maplibregl.LngLatBounds();
+      bounds.extend([originLng, originLat]);
+      bounds.extend([destLng, destLat]);
+      map.current.fitBounds(bounds, { padding: 90, maxZoom: 16.5, duration: 600 });
+    }
+
+    LiveCommuteHazardRadarService.resetDismissedAlerts();
+    setDismissedHazardIds(new Set());
+    setCommuteActive(true);
+    setIsSimulating(true);
+    setTrackingStatusMessage(`Simulating travel toward: "${target.title}"`);
+
+    LiveCommuteHazardRadarService.startSimulation(
+      target,
+      allActiveComplaints,
+      (loc: CommuteLocation) => {
+        setCommuteLocation(loc);
+      },
+      (alerts: CommuteHazardAlert[]) => {
+        setHazardAlerts(alerts);
+      },
+      {
+        alertRadiusMeters: 300,
+        criticalRadiusMeters: 80,
+        playSound: soundEnabledRef.current,
+        enableVibration: true,
+      }
+    );
+  };
+
+  // Hardware GPS Live Tracking Action
+  const handleStartRealGPS = () => {
+    LiveCommuteHazardRadarService.resetDismissedAlerts();
+    setDismissedHazardIds(new Set());
+    setCommuteActive(true);
+    setIsSimulating(false);
+    setTrackingStatusMessage('Live GPS tracking engaged. Watching for civic hazards on your route...');
+
+    const started = LiveCommuteHazardRadarService.startLiveTracking(
+      allActiveComplaints,
+      (loc: CommuteLocation) => {
+        setCommuteLocation(loc);
+      },
+      (alerts: CommuteHazardAlert[]) => {
+        setHazardAlerts(alerts);
+      },
+      {
+        alertRadiusMeters: 300,
+        criticalRadiusMeters: 80,
+        playSound: soundEnabledRef.current,
+        enableVibration: true,
+      }
+    );
+
+    if (!started) {
+      setTrackingStatusMessage('Geolocation not supported or permission denied');
+    }
+  };
+
+  // Stop Commute Mode
+  const handleStopCommute = () => {
+    LiveCommuteHazardRadarService.stopTracking();
+    setCommuteActive(false);
+    setIsSimulating(false);
+    setCommuteLocation(null);
+    setHazardAlerts([]);
+    setTrackingStatusMessage(null);
+    if (commuterMarkerRef.current) {
+      commuterMarkerRef.current.remove();
+      commuterMarkerRef.current = null;
+    }
+  };
+
+  // Dismiss a specific hazard alert
+  const handleDismissHazard = (alertId: string) => {
+    LiveCommuteHazardRadarService.dismissAlert(alertId);
+    setDismissedHazardIds((prev) => {
+      const next = new Set(prev);
+      next.add(alertId);
+      return next;
+    });
+  };
+
+  // Focus and select the hazardous complaint pin on map
+  const handleFocusHazard = (alert: CommuteHazardAlert) => {
+    if (!map.current) return;
+    map.current.flyTo({
+      center: [alert.hazardCoordinates.longitude, alert.hazardCoordinates.latitude],
+      zoom: 16.5,
+      speed: 1.4,
+    });
+    onSelectComplaint?.(alert.complaintId);
+  };
+
+  // Active undismissed alerts sorted by closest distance
+  const undismissedAlerts = hazardAlerts.filter(
+    (a) => !dismissedHazardIds.has(a.id)
+  );
+  const topHazardAlert = undismissedAlerts[0] as CommuteHazardAlert | undefined;
+
   return (
     <div className="relative w-full h-full min-h-[300px] rounded-lg overflow-hidden border border-[#D9E2EC] bg-[#eef4f8] shadow-sm select-none">
       <div ref={mapContainer} className="w-full h-full" />
+
+      {/* Real-time Proximity Civic Hazard Alert HUD Banner */}
+      {topHazardAlert && (
+        <div
+          className={`absolute top-12 left-1/2 -translate-x-1/2 z-30 max-w-xl w-[92%] sm:w-auto min-w-[340px] rounded-xl p-3.5 shadow-2xl backdrop-blur-md border-2 transition-all animate-bounce-subtle ${
+            topHazardAlert.severity === 'critical'
+              ? 'bg-red-950/95 border-red-500 text-white shadow-red-500/30'
+              : topHazardAlert.severity === 'warning'
+              ? 'bg-orange-950/95 border-orange-500 text-white shadow-orange-500/30'
+              : 'bg-amber-950/90 border-amber-500 text-white shadow-amber-500/20'
+          }`}
+          role="alert"
+          aria-live="assertive"
+        >
+          <div className="flex items-start justify-between gap-3">
+            {/* Pulse Beacon Icon */}
+            <div className="flex items-center gap-2.5">
+              <span
+                className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-base shadow-md shrink-0 ${
+                  topHazardAlert.severity === 'critical'
+                    ? 'bg-red-600 animate-pulse text-white'
+                    : topHazardAlert.severity === 'warning'
+                    ? 'bg-orange-600 animate-pulse text-white'
+                    : 'bg-amber-600 text-white'
+                }`}
+              >
+                {topHazardAlert.severity === 'critical' ? '🚨' : topHazardAlert.severity === 'warning' ? '⚠️' : '⚡'}
+              </span>
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span
+                    className={`text-[10px] font-mono font-black uppercase px-2 py-0.5 rounded tracking-wider ${
+                      topHazardAlert.severity === 'critical'
+                        ? 'bg-red-600 text-white'
+                        : topHazardAlert.severity === 'warning'
+                        ? 'bg-orange-600 text-white'
+                        : 'bg-amber-600 text-white'
+                    }`}
+                  >
+                    {topHazardAlert.severity === 'critical'
+                      ? 'CRITICAL HAZARD PROXIMITY'
+                      : topHazardAlert.severity === 'warning'
+                      ? 'CIVIC HAZARD WARNING'
+                      : 'COMMUTER ADVISORY'}
+                  </span>
+                  <span className="font-mono text-xs font-bold text-yellow-300">
+                    {Math.round(topHazardAlert.distanceMeters)}m ahead ({topHazardAlert.cardinalDirection})
+                  </span>
+                </div>
+                <div className="text-sm font-bold text-white mt-0.5 line-clamp-1">
+                  {topHazardAlert.complaintTitle}
+                </div>
+              </div>
+            </div>
+
+            {/* Dismiss button */}
+            <button
+              type="button"
+              onClick={() => handleDismissHazard(topHazardAlert.id)}
+              className="text-slate-400 hover:text-white p-1 rounded hover:bg-white/10 transition-colors"
+              title="Dismiss Alert"
+              aria-label="Dismiss Alert"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* Safety Directive */}
+          <div className="mt-2 text-xs font-medium text-amber-100 bg-black/40 rounded-lg p-2 border border-white/10 flex items-start gap-2">
+            <span className="shrink-0 font-bold">🛡️ Safety Action:</span>
+            <span className="leading-snug">{topHazardAlert.safetyInstruction}</span>
+          </div>
+
+          {/* Quick Action Footer */}
+          <div className="mt-2.5 flex items-center justify-between gap-2 pt-1 border-t border-white/10 text-xs">
+            <div className="text-[11px] text-slate-300 truncate">
+              📍 {topHazardAlert.locationAddress || 'Civic Problem Location'}
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => handleFocusHazard(topHazardAlert)}
+                className="px-2.5 py-1 rounded bg-blue-600 hover:bg-blue-500 text-white font-bold text-[11px] flex items-center gap-1 shadow transition-colors"
+              >
+                <MapPin className="w-3 h-3" />
+                <span>View Problem</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Floating Commuter Safety Tracking Radar Dock */}
+      <div className="absolute top-12 left-2.5 z-20 flex items-center gap-1.5 bg-slate-900/90 backdrop-blur-md p-1 rounded-lg border border-slate-700/80 shadow-lg text-white">
+        <div className="flex items-center gap-1.5 px-2 py-0.5">
+          <span
+            className={`w-2 h-2 rounded-full ${
+              commuteActive ? 'bg-emerald-400 animate-ping' : 'bg-slate-500'
+            }`}
+          />
+          <span className="text-[11px] font-bold tracking-wide font-mono">
+            {commuteActive
+              ? isSimulating
+                ? 'TEST COMMUTE'
+                : 'LIVE RADAR'
+              : 'COMMUTE RADAR'}
+          </span>
+        </div>
+
+        {!commuteActive ? (
+          <>
+            <button
+              type="button"
+              onClick={handleStartSimulation}
+              className="flex items-center gap-1 px-2.5 py-1 rounded bg-blue-600 hover:bg-blue-500 text-white text-[11px] font-bold shadow-xs transition-colors"
+              title="Simulate driving toward a civic problem to test real-time alerts"
+            >
+              <span>🚗</span>
+              <span>Test Commute</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleStartRealGPS}
+              className="flex items-center gap-1 px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-medium transition-colors border border-slate-700"
+              title="Start real-time device GPS commute tracking"
+            >
+              <Navigation className="w-3 h-3 text-emerald-400" />
+              <span className="hidden sm:inline">Live GPS</span>
+            </button>
+          </>
+        ) : (
+          <button
+            type="button"
+            onClick={handleStopCommute}
+            className="flex items-center gap-1 px-2.5 py-1 rounded bg-red-600 hover:bg-red-500 text-white text-[11px] font-bold shadow-xs transition-colors"
+            title="Stop active commute tracking"
+          >
+            <Square className="w-3 h-3 fill-current" />
+            <span>Stop</span>
+          </button>
+        )}
+
+        {/* Audio Alert Toggle */}
+        <button
+          type="button"
+          onClick={() => setSoundEnabled(!soundEnabled)}
+          className={`p-1 rounded text-slate-300 hover:text-white transition-colors ${
+            soundEnabled ? 'text-blue-400' : 'text-slate-500'
+          }`}
+          title={soundEnabled ? 'Alert audio sound enabled' : 'Alert audio sound muted'}
+        >
+          {soundEnabled ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />}
+        </button>
+      </div>
 
       {/* Top Navigation & Controls Bar: Guaranteed Non-overlapping & Responsive */}
       <div className="absolute top-2.5 left-2.5 right-12 z-10 flex items-center justify-between gap-1.5 pointer-events-none">

@@ -25,6 +25,7 @@ import { runCivicFeedSupportTests } from './civicFeedSupport.test';
 import { runResolutionFeedbackIntegrityTests } from './resolutionFeedbackIntegrity.test';
 import { runCivicRecognitionTests } from './civicRecognition.test';
 import { runDashboardIntelligenceTests } from './dashboardIntelligence.test';
+import { runLiveCommuteHazardRadarTests } from './liveCommuteHazardRadar.test';
 
 async function main() {
   console.log('===========================================================');
@@ -182,6 +183,12 @@ async function main() {
   totalFailed += resDashboard.failed;
   allErrors.push(...resDashboard.errors);
 
+  // Live Commuter Hazard Proximity Radar
+  const resCommute = runLiveCommuteHazardRadarTests();
+  totalPassed += resCommute.passed;
+  totalFailed += resCommute.failed;
+  allErrors.push(...resCommute.errors);
+
   console.log('\n===========================================================');
   console.log('📊 FINAL VERIFICATION SCORECARD:');
   console.log(`   3A Similarity:             ${res3A.passed}/${res3A.passed + res3A.failed}`);
@@ -209,6 +216,7 @@ async function main() {
   console.log(`   Feedback & Integrity:      ${resFeedback.passed}/${resFeedback.passed + resFeedback.failed}`);
   console.log(`   Civic Recognition:         ${resRecognition.passed}/${resRecognition.passed + resRecognition.failed}`);
   console.log(`   Unified Dashboard Intel:   ${resDashboard.passed}/${resDashboard.passed + resDashboard.failed}`);
+  console.log(`   Live Commute Radar:        ${resCommute.passed}/${resCommute.passed + resCommute.failed}`);
   console.log('-----------------------------------------------------------');
   console.log(`   TOTAL:                     ${totalPassed} PASSED / ${totalFailed} FAILED`);
   console.log('===========================================================');
