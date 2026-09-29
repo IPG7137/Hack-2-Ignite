@@ -18,12 +18,7 @@ import {
   Eye,
   Compass,
   Globe,
-  Crosshair,
-  Loader2,
   Navigation,
-  Check,
-  AlertCircle,
-  X,
 } from 'lucide-react';
 
 export type MapViewMode = 'hybrid' | 'markers' | 'heatmap' | 'hotspots';
@@ -189,14 +184,10 @@ export const CommandMap: React.FC<CommandMapProps> = ({
   const [legendCollapsed, setLegendCollapsed] = useState(false);
   const prevOrgCenterRef = useRef<string>('');
 
-  // Enhanced Basemap & Geolocation State
+  // Enhanced Basemap State
   const [activeBasemap, setActiveBasemap] = useState<BaseMapStyle>('google');
-  const [liveLocation, setLiveLocation] = useState<{ lat: number; lng: number; accuracy: number } | null>(null);
-  const [isLocating, setIsLocating] = useState(false);
-  const [gpsToast, setGpsToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
   const [cursorCoords, setCursorCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [currentZoom, setCurrentZoom] = useState<number>(orgCenter?.zoom ?? DEFAULT_MAP_CENTER.zoom);
-  const liveGpsMarkerRef = useRef<maplibregl.Marker | null>(null);
 
   // 1. Initialize MapLibre with High-Fidelity Multi-Source Basemaps & Natural Land Background
   useEffect(() => {
@@ -423,9 +414,6 @@ export const CommandMap: React.FC<CommandMapProps> = ({
 
     return () => {
       resizeObserver.disconnect();
-      if (liveGpsMarkerRef.current) {
-        liveGpsMarkerRef.current.remove();
-      }
       mapInstance.remove();
     };
   }, []);
@@ -459,220 +447,8 @@ export const CommandMap: React.FC<CommandMapProps> = ({
     });
   }, [orgCenter]);
 
-  // 3B. Contextual Local Civic Problems mapped around User's Real Live Location
-  const allActiveComplaints = React.useMemo(() => {
-    if (!liveLocation) return complaints;
-
-    // Check how many complaints are within 1.5km of user
-    const closeComplaints = complaints.filter((c) => {
-      if (!c.location?.latitude || !c.location?.longitude) return false;
-      const d = getHaversineDistanceMeters(
-        liveLocation.lat,
-        liveLocation.lng,
-        c.location.latitude,
-        c.location.longitude
-      );
-      return d < 1500;
-    });
-
-    if (closeComplaints.length >= 4) return complaints;
-
-    // Generate 5 distinct, unclustered civic issues situated in 5 directions around user's live location (~400-650m)
-    const localIssues: Complaint[] = [
-      {
-        id: 'CR-LIVE-01',
-        dbId: 999901,
-        title: 'Water Supply Pipeline Rupture & High Pressure Leakage',
-        description: 'Main municipal water supply pipeline damaged causing severe road flooding and potable water supply cutoff.',
-        category: 'water_sewage',
-        categoryLabel: 'Water & Sewage',
-        priority: 'urgent',
-        status: 'in_progress',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        location: {
-          latitude: Number((liveLocation.lat + 0.0042).toFixed(5)),
-          longitude: Number((liveLocation.lng + 0.0018).toFixed(5)),
-          address: 'North Arterial Road Junction',
-          landmark: 'Water Supply Sector',
-          ward: 'Central Ward',
-          zone: 'Zone 1',
-        },
-        reporter: {
-          name: 'Civic Live Reporter',
-          phone: '9876543210',
-          aadharMasked: 'XXXX-XXXX-1234',
-          verifiedCitizen: true,
-        },
-        evidence: { before: [] },
-        statusHistory: [],
-        adminNotes: [],
-        upvotesCount: 14,
-        isDuplicateCluster: false,
-        sla: {
-          targetHours: 24,
-          hoursRemaining: 6,
-          slaStatus: 'warning',
-          isOverdue: false,
-          deadline: new Date(Date.now() + 6 * 3600000).toISOString(),
-        },
-      },
-      {
-        id: 'CR-LIVE-02',
-        dbId: 999902,
-        title: 'Hazardous Road Pothole & Surface Cave-in',
-        description: 'Major road surface crater creating severe traffic hazard and accident risk on transit route.',
-        category: 'roads',
-        categoryLabel: 'Roads & Infrastructure',
-        priority: 'high',
-        status: 'submitted',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        location: {
-          latitude: Number((liveLocation.lat - 0.0038).toFixed(5)),
-          longitude: Number((liveLocation.lng - 0.0028).toFixed(5)),
-          address: 'South Market Access Road',
-          landmark: 'Near Market Square',
-          ward: 'Central Ward',
-          zone: 'Zone 1',
-        },
-        reporter: {
-          name: 'Civic Live Reporter',
-          phone: '9876543210',
-          aadharMasked: 'XXXX-XXXX-1234',
-          verifiedCitizen: true,
-        },
-        evidence: { before: [] },
-        statusHistory: [],
-        adminNotes: [],
-        upvotesCount: 9,
-        isDuplicateCluster: false,
-        sla: {
-          targetHours: 48,
-          hoursRemaining: 18,
-          slaStatus: 'on_track',
-          isOverdue: false,
-          deadline: new Date(Date.now() + 18 * 3600000).toISOString(),
-        },
-      },
-      {
-        id: 'CR-LIVE-03',
-        dbId: 999903,
-        title: 'Streetlight Circuit Failure (Dark Corridor)',
-        description: 'Series of 5 consecutive municipal streetlights dark along primary pedestrian corridor.',
-        category: 'streetlights',
-        categoryLabel: 'Streetlights & Electricity',
-        priority: 'medium',
-        status: 'assigned',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        location: {
-          latitude: Number((liveLocation.lat + 0.0022).toFixed(5)),
-          longitude: Number((liveLocation.lng + 0.0052).toFixed(5)),
-          address: 'Station Approach Corridor',
-          landmark: 'Railway Transit Hub',
-          ward: 'Central Ward',
-          zone: 'Zone 1',
-        },
-        reporter: {
-          name: 'Civic Live Reporter',
-          phone: '9876543210',
-          aadharMasked: 'XXXX-XXXX-1234',
-          verifiedCitizen: true,
-        },
-        evidence: { before: [] },
-        statusHistory: [],
-        adminNotes: [],
-        upvotesCount: 6,
-        isDuplicateCluster: false,
-        sla: {
-          targetHours: 48,
-          hoursRemaining: 24,
-          slaStatus: 'on_track',
-          isOverdue: false,
-          deadline: new Date(Date.now() + 24 * 3600000).toISOString(),
-        },
-      },
-      {
-        id: 'CR-LIVE-04',
-        dbId: 999904,
-        title: 'Municipal Solid Waste & Garbage Overflow',
-        description: 'Community garbage dumpster overflowing onto walkway and roadway causing serious health hazard.',
-        category: 'waste_management',
-        categoryLabel: 'Waste Management',
-        priority: 'high',
-        status: 'submitted',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        location: {
-          latitude: Number((liveLocation.lat - 0.0020).toFixed(5)),
-          longitude: Number((liveLocation.lng - 0.0048).toFixed(5)),
-          address: 'Commercial Sector Crossroad',
-          landmark: 'Commercial Plaza Frontage',
-          ward: 'Central Ward',
-          zone: 'Zone 1',
-        },
-        reporter: {
-          name: 'Civic Live Reporter',
-          phone: '9876543210',
-          aadharMasked: 'XXXX-XXXX-1234',
-          verifiedCitizen: true,
-        },
-        evidence: { before: [] },
-        statusHistory: [],
-        adminNotes: [],
-        upvotesCount: 11,
-        isDuplicateCluster: false,
-        sla: {
-          targetHours: 24,
-          hoursRemaining: 12,
-          slaStatus: 'on_track',
-          isOverdue: false,
-          deadline: new Date(Date.now() + 12 * 3600000).toISOString(),
-        },
-      },
-      {
-        id: 'CR-LIVE-05',
-        dbId: 999905,
-        title: 'Underground Sewer Drainage Blockage & Overflow',
-        description: 'Underground municipal sewage drain blocked, spilling untreated wastewater onto public roadway.',
-        category: 'drainage',
-        categoryLabel: 'Drainage & Sewage',
-        priority: 'urgent',
-        status: 'in_progress',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        location: {
-          latitude: Number((liveLocation.lat + 0.0055).toFixed(5)),
-          longitude: Number((liveLocation.lng - 0.0035).toFixed(5)),
-          address: 'Main Drainage Crossroad',
-          landmark: 'Community Health Center Crossway',
-          ward: 'Central Ward',
-          zone: 'Zone 1',
-        },
-        reporter: {
-          name: 'Civic Live Reporter',
-          phone: '9876543210',
-          aadharMasked: 'XXXX-XXXX-1234',
-          verifiedCitizen: true,
-        },
-        evidence: { before: [] },
-        statusHistory: [],
-        adminNotes: [],
-        upvotesCount: 16,
-        isDuplicateCluster: false,
-        sla: {
-          targetHours: 24,
-          hoursRemaining: 4,
-          slaStatus: 'warning',
-          isOverdue: false,
-          deadline: new Date(Date.now() + 4 * 3600000).toISOString(),
-        },
-      },
-    ];
-
-    return [...complaints, ...localIssues];
-  }, [complaints, liveLocation]);
+  // Only display real complaints where civic problems actually exist
+  const allActiveComplaints = complaints;
 
   // 4. Handle external focus coordinate changes & Fit All actions
   useEffect(() => {
@@ -1315,116 +1091,6 @@ export const CommandMap: React.FC<CommandMapProps> = ({
     }
   };
 
-  // Live Geolocation API Handler
-  const handleFetchLiveLocation = () => {
-    if (!('geolocation' in navigator)) {
-      setGpsToast({
-        message: 'Geolocation is not supported by your browser.',
-        type: 'error',
-      });
-      return;
-    }
-
-    setIsLocating(true);
-    setGpsToast({
-      message: 'Acquiring high-accuracy live GPS coordinates...',
-      type: 'info',
-    });
-
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setIsLocating(false);
-        const { latitude, longitude, accuracy } = pos.coords;
-        setLiveLocation({ lat: latitude, lng: longitude, accuracy });
-
-        setGpsToast({
-          message: `Live Location: ${latitude.toFixed(4)}°, ${longitude.toFixed(4)}° (±${Math.round(accuracy)}m)`,
-          type: 'success',
-        });
-
-        setTimeout(() => {
-          setGpsToast((curr) => (curr?.type === 'success' ? null : curr));
-        }, 4500);
-
-        if (map.current) {
-          map.current.flyTo({
-            center: [longitude, latitude],
-            zoom: 14.5,
-            speed: 1.5,
-            curve: 1.4,
-            essential: true,
-          });
-
-          if (liveGpsMarkerRef.current) {
-            liveGpsMarkerRef.current.setLngLat([longitude, latitude]);
-          } else {
-            const el = document.createElement('div');
-            el.className = 'live-gps-beacon-node';
-            el.setAttribute('title', 'Your Live Location');
-            el.innerHTML = `
-              <div style="position: relative; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; cursor: pointer;">
-                <div style="position: absolute; width: 34px; height: 34px; border-radius: 50%; background: rgba(37, 99, 235, 0.28); animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;"></div>
-                <div style="position: absolute; width: 20px; height: 20px; border-radius: 50%; background: rgba(59, 130, 246, 0.35); border: 1.5px solid rgba(255, 255, 255, 0.9);"></div>
-                <div style="position: relative; width: 11px; height: 11px; border-radius: 50%; background: #2563EB; border: 2px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.4);"></div>
-              </div>
-            `;
-
-            const popup = new maplibregl.Popup({ offset: 16 }).setHTML(`
-              <div style="font-family: system-ui, -apple-system, sans-serif; padding: 4px; min-width: 140px; color: #1E293B;">
-                <div style="display: flex; align-items: center; gap: 4px; font-weight: 700; color: #1D4ED8; font-size: 11px;">
-                  <span>🎯</span> Live GPS Location
-                </div>
-                <div style="font-size: 10px; color: #475569; margin-top: 2px; font-family: monospace;">
-                  ${latitude.toFixed(5)}°, ${longitude.toFixed(5)}°
-                </div>
-                <div style="font-size: 9px; color: #16A34A; font-weight: 600; margin-top: 2px;">
-                  GPS Accuracy: ±${Math.round(accuracy)}m
-                </div>
-              </div>
-            `);
-
-            const marker = new maplibregl.Marker({ element: el })
-              .setLngLat([longitude, latitude])
-              .setPopup(popup)
-              .addTo(map.current);
-
-            liveGpsMarkerRef.current = marker;
-          }
-        }
-      },
-      (err) => {
-        setIsLocating(false);
-        let errMsg = 'Failed to fetch live GPS location.';
-        if (err.code === 1) {
-          errMsg = 'Location permission was denied. Please allow location access in your browser.';
-        } else if (err.code === 2) {
-          errMsg = 'Position unavailable. Check device GPS or network.';
-        } else if (err.code === 3) {
-          errMsg = 'Location request timed out. Please try again.';
-        }
-        setGpsToast({
-          message: errMsg,
-          type: 'error',
-        });
-        setTimeout(() => {
-          setGpsToast((curr) => (curr?.type === 'error' ? null : curr));
-        }, 5000);
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 12000,
-        maximumAge: 30000,
-      }
-    );
-  };
-
-  // Auto-acquire live location on initial mount if supported
-  useEffect(() => {
-    if ('geolocation' in navigator) {
-      handleFetchLiveLocation();
-    }
-  }, []);
-
   // Macro World / Subcontinent View
   const handleZoomToWorld = () => {
     if (!map.current) return;
@@ -1508,48 +1174,17 @@ export const CommandMap: React.FC<CommandMapProps> = ({
           })}
         </div>
 
-        {/* Quick Views & Live Location */}
+        {/* Quick Navigation: Focus on Problem Locations */}
         <div className="pointer-events-auto flex items-center gap-1 bg-white/95 backdrop-blur-md rounded-lg p-0.5 border border-slate-200/90 shadow-md shrink-0">
-          {/* Live GPS Locate Me Button */}
+          {/* Fit / Focus All Civic Problems */}
           <button
             type="button"
-            onClick={handleFetchLiveLocation}
-            disabled={isLocating}
-            className={`flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-bold transition-all ${
-              liveLocation
-                ? 'bg-emerald-600 text-white shadow-xs'
-                : 'bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200'
-            }`}
-            title="Fetch Live GPS Location using Geolocation API"
+            onClick={handleFitAll}
+            className="flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 transition-colors shadow-xs"
+            title="Fit and focus on all civic problem locations"
           >
-            {isLocating ? (
-              <Loader2 className="w-3 h-3 animate-spin text-blue-600" />
-            ) : (
-              <Crosshair className={`w-3 h-3 ${liveLocation ? 'text-white' : 'text-blue-600'}`} />
-            )}
-            <span className="font-semibold">{isLocating ? 'Locating...' : liveLocation ? 'Live GPS' : 'Locate Me'}</span>
-          </button>
-
-          {/* World / India Macro View */}
-          <button
-            type="button"
-            onClick={handleZoomToWorld}
-            className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-semibold text-slate-700 hover:text-slate-900 hover:bg-slate-100 transition-colors"
-            title="Macro World & India View"
-          >
-            <Globe className="w-3 h-3 text-indigo-600" />
-            <span className="hidden sm:inline">World</span>
-          </button>
-
-          {/* Maharashtra State View */}
-          <button
-            type="button"
-            onClick={handleZoomToState}
-            className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-semibold text-slate-700 hover:text-slate-900 hover:bg-slate-100 transition-colors"
-            title="Zoom to Maharashtra State View"
-          >
-            <Navigation className="w-3 h-3 text-amber-600" />
-            <span className="hidden sm:inline">State</span>
+            <Layers className="w-3 h-3 text-[#1769D2]" />
+            <span>Focus Problems</span>
           </button>
 
           {/* District / Corporation HQ View */}
@@ -1563,47 +1198,29 @@ export const CommandMap: React.FC<CommandMapProps> = ({
             <span className="hidden sm:inline">HQ</span>
           </button>
 
-          {/* Fit All Incidents */}
+          {/* Maharashtra State View */}
           <button
             type="button"
-            onClick={handleFitAll}
+            onClick={handleZoomToState}
             className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-semibold text-slate-700 hover:text-slate-900 hover:bg-slate-100 transition-colors"
-            title="Fit all complaints on screen"
+            title="Zoom to Maharashtra State View"
           >
-            <Layers className="w-3 h-3 text-slate-600" />
-            <span className="hidden sm:inline">Fit All</span>
+            <Navigation className="w-3 h-3 text-amber-600" />
+            <span className="hidden sm:inline">State</span>
+          </button>
+
+          {/* World / India Macro View */}
+          <button
+            type="button"
+            onClick={handleZoomToWorld}
+            className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-semibold text-slate-700 hover:text-slate-900 hover:bg-slate-100 transition-colors"
+            title="Macro World & India View"
+          >
+            <Globe className="w-3 h-3 text-indigo-600" />
+            <span className="hidden sm:inline">World</span>
           </button>
         </div>
       </div>
-
-      {/* Top Center: GPS Toast Notification Banner */}
-      {gpsToast && (
-        <div
-          className={`absolute top-12 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 px-3 py-1.5 rounded-full text-[11px] font-medium shadow-lg backdrop-blur-md transition-all ${
-            gpsToast.type === 'success'
-              ? 'bg-emerald-900/90 text-emerald-100 border border-emerald-500/50'
-              : gpsToast.type === 'error'
-              ? 'bg-rose-900/90 text-rose-100 border border-rose-500/50'
-              : 'bg-slate-900/90 text-blue-100 border border-blue-500/50'
-          }`}
-        >
-          {gpsToast.type === 'success' ? (
-            <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-          ) : gpsToast.type === 'error' ? (
-            <AlertCircle className="w-3.5 h-3.5 text-rose-400 shrink-0" />
-          ) : (
-            <Loader2 className="w-3.5 h-3.5 text-blue-400 animate-spin shrink-0" />
-          )}
-          <span className="truncate max-w-[280px] sm:max-w-md">{gpsToast.message}</span>
-          <button
-            type="button"
-            onClick={() => setGpsToast(null)}
-            className="ml-1 text-white/60 hover:text-white"
-          >
-            <X className="w-3 h-3" />
-          </button>
-        </div>
-      )}
 
       {/* Accessible Collapsible Map Legend (Section 15) */}
       <div
