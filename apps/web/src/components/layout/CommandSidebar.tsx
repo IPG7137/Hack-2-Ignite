@@ -257,6 +257,8 @@ export const CommandSidebar: React.FC<CommandSidebarProps> = ({
                 }
                 alt={currentCorporation?.shortName || 'Logo'}
                 className="w-full h-full object-contain"
+                loading="lazy"
+                decoding="async"
                 onError={(e) => {
                   (e.currentTarget as HTMLImageElement).src = STATE_OF_MAHARASHTRA_SEAL;
                 }}

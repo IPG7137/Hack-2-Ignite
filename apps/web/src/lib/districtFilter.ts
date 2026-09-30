@@ -14,7 +14,7 @@ export function isComplaintInDistrict(complaint: Complaint, district: Maharashtr
 
   const idLower = (complaint.id || '').toLowerCase();
 
-  // 1. Direct ID Prefix Map
+  // 1. Direct ID Prefix Map (Strict Mutual Exclusion)
   const districtIdPrefixMap: Record<string, string[]> = {
     pune: ['cr-pun', 'pun'],
     solapur: ['cr-sol', 'sol'],
@@ -27,10 +27,10 @@ export function isComplaintInDistrict(complaint: Complaint, district: Maharashtr
     amravati: ['cr-amr', 'amr', 'amc'],
   };
 
-  const prefixes = districtIdPrefixMap[district.id] || [district.id];
-  for (const prefix of prefixes) {
-    if (idLower.startsWith(prefix) || idLower.includes(prefix)) {
-      return true;
+  for (const [distId, prefixes] of Object.entries(districtIdPrefixMap)) {
+    const hasPrefix = prefixes.some((p) => idLower.startsWith(p) || idLower.startsWith(`cr-${p}`));
+    if (hasPrefix) {
+      return distId === district.id;
     }
   }
 

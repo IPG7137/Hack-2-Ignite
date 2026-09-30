@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Complaint, ComplaintStatus } from '../types/complaint';
 import { complaintService } from '../services/complaintService';
+import { SupabaseComplaintService } from '../services/supabaseComplaintService';
 import { ComplaintFilterParams } from '../services/api.interface';
 import { supabase } from '../services/supabaseClient';
 import { useAuthContext } from '../context/AuthContext';
@@ -43,18 +44,10 @@ export function useComplaints(initialFilters: ComplaintFilterParams = {}) {
     }
   }, [filters, isAuthenticated, user?.id, organizationType, districtId, municipalCorporationId]);
 
-  // Re-fetch when the org context changes (district/corporation switch)
-  useEffect(() => {
-    const orgKey = `${organizationType}::${districtId ?? 'null'}::${municipalCorporationId ?? 'null'}`;
-    if (orgKey !== prevOrgRef.current) {
-      prevOrgRef.current = orgKey;
-      fetchComplaints();
-    }
-  }, [organizationType, districtId, municipalCorporationId, fetchComplaints]);
-
+  // Re-fetch when the org context changes (district/corporation switch) or filters change
   useEffect(() => {
     fetchComplaints();
-  }, [fetchComplaints]);
+  }, [organizationType, districtId, municipalCorporationId, filters, fetchComplaints]);
 
   // Live Supabase Realtime Subscription
   useEffect(() => {
@@ -65,6 +58,7 @@ export function useComplaints(initialFilters: ComplaintFilterParams = {}) {
         { event: '*', schema: 'public', table: 'reports' },
         (payload) => {
           console.log('📡 Realtime report update detected:', payload.eventType);
+          SupabaseComplaintService.invalidateCache();
           fetchComplaints();
         }
       )
@@ -73,6 +67,7 @@ export function useComplaints(initialFilters: ComplaintFilterParams = {}) {
         { event: '*', schema: 'public', table: 'report_status_history' },
         (payload) => {
           console.log('📡 Realtime status history update detected:', payload.eventType);
+          SupabaseComplaintService.invalidateCache();
           fetchComplaints();
         }
       )
@@ -81,6 +76,7 @@ export function useComplaints(initialFilters: ComplaintFilterParams = {}) {
         { event: '*', schema: 'public', table: 'incident_clusters' },
         (payload) => {
           console.log('📡 Realtime incident cluster update detected:', payload.eventType);
+          SupabaseComplaintService.invalidateCache();
           fetchComplaints();
         }
       )

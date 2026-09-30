@@ -27,6 +27,12 @@ import { NotificationService } from './notificationService';
 export class SupabaseComplaintService implements IComplaintService {
   private rewardsService = new CivicRewardsService();
   private static localComplaintsCache: Complaint[] = [];
+  private static liveReportsCache: { timestamp: number; data: Complaint[] } | null = null;
+  private static inFlightLiveQuery: Promise<Complaint[]> | null = null;
+  private static clustersCache: { timestamp: number; data: IncidentClusterRecord[] } | null = null;
+  private static inFlightClustersQuery: Promise<IncidentClusterRecord[]> | null = null;
+  private static readonly CACHE_TTL_MS = 20000;
+
   /**
    * Helper to parse string ID (e.g. "CR-12", "CR-PUN-101", or "12") to integer DB ID
    */
@@ -38,8 +44,62 @@ export class SupabaseComplaintService implements IComplaintService {
     return isNaN(num) ? null : num;
   }
 
+  public static invalidateCache(): void {
+    SupabaseComplaintService.liveReportsCache = null;
+    SupabaseComplaintService.inFlightLiveQuery = null;
+    SupabaseComplaintService.clustersCache = null;
+    SupabaseComplaintService.inFlightClustersQuery = null;
+  }
+
+  private async fetchRawLiveReports(): Promise<Complaint[]> {
+    const now = Date.now();
+    if (
+      SupabaseComplaintService.liveReportsCache &&
+      now - SupabaseComplaintService.liveReportsCache.timestamp < SupabaseComplaintService.CACHE_TTL_MS
+    ) {
+      return SupabaseComplaintService.liveReportsCache.data;
+    }
+
+    if (SupabaseComplaintService.inFlightLiveQuery) {
+      return SupabaseComplaintService.inFlightLiveQuery;
+    }
+
+    SupabaseComplaintService.inFlightLiveQuery = (async () => {
+      try {
+        const queryPromise = supabase
+          .from('reports')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(200);
+
+        const timeoutPromise = new Promise<{ data: any[]; error: any }>((resolve) =>
+          setTimeout(
+            () => resolve({ data: [], error: { message: 'Network timeout protection' } }),
+            4000
+          )
+        );
+
+        const { data, error } = await Promise.race([queryPromise, timeoutPromise]);
+        if (!error && data && data.length > 0) {
+          const mapped = data.map((row) => mapSupabaseRowToComplaint(row));
+          SupabaseComplaintService.liveReportsCache = { timestamp: Date.now(), data: mapped };
+          return mapped;
+        }
+        return SupabaseComplaintService.liveReportsCache?.data || [];
+      } catch (err) {
+        console.warn('⚠️ Supabase connection error:', err);
+        return SupabaseComplaintService.liveReportsCache?.data || [];
+      } finally {
+        SupabaseComplaintService.inFlightLiveQuery = null;
+      }
+    })();
+
+    return SupabaseComplaintService.inFlightLiveQuery;
+  }
+
   async getComplaints(filters: ComplaintFilterParams = {}): Promise<Complaint[]> {
-    let query = supabase.from('reports').select('*');
+    const rawLive = await this.fetchRawLiveReports();
+    let mapped: Complaint[] = [...rawLive];
 
     // Status filter
     if (filters.status && filters.status !== 'all') {
@@ -47,41 +107,24 @@ export class SupabaseComplaintService implements IComplaintService {
         filters.status === 'verified'
           ? 'resolved'
           : filters.status;
-      query = query.eq('status', dbStatus);
+      mapped = mapped.filter((c) => c.status === dbStatus);
     }
 
     // Priority filter
     if (filters.priority && filters.priority !== 'all') {
       const dbPriority = filters.priority === 'urgent' ? 'critical' : filters.priority;
-      query = query.eq('priority', dbPriority);
+      mapped = mapped.filter((c) => c.priority === dbPriority);
     }
 
     // Search filter across title, description, and location
     if (filters.search && filters.search.trim()) {
-      const term = `%${filters.search.trim()}%`;
-      query = query.or(
-        `title.ilike.${term},description.ilike.${term},location.ilike.${term}`
+      const term = filters.search.trim().toLowerCase();
+      mapped = mapped.filter(
+        (c) =>
+          c.title.toLowerCase().includes(term) ||
+          c.description.toLowerCase().includes(term) ||
+          (c.location.address || '').toLowerCase().includes(term)
       );
-    }
-
-    // Order newest first
-    query = query.order('created_at', { ascending: false }).limit(200);
-
-    let mapped: Complaint[] = [];
-    try {
-      const { data, error } = await query;
-      if (!error && data && data.length > 0) {
-        console.log(`✅ Fetched ${data.length} live reports from Supabase`);
-        mapped = data.map((row) => mapSupabaseRowToComplaint(row));
-      } else if (error) {
-        console.warn('⚠️ Supabase query error:', error.message);
-        mapped = [];
-      } else {
-        mapped = [];
-      }
-    } catch (err) {
-      console.warn('⚠️ Supabase connection error:', err);
-      mapped = [];
     }
 
     // Resolve active organization context for strict district isolation
@@ -1361,27 +1404,46 @@ export class SupabaseComplaintService implements IComplaintService {
    * Retrieves active incident clusters from the database
    */
   async getIncidentClusters(): Promise<IncidentClusterRecord[]> {
-    try {
-      const { data, error } = await supabase
-        .from('incident_clusters')
-        .select('*')
-        .order('created_at', { ascending: false });
+    const now = Date.now();
+    if (
+      SupabaseComplaintService.clustersCache &&
+      now - SupabaseComplaintService.clustersCache.timestamp < SupabaseComplaintService.CACHE_TTL_MS
+    ) {
+      return SupabaseComplaintService.clustersCache.data;
+    }
 
-      if (error || !data) {
-        return [];
-      }
+    if (SupabaseComplaintService.inFlightClustersQuery) {
+      return SupabaseComplaintService.inFlightClustersQuery;
+    }
 
-      // Fetch junction report IDs for each cluster
-      const clusters: IncidentClusterRecord[] = [];
-      for (const row of data) {
-        const { data: junctionRows } = await supabase
-          .from('incident_cluster_reports')
-          .select('report_id')
-          .eq('incident_id', row.id);
+    SupabaseComplaintService.inFlightClustersQuery = (async () => {
+      try {
+        const { data, error } = await supabase
+          .from('incident_clusters')
+          .select('*')
+          .order('created_at', { ascending: false });
 
-        const reportIds = (junctionRows || []).map((j: any) => `CR-${j.report_id}`);
+        if (error || !data) {
+          return SupabaseComplaintService.clustersCache?.data || [];
+        }
 
-        clusters.push({
+        const clusterIds = data.map((d: any) => d.id);
+        const junctionMap: Record<string, string[]> = {};
+        if (clusterIds.length > 0) {
+          const { data: junctionRows } = await supabase
+            .from('incident_cluster_reports')
+            .select('incident_id, report_id')
+            .in('incident_id', clusterIds);
+
+          if (junctionRows) {
+            for (const j of junctionRows) {
+              if (!junctionMap[j.incident_id]) junctionMap[j.incident_id] = [];
+              junctionMap[j.incident_id].push(`CR-${j.report_id}`);
+            }
+          }
+        }
+
+        const clusters: IncidentClusterRecord[] = data.map((row: any) => ({
           id: row.id,
           title: row.title,
           summary: row.summary,
@@ -1397,17 +1459,22 @@ export class SupabaseComplaintService implements IComplaintService {
           assignedOfficerId: row.assigned_officer_id || undefined,
           createdByName: row.created_by_name || undefined,
           actionNotes: row.action_notes || undefined,
-          reportIds,
+          reportIds: junctionMap[row.id] || [],
           createdAt: row.created_at || new Date().toISOString(),
           updatedAt: row.updated_at || new Date().toISOString(),
-        });
-      }
+        }));
 
-      return clusters;
-    } catch (err) {
-      console.warn('ℹ️ Notice: Incident clusters fetch error:', err);
-      return [];
-    }
+        SupabaseComplaintService.clustersCache = { timestamp: Date.now(), data: clusters };
+        return clusters;
+      } catch (err) {
+        console.warn('ℹ️ Notice: Incident clusters fetch error:', err);
+        return SupabaseComplaintService.clustersCache?.data || [];
+      } finally {
+        SupabaseComplaintService.inFlightClustersQuery = null;
+      }
+    })();
+
+    return SupabaseComplaintService.inFlightClustersQuery;
   }
 }
 

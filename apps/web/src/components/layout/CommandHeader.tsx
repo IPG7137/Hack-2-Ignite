@@ -145,6 +145,8 @@ export const CommandHeader: React.FC<CommandHeaderProps> = ({
               }
               alt={currentCorporation?.name || 'Maharashtra Emblem'}
               className="w-full h-full object-contain"
+              loading="lazy"
+              decoding="async"
               onError={(e) => {
                 (e.currentTarget as HTMLImageElement).src = STATE_OF_MAHARASHTRA_SEAL;
               }}
