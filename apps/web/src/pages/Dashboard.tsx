@@ -5,7 +5,6 @@ import { EmergingProblemsHotspotsCard } from '../components/dashboard/EmergingPr
 import { PotentialIncidentsCard } from '../components/dashboard/PotentialIncidentsCard';
 import { DepartmentWorkload } from '../components/dashboard/DepartmentWorkload';
 import { CommandMap } from '../components/map/CommandMap';
-import { GrievanceLifecycleBanner } from '../components/dashboard/GrievanceLifecycleBanner';
 import { IssueTrendsChart } from '../components/dashboard/IssueTrendsChart';
 import { RecentComplaintsList } from '../components/dashboard/RecentComplaintsList';
 import { EmergingProblemEngine } from '../services/emergingProblemEngine';
@@ -176,9 +175,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
   return (
     <div className="space-y-4">
-      {/* Grievance Redressal Architecture Lifecycle Banner */}
-      <GrievanceLifecycleBanner onNavigatePage={onNavigatePage} />
-
       {/* Guest Authentication Banner (When not signed in under Supabase RLS) */}
       {!isAuthenticated && (
         <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-2xs">
