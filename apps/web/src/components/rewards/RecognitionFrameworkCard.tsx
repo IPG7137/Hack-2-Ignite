@@ -27,10 +27,10 @@ export const RecognitionFrameworkCard: React.FC<RecognitionFrameworkCardProps> =
     id: 'REC-DEFAULT',
     districtId: districtName.toLowerCase(),
     districtName,
-    eventName: `Republic Day Civic Champions 2027`,
-    eventDate: '2027-01-26',
+    eventName: `Republic Day Civic Champions 2026`,
+    eventDate: '2026-01-26',
     eligibleRankLimit: 10,
-    rewardType: 'District Collector Citation & Official Civic Recognition',
+    rewardType: 'Proposed District Civic Recognition & Digital Honor Certificate',
     status: 'proposed',
   };
 
@@ -65,15 +65,15 @@ export const RecognitionFrameworkCard: React.FC<RecognitionFrameworkCardProps> =
         </div>
       </div>
 
-      {/* Official Government Recognition Note */}
+      {/* Proposed Framework Recognition Note */}
       <div className="p-4 bg-amber-50/70 border-b border-amber-200 text-xs space-y-1">
         <div className="flex items-center gap-2 text-amber-900 font-bold text-xs uppercase tracking-wider">
           <FileBadge className="w-4 h-4 text-amber-700 shrink-0" />
-          <span>Proposed District Civic Commendation Criteria</span>
+          <span>Proposed District Civic Recognition Framework</span>
         </div>
         <p className="text-[11px] text-amber-800 leading-relaxed">
           Citizens maintaining verified contribution quality in the top {currentCycle.eligibleRankLimit} positions of{' '}
-          <strong>{districtName} District</strong> are shortlisted for official citation on national observance days (26 January / 15 August).
+          <strong>{districtName} District</strong> are shortlisted for proposed digital commendation certificates during annual civic review cycles (26 January / 15 August).
         </p>
       </div>
 

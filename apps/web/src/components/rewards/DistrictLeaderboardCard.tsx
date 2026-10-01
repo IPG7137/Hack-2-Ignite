@@ -35,14 +35,17 @@ export const DistrictLeaderboardCard: React.FC<DistrictLeaderboardCardProps> = (
             <Trophy className="w-4 h-4 text-amber-600" />
           </div>
           <div>
-            <h2 className="text-sm font-bold text-[#123B6D] uppercase tracking-wider flex items-center gap-2">
+            <h2 className="text-sm font-bold text-[#123B6D] uppercase tracking-wider flex items-center gap-2 flex-wrap">
               <span>🏆 {districtName} Civic Champions</span>
               <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-blue-50 text-[#1769D2] border border-blue-200">
                 District Scoped
               </span>
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200 font-semibold">
+                Demonstration Baseline Dataset
+              </span>
             </h2>
             <p className="text-[11px] text-[#526581] mt-0.5">
-              Verified civic contributors across {districtName} District ({divisionName} Division).
+              Verified civic contributors across {districtName} District ({divisionName} Division). Dynamically updates upon verified citizen submissions.
             </p>
           </div>
         </div>

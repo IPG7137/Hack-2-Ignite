@@ -214,26 +214,43 @@ class _ConfirmationScreenState extends State<ConfirmationScreen>
           throw Exception(result.message);
         }
       } catch (e) {
-        debugPrint('❌ Submission error: $e');
-        final errStr = e.toString();
-        if (errStr.contains('User ID') || errStr.contains('Authentication') || errStr.contains('JWT') || errStr.contains('sign in')) {
+        debugPrint('[CivicResolve Diagnostic] ❌ Submission error: $e');
+        final errStr = e.toString().toLowerCase();
+
+        if (errStr.contains('user id') ||
+            errStr.contains('authentication') ||
+            errStr.contains('jwt') ||
+            errStr.contains('sign in') ||
+            errStr.contains('unauthorized') ||
+            errStr.contains('row-level security') ||
+            errStr.contains('42501')) {
           if (mounted) {
             setState(() {
               _isSubmitting = false;
-              _errorMessage = 'Please sign in to submit a complaint.';
+              _errorMessage = 'Authentication required: Please sign in with an active citizen account to submit complaints.';
+            });
+          }
+          return;
+        }
+
+        if (errStr.contains('duplicate key')) {
+          if (mounted) {
+            setState(() {
+              _isSubmitting = false;
+              _errorMessage = 'This complaint is already recorded in the system.';
             });
           }
           return;
         }
 
         retryCount++;
-        debugPrint('❌ Submission attempt $retryCount failed: $e');
+        debugPrint('[CivicResolve Diagnostic] ❌ Submission attempt $retryCount failed: $e');
 
         if (retryCount >= maxRetries) {
           if (mounted) {
             setState(() {
               _isSubmitting = false;
-              _errorMessage = 'Unable to submit your complaint right now. Please check your internet connection and try again.';
+              _errorMessage = 'Unable to submit your complaint right now. Please check your network connection and retry.';
             });
           }
           return;

@@ -589,14 +589,15 @@ export const DISTRICT_CIVIC_PROFILES_MAP: Record<string, CitizenCivicProfile[]> 
 // ============================================================================
 export const DISTRICT_RECOGNITION_CYCLES: DistrictRecognitionCycle[] = MAHARASHTRA_DISTRICTS.flatMap((d) => [
   {
-    id: `REC-${d.id.toUpperCase()}-REP-2027`,
+    id: `REC-${d.id.toUpperCase()}-REP-2026`,
     districtId: d.id,
     districtName: d.name,
-    eventName: `Republic Day Civic Champions 2027`,
-    eventDate: '2027-01-26',
+    eventName: `Republic Day Civic Champions 2026`,
+    eventDate: '2026-01-26',
     eligibleRankLimit: 10,
-    rewardType: 'District Collector Citation & Civic Honor Certificate',
-    status: 'proposed',
+    rewardType: 'Proposed District Civic Honor Commendation & Digital Certificate',
+    status: 'approved',
+    announcedAt: '2026-01-26T09:00:00Z',
   },
   {
     id: `REC-${d.id.toUpperCase()}-IND-2026`,
@@ -605,7 +606,7 @@ export const DISTRICT_RECOGNITION_CYCLES: DistrictRecognitionCycle[] = MAHARASHT
     eventName: `Independence Day Civic Champions 2026`,
     eventDate: '2026-08-15',
     eligibleRankLimit: 10,
-    rewardType: 'Municipal Commissioner Commendation & Civic Merit Badge',
+    rewardType: 'Proposed Municipal Commissioner Merit Badge & Commendation',
     status: 'approved',
     announcedAt: '2026-08-15T09:00:00Z',
   },

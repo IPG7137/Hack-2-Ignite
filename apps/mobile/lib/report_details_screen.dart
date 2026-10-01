@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:io';
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:image_picker/image_picker.dart';
 import 'package:geolocator/geolocator.dart';
@@ -41,6 +42,7 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> with TickerPr
   bool isLoadingLocation = false;
   bool isUsingFallbackLocation = false;
   bool showMap = false;
+  int _webZoom = 15;
   
   // AI Priority Detection & Scanning Shimmer
   String selectedPriority = 'Medium';
@@ -848,56 +850,215 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> with TickerPr
   }
 
   Widget _buildWebMap() {
-    // For web platform, show a placeholder with instructions
-    return Container(
-      width: double.infinity,
-      height: double.infinity,
-      decoration: BoxDecoration(
-        color: Colors.blue[50],
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.map,
-            size: 64,
-            color: Colors.blue[400],
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'Interactive Map',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Colors.blue[700],
-            ),
-          ),
-          const SizedBox(height: 8),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Text(
-              'Location: ${currentLatitude?.toStringAsFixed(6) ?? _defaultLatitude.toStringAsFixed(6)}, ${currentLongitude?.toStringAsFixed(6) ?? _defaultLongitude.toStringAsFixed(6)}',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.blue[600],
+    final lat = currentLatitude ?? _defaultLatitude;
+    final lng = currentLongitude ?? _defaultLongitude;
+
+    final tileX = ((lng + 180.0) / 360.0 * math.pow(2, _webZoom)).floor();
+    final rad = lat * math.pi / 180.0;
+    final tileY = ((1.0 - math.log(math.tan(rad) + 1.0 / math.cos(rad)) / math.pi) / 2.0 * math.pow(2, _webZoom)).floor();
+
+    return Stack(
+      children: [
+        // 3x3 Raster Map Tile Grid
+        Positioned.fill(
+          child: ClipRect(
+            child: OverflowBox(
+              maxWidth: 768,
+              maxHeight: 768,
+              child: GridView.builder(
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 3,
+                  childAspectRatio: 1,
+                ),
+                itemCount: 9,
+                itemBuilder: (context, index) {
+                  final dx = (index % 3) - 1;
+                  final dy = (index ~/ 3) - 1;
+                  final x = tileX + dx;
+                  final y = tileY + dy;
+                  final tileUrl = 'https://basemaps.cartocdn.com/rastertiles/voyager/$_webZoom/$x/$y.png';
+                  return Image.network(
+                    tileUrl,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Image.network(
+                        'https://tile.openstreetmap.org/$_webZoom/$x/$y.png',
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, err2, st2) => Container(
+                          color: const Color(0xFFE2E8F0),
+                          child: const Center(
+                            child: Icon(Icons.map_outlined, color: Color(0xFF94A3B8), size: 24),
+                          ),
+                        ),
+                      );
+                    },
+                  );
+                },
               ),
             ),
           ),
-          const SizedBox(height: 16),
-          ElevatedButton.icon(
-            onPressed: _getCurrentLocationSafely,
-            icon: const Icon(Icons.my_location, size: 20),
-            label: const Text('Get Current Location'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blue[600],
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        ),
+
+        // Central Location Pin with Pulse Beacon
+        Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0F172A),
+                  borderRadius: BorderRadius.circular(6),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.2),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 6,
+                      height: 6,
+                      decoration: BoxDecoration(
+                        color: isUsingFallbackLocation ? const Color(0xFFF59E0B) : const Color(0xFF10B981),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 5),
+                    Text(
+                      isUsingFallbackLocation ? 'Approx. Municipal Center' : 'Problem Location Pin',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 2),
+              const Icon(
+                Icons.location_on,
+                size: 38,
+                color: Color(0xFFEF4444),
+                shadows: [
+                  Shadow(
+                    color: Colors.black38,
+                    blurRadius: 8,
+                    offset: Offset(0, 4),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+
+        // Zoom Controls Overlay (Top-Right)
+        Positioned(
+          top: 8,
+          right: 8,
+          child: Column(
+            children: [
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.15),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.add, size: 18),
+                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                      padding: EdgeInsets.zero,
+                      tooltip: 'Zoom In',
+                      onPressed: () {
+                        if (_webZoom < 18) {
+                          setState(() {
+                            _webZoom += 1;
+                          });
+                        }
+                      },
+                    ),
+                    const Divider(height: 1),
+                    IconButton(
+                      icon: const Icon(Icons.remove, size: 18),
+                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                      padding: EdgeInsets.zero,
+                      tooltip: 'Zoom Out',
+                      onPressed: () {
+                        if (_webZoom > 12) {
+                          setState(() {
+                            _webZoom -= 1;
+                          });
+                        }
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+              // GPS Re-center button
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.15),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: IconButton(
+                  icon: Icon(
+                    Icons.my_location,
+                    size: 18,
+                    color: isLoadingLocation ? const Color(0xFFF59E0B) : const Color(0xFF155EEF),
+                  ),
+                  constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
+                  padding: EdgeInsets.zero,
+                  tooltip: 'Acquire Live GPS Location',
+                  onPressed: _getCurrentLocationSafely,
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        // Cartography Attribution (Bottom-Right)
+        Positioned(
+          bottom: 4,
+          right: 6,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.8),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: const Text(
+              '© OpenStreetMap & CARTO',
+              style: TextStyle(
+                fontSize: 9,
+                color: Color(0xFF64748B),
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 

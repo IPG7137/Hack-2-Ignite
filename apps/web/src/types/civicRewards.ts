@@ -77,10 +77,10 @@ export interface DistrictRecognitionCycle {
   id: string;
   districtId: string;
   districtName: string;
-  eventName: string; // e.g. "Republic Day Civic Champions 2027" or "Independence Day Civic Champions 2027"
+  eventName: string; // e.g. "Republic Day Civic Champions 2026" or "Independence Day Civic Champions 2026"
   eventDate: string; // YYYY-MM-DD
   eligibleRankLimit: number; // e.g. Top 10
-  rewardType: string; // e.g. "District Collector Citation & Official Civic Recognition"
+  rewardType: string; // e.g. "Proposed District Civic Honor Commendation & Digital Certificate"
   status: 'proposed' | 'approved' | 'announced';
   announcedAt?: string;
 }
