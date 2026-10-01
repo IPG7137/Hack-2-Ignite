@@ -135,26 +135,72 @@ export function runPlatformRoleIsolationTests(): { passed: number; failed: numbe
     assert(!solapurAdminVisible.some(c => c.district_id === 'nashik'), 'Zero Nashik data leaks to Solapur District Admin');
   }
 
-  // 5. Zone Admin Boundary Enforcement
+  // 5. Zone Admin Boundary Enforcement & >= 3 Zones per District
   {
+    // Test district zone coverage: Every district must have at least 3 dedicated zones
+    const distinctDistricts = Array.from(new Set(ZONE_CREDENTIAL_REGISTRY.map(z => z.districtId)));
+    assert(distinctDistricts.length >= 9, 'All 9 key Maharashtra districts are registered in ZONE_CREDENTIAL_REGISTRY');
+
+    distinctDistricts.forEach(distId => {
+      const zonesForDist = ZONE_CREDENTIAL_REGISTRY.filter(z => z.districtId === distId);
+      assert(
+        zonesForDist.length >= 3,
+        `District '${distId}' has at least 3 dedicated zones (actual: ${zonesForDist.length})`
+      );
+    });
+
+    // Check unique loginIds
+    const loginIds = ZONE_CREDENTIAL_REGISTRY.map(z => z.loginId);
+    const uniqueLoginIds = new Set(loginIds);
+    assert(loginIds.length === uniqueLoginIds.size, 'All Zone Administrator login IDs are globally unique');
+
+    // 3-way partition for Solapur: North, South, Central
     const solapurComplaints: Record<string, any>[] = [
       { id: '1', district_id: 'solapur', location: 'Saat Rasta, Solapur', zone: 'Zone 1' },
       { id: '2', district_id: 'solapur', location: 'Navi Peth, Solapur', zone: 'Zone 2' },
       { id: '3', district_id: 'solapur', location: 'Civil Lines, Solapur', ward: 'Ward 2 - Sadar' },
       { id: '4', district_id: 'solapur', location: 'Hotgi Road, Solapur', zone: 'Zone 3' },
       { id: '5', district_id: 'solapur', location: 'Vijapur Road, Solapur', zone: 'Zone 4' },
+      { id: '6', district_id: 'solapur', location: 'Siddheshwar Temple, Solapur', zone: 'Zone 5' },
     ];
 
     const northVisible = solapurComplaints.filter(c => isComplaintInZone(c, 'Solapur North'));
     const southVisible = solapurComplaints.filter(c => isComplaintInZone(c, 'Solapur South'));
+    const centralVisible = solapurComplaints.filter(c => isComplaintInZone(c, 'Solapur Central'));
 
     assert(northVisible.length === 3, 'Solapur North Zone Admin sees exactly 3 North complaints');
     assert(southVisible.length === 2, 'Solapur South Zone Admin sees exactly 2 South complaints');
+    assert(centralVisible.length === 1, 'Solapur Central Zone Admin sees exactly 1 Central complaint');
 
-    // Strict disjointness check: North and South visible sets must have zero overlap
+    // Zero overlap among all 3 zones
     const northIds = new Set(northVisible.map(c => c.id));
-    const overlap = southVisible.filter(c => northIds.has(c.id));
-    assert(overlap.length === 0, 'Solapur North and South complaint sets have strictly ZERO overlap');
+    const southIds = new Set(southVisible.map(c => c.id));
+    const centralIds = new Set(centralVisible.map(c => c.id));
+
+    const northSouthOverlap = southVisible.filter(c => northIds.has(c.id));
+    const northCentralOverlap = centralVisible.filter(c => northIds.has(c.id));
+    const southCentralOverlap = centralVisible.filter(c => southIds.has(c.id));
+
+    assert(northSouthOverlap.length === 0, 'Solapur North and South sets have strictly ZERO overlap');
+    assert(northCentralOverlap.length === 0, 'Solapur North and Central sets have strictly ZERO overlap');
+    assert(southCentralOverlap.length === 0, 'Solapur South and Central sets have strictly ZERO overlap');
+  }
+
+  // 6. Cross-Zone Isolation in Other Districts (e.g. Pune Zones 1, 2, 3)
+  {
+    const puneComplaints: Record<string, any>[] = [
+      { id: 'P1', district_id: 'pune', location: 'Central Pune Station', zone: 'Zone 1' },
+      { id: 'P2', district_id: 'pune', location: 'Kothrud Depot', zone: 'Zone 2' },
+      { id: 'P3', district_id: 'pune', location: 'Ghole Road Ward Office', zone: 'Zone 3' },
+    ];
+
+    const z1 = puneComplaints.filter(c => isComplaintInZone(c, 'Zone 1 (Central Pune)'));
+    const z2 = puneComplaints.filter(c => isComplaintInZone(c, 'Zone 2 (Kothrud)'));
+    const z3 = puneComplaints.filter(c => isComplaintInZone(c, 'Zone 3 (Ghole Road)'));
+
+    assert(z1.length === 1 && z1[0].id === 'P1', 'Pune Zone 1 Admin accesses only Zone 1 complaint');
+    assert(z2.length === 1 && z2[0].id === 'P2', 'Pune Zone 2 Admin accesses only Zone 2 complaint');
+    assert(z3.length === 1 && z3[0].id === 'P3', 'Pune Zone 3 Admin accesses only Zone 3 complaint');
   }
 
   return { passed, failed, errors };

@@ -42,13 +42,18 @@ export function isComplaintInZone(complaint: Complaint | any, targetZoneOrWard: 
     if (target.includes('nashik') && complaintDistrict !== 'nashik') return false;
     if ((target.includes('sambhajinagar') || target.includes('csn')) && 
         !(complaintDistrict.includes('sambhajinagar') || complaintDistrict === 'csn')) return false;
+    if (target.includes('mumbai') && complaintDistrict !== 'mumbai') return false;
+    if (target.includes('thane') && complaintDistrict !== 'thane') return false;
+    if (target.includes('nagpur') && complaintDistrict !== 'nagpur') return false;
+    if (target.includes('kolhapur') && complaintDistrict !== 'kolhapur') return false;
+    if (target.includes('amravati') && complaintDistrict !== 'amravati') return false;
   }
 
   const combined = `${ward} ${zone} ${address} ${landmark} ${locStr} ${topWard} ${topZone} ${topAddress} ${title} ${description}`;
 
   // 1. SOLAPUR NORTH SPECIFIC ISOLATION
   if (target.includes('solapur north') || target === 'north zone' || target === 'north') {
-    // If complaint is from another district or explicitly in Solapur South, reject immediately
+    // If complaint is from another district or explicitly in Solapur South or Central, reject immediately
     if (
       (complaintDistrict && complaintDistrict !== 'solapur') ||
       combined.includes('south') ||
@@ -58,7 +63,9 @@ export function isComplaintInZone(complaint: Complaint | any, targetZoneOrWard: 
       combined.includes('vijapur road') ||
       combined.includes('jule solapur') ||
       combined.includes('ward 03') ||
-      combined.includes('ward 04')
+      combined.includes('ward 04') ||
+      combined.includes('siddheshwar') ||
+      combined.includes('market yard')
     ) {
       return false;
     }
@@ -81,8 +88,9 @@ export function isComplaintInZone(complaint: Complaint | any, targetZoneOrWard: 
 
   // 2. SOLAPUR SOUTH SPECIFIC ISOLATION
   if (target.includes('solapur south') || target === 'south zone' || target === 'south') {
-    // If complaint is explicitly in Solapur North, reject immediately
+    // If complaint is from another district or explicitly in Solapur North, reject immediately
     if (
+      (complaintDistrict && complaintDistrict !== 'solapur') ||
       combined.includes('north') ||
       combined.includes('zone 1') ||
       combined.includes('zone 2') ||
@@ -107,6 +115,28 @@ export function isComplaintInZone(complaint: Complaint | any, targetZoneOrWard: 
       combined.includes('ward 04') ||
       combined.includes('ward 3') ||
       combined.includes('ward 4')
+    );
+  }
+
+  // 3. SOLAPUR CENTRAL SPECIFIC ISOLATION
+  if (target.includes('solapur central') || target === 'central solapur' || target === 'central zone') {
+    if (
+      (complaintDistrict && complaintDistrict !== 'solapur') ||
+      combined.includes('hotgi road') ||
+      combined.includes('vijapur road') ||
+      combined.includes('jule solapur') ||
+      combined.includes('saat rasta') ||
+      combined.includes('sadar bazar')
+    ) {
+      return false;
+    }
+    return (
+      combined.includes('central') ||
+      combined.includes('siddheshwar') ||
+      combined.includes('market yard') ||
+      combined.includes('midc') ||
+      combined.includes('zone 5') ||
+      combined.includes('ward 5')
     );
   }
 
