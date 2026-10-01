@@ -5,7 +5,6 @@ import {
   AlertCircle,
   ArrowRight,
   Building2,
-  KeyRound,
   ShieldCheck,
   Landmark,
 } from 'lucide-react';
@@ -20,11 +19,8 @@ import {
 import {
   DISTRICT_CREDENTIAL_REGISTRY,
   STATE_ADMIN_CREDENTIAL,
-  resolveDistrictCredential,
 } from '../../data/districtCredentials';
 
-// Demo password shown in the UI — not a production secret
-const DEMO_PASSWORD = 'demo@2026';
 
 export const MunicipalAuthScreen: React.FC = () => {
   const { signIn, error, clearError, loading } = useAuthContext();
@@ -37,9 +33,9 @@ export const MunicipalAuthScreen: React.FC = () => {
   const [selectedDistrictId, setSelectedDistrictId] = useState<string>('pune');
   const [selectedCorporationId, setSelectedCorporationId] = useState<string>('pmc');
 
-  // Form credentials — pre-filled from district registry
+  // Form credentials
   const [loginId, setLoginId] = useState('pune_admin');
-  const [password, setPassword] = useState(DEMO_PASSWORD);
+  const [password, setPassword] = useState('');
 
   // Available corporations for currently chosen district
   const availableCorporations = useMemo(() => {
@@ -63,13 +59,13 @@ export const MunicipalAuthScreen: React.FC = () => {
     clearError();
     if (type === 'STATE') {
       setLoginId(STATE_ADMIN_CREDENTIAL.loginId);
-      setPassword(DEMO_PASSWORD);
+      setPassword('');
       setOrganization('STATE', null, null);
     } else {
       const cred = DISTRICT_CREDENTIAL_REGISTRY.find((d) => d.districtId === selectedDistrictId);
       if (cred) {
         setLoginId(cred.loginId);
-        setPassword(DEMO_PASSWORD);
+        setPassword('');
       }
       const distObj = MAHARASHTRA_DISTRICTS.find((d) => d.id === selectedDistrictId);
       setOrganization('MUNICIPAL_CORPORATION', selectedDistrictId, selectedCorporationId);
@@ -91,32 +87,6 @@ export const MunicipalAuthScreen: React.FC = () => {
     await signIn(loginId, password);
   };
 
-  /**
-   * One-click demo login for a specific district.
-   * Uses the district's unique loginId from the registry.
-   */
-  const handleDemoLogin = async (
-    demoLoginId: string,
-    type: 'MUNICIPAL_CORPORATION' | 'STATE',
-    distId?: string,
-    corpId?: string
-  ) => {
-    clearError();
-    setLoginId(demoLoginId);
-    setPassword(DEMO_PASSWORD);
-    setAdminType(type);
-
-    if (type === 'STATE') {
-      setOrganization('STATE', null, null);
-    } else if (distId) {
-      const finalCorpId = corpId || selectedCorporationId;
-      setSelectedDistrictId(distId);
-      setSelectedCorporationId(finalCorpId || '');
-      setOrganization('MUNICIPAL_CORPORATION', distId, finalCorpId || null);
-    }
-
-    await signIn(demoLoginId, DEMO_PASSWORD);
-  };
 
   const selectedCorpObj = getCorporationById(selectedCorporationId);
   const selectedDistrictObj = MAHARASHTRA_DISTRICTS.find((d) => d.id === selectedDistrictId);
@@ -436,101 +406,7 @@ export const MunicipalAuthScreen: React.FC = () => {
                   </Button>
                 </form>
 
-                {/* ==================================================
-                    HACKATHON DEMO QUICK-FILL SECTION (AUTOFILL ONLY)
-                    ================================================== */}
-                <div className="pt-3 border-t border-[#D9E2EC]">
-                  <div className="flex items-center gap-1.5 text-[11px] font-bold text-[#526581] mb-2">
-                    <KeyRound className="w-3.5 h-3.5 text-[#1769D2]" />
-                    <span>DEMO QUICK-LOGIN (District-Specific Accounts):</span>
-                  </div>
 
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                    {/* PMC — Pune */}
-                    <button
-                      type="button"
-                      id="demo-btn-pune"
-                      onClick={() => handleDemoLogin('pune_admin', 'MUNICIPAL_CORPORATION', 'pune', 'pmc')}
-                      className="p-2 rounded-lg bg-[#F8FAFC] hover:bg-blue-50 border border-[#D9E2EC] hover:border-blue-300 text-left transition-all group cursor-pointer"
-                    >
-                      <div className="text-[11px] font-bold text-[#123B6D] group-hover:text-[#1769D2]">PMC — Pune</div>
-                      <div className="text-[10px] text-[#718096] font-mono truncate">pune_admin</div>
-                    </button>
-
-                    {/* SMC — Solapur */}
-                    <button
-                      type="button"
-                      id="demo-btn-solapur"
-                      onClick={() => handleDemoLogin('solapur_admin', 'MUNICIPAL_CORPORATION', 'solapur', 'smc')}
-                      className="p-2 rounded-lg bg-[#F8FAFC] hover:bg-blue-50 border border-[#D9E2EC] hover:border-blue-300 text-left transition-all group cursor-pointer"
-                    >
-                      <div className="text-[11px] font-bold text-[#123B6D] group-hover:text-[#1769D2]">SMC — Solapur</div>
-                      <div className="text-[10px] text-[#718096] font-mono truncate">solapur_admin</div>
-                    </button>
-
-                    {/* BMC — Mumbai */}
-                    <button
-                      type="button"
-                      id="demo-btn-mumbai"
-                      onClick={() => handleDemoLogin('mumbai_admin', 'MUNICIPAL_CORPORATION', 'mumbai', 'bmc')}
-                      className="p-2 rounded-lg bg-[#F8FAFC] hover:bg-blue-50 border border-[#D9E2EC] hover:border-blue-300 text-left transition-all group cursor-pointer"
-                    >
-                      <div className="text-[11px] font-bold text-[#123B6D] group-hover:text-[#1769D2]">BMC — Mumbai</div>
-                      <div className="text-[10px] text-[#718096] font-mono truncate">mumbai_admin</div>
-                    </button>
-
-                    {/* NMC — Nashik */}
-                    <button
-                      type="button"
-                      id="demo-btn-nashik"
-                      onClick={() => handleDemoLogin('nashik_admin', 'MUNICIPAL_CORPORATION', 'nashik', 'nmc')}
-                      className="p-2 rounded-lg bg-[#F8FAFC] hover:bg-blue-50 border border-[#D9E2EC] hover:border-blue-300 text-left transition-all group cursor-pointer"
-                    >
-                      <div className="text-[11px] font-bold text-[#123B6D] group-hover:text-[#1769D2]">NMC — Nashik</div>
-                      <div className="text-[10px] text-[#718096] font-mono truncate">nashik_admin</div>
-                    </button>
-
-                    {/* NMC — Nagpur */}
-                    <button
-                      type="button"
-                      id="demo-btn-nagpur"
-                      onClick={() => handleDemoLogin('nagpur_admin', 'MUNICIPAL_CORPORATION', 'nagpur', 'nmc_nagpur')}
-                      className="p-2 rounded-lg bg-[#F8FAFC] hover:bg-blue-50 border border-[#D9E2EC] hover:border-blue-300 text-left transition-all group cursor-pointer"
-                    >
-                      <div className="text-[11px] font-bold text-[#123B6D] group-hover:text-[#1769D2]">NMC — Nagpur</div>
-                      <div className="text-[10px] text-[#718096] font-mono truncate">nagpur_admin</div>
-                    </button>
-
-                    {/* CSMC — Chhatrapati Sambhajinagar */}
-                    <button
-                      type="button"
-                      id="demo-btn-csn"
-                      onClick={() => handleDemoLogin('csn_admin', 'MUNICIPAL_CORPORATION', 'chhatrapati_sambhajinagar', 'csmc')}
-                      className="p-2 rounded-lg bg-[#F8FAFC] hover:bg-blue-50 border border-[#D9E2EC] hover:border-blue-300 text-left transition-all group cursor-pointer"
-                    >
-                      <div className="text-[11px] font-bold text-[#123B6D] group-hover:text-[#1769D2]">CSMC — Sambhajinagar</div>
-                      <div className="text-[10px] text-[#718096] font-mono truncate">csn_admin</div>
-                    </button>
-
-                    {/* State: Maharashtra State Admin */}
-                    <button
-                      type="button"
-                      id="demo-btn-state-admin"
-                      onClick={() => handleDemoLogin('state_admin', 'STATE')}
-                      className="p-2 rounded-lg bg-blue-50 hover:bg-blue-100 border border-blue-200 hover:border-blue-400 text-left transition-all group cursor-pointer col-span-2 sm:col-span-1"
-                    >
-                      <div className="text-[11px] font-bold text-[#1769D2] flex items-center justify-between">
-                        <span>State Admin</span>
-                        <span className="text-[9px] bg-[#1769D2] text-white px-1.5 py-0.5 rounded font-bold">STATE</span>
-                      </div>
-                      <div className="text-[10px] text-[#526581] font-mono truncate">state_admin</div>
-                    </button>
-                  </div>
-
-                  <p className="text-[10px] text-[#718096] mt-2 leading-tight">
-                    ⚡ <em>Each district has its own unique account. Password for all demo accounts: <strong className="font-mono text-[#172B4D]">{DEMO_PASSWORD}</strong></em>
-                  </p>
-                </div>
               </div>
             </div>
           </div>
