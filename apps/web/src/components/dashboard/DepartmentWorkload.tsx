@@ -1,12 +1,13 @@
-import React from 'react';
-import { Building2 } from 'lucide-react';
+import { Building2, ArrowUpRight } from 'lucide-react';
 import { Card } from '../ui/Card';
+import { Button } from '../ui/Button';
 import { Complaint } from '../../types/complaint';
 import { Department } from '../../types/department';
 
 interface DepartmentWorkloadProps {
   departments?: Department[];
   complaints?: Complaint[];
+  onViewAll?: () => void;
 }
 
 const CANONICAL_DIVISIONS = [
@@ -19,7 +20,10 @@ const CANONICAL_DIVISIONS = [
   { id: 'DEP-PARKS', name: 'Horticulture Dept', categories: ['parks'], targetHours: 48 },
 ];
 
-export const DepartmentWorkload: React.FC<DepartmentWorkloadProps> = ({ complaints = [] }) => {
+export const DepartmentWorkload: React.FC<DepartmentWorkloadProps> = ({
+  complaints = [],
+  onViewAll,
+}) => {
   const workloads = CANONICAL_DIVISIONS.map((division) => {
     const deptComplaints = complaints.filter((c) => division.categories.includes(c.category));
     const active = deptComplaints.filter((c) => c.status !== 'closed' && c.status !== 'verified');
@@ -51,9 +55,22 @@ export const DepartmentWorkload: React.FC<DepartmentWorkloadProps> = ({ complain
             Departmental Capacity & SLA Matrix
           </h3>
         </div>
-        <span className="text-[10px] font-mono text-[#526581] font-bold">
-          {CANONICAL_DIVISIONS.length} MUNICIPAL DIVISIONS
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] font-mono text-[#526581] font-bold hidden sm:inline">
+            {CANONICAL_DIVISIONS.length} DIVISIONS
+          </span>
+          {onViewAll && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onViewAll}
+              className="h-6 text-[11px] text-[#1769D2] hover:text-[#123B6D] hover:bg-blue-50 font-bold gap-1 px-1.5"
+            >
+              <span>View Roster</span>
+              <ArrowUpRight className="w-3 h-3" />
+            </Button>
+          )}
+        </div>
       </div>
 
       <div className="p-3.5 space-y-2.5 overflow-y-auto flex-1">

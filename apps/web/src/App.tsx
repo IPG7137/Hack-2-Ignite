@@ -163,20 +163,25 @@ export function App() {
       null
     : null;
 
+  const handleNavigatePage = (page: ActivePage, filterParams?: any) => {
+    if (filterParams) {
+      setFilters((prev) => ({ ...prev, ...filterParams }));
+    }
+    // Enforce role boundary: Only Municipal/State Admin can access system-wide configuration
+    if (!isMunicipalAdmin && (page === 'departments' || page === 'settings')) {
+      setActivePage('dashboard');
+      return;
+    }
+    if (page !== 'complaint_details') {
+      setSelectedComplaintId(null);
+    }
+    setActivePage(page);
+  };
+
   return (
     <MainLayout
       activePage={activePage}
-      onSelectPage={(page) => {
-        // Enforce role boundary: Only Municipal/State Admin can access system-wide configuration
-        if (!isMunicipalAdmin && (page === 'departments' || page === 'settings')) {
-          setActivePage('dashboard');
-          return;
-        }
-        if (page !== 'complaint_details') {
-          setSelectedComplaintId(null);
-        }
-        setActivePage(page);
-      }}
+      onSelectPage={(page) => handleNavigatePage(page)}
       complaints={visibleComplaints}
       selectedComplaintId={selectedComplaintId}
       onSelectComplaint={handleSelectComplaint}
@@ -188,7 +193,7 @@ export function App() {
           <StateDashboard
             complaints={complaints}
             onSelectComplaint={handleSelectComplaint}
-            onNavigatePage={(p) => setActivePage(p)}
+            onNavigatePage={handleNavigatePage}
           />
         ) : (
           <Dashboard
@@ -199,7 +204,7 @@ export function App() {
             loading={complaintsLoading || kpisLoading}
             error={complaintsError}
             onSelectComplaint={handleSelectComplaint}
-            onNavigatePage={(p) => setActivePage(p)}
+            onNavigatePage={handleNavigatePage}
             onAcknowledgeInsight={acknowledge}
             onOpenCopilot={() => setActivePage('copilot')}
             onRefresh={handleRefresh}

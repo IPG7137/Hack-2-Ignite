@@ -20,11 +20,13 @@ interface PriorityQueueProps {
   complaints: Complaint[];
   onSelectComplaint: (id: string) => void;
   onAdvanceStatus?: (id: string) => void;
+  onViewAll?: () => void;
 }
 
 export const PriorityQueue: React.FC<PriorityQueueProps> = ({
   complaints,
   onSelectComplaint,
+  onViewAll,
 }) => {
   // Sort deterministically by calculated Smart Civic Priority (0 - 100)
   const sortedPriorities = React.useMemo(() => {
@@ -35,7 +37,7 @@ export const PriorityQueue: React.FC<PriorityQueueProps> = ({
     (item) => item.priorityAnalysis.score >= 60.0
   ).length;
 
-  const displayList = sortedPriorities.slice(0, 6);
+  const displayList = sortedPriorities.slice(0, 3);
 
   return (
     <div className="flex flex-col h-full rounded-xl border border-slate-200 bg-white shadow-2xs overflow-hidden">
@@ -184,6 +186,23 @@ export const PriorityQueue: React.FC<PriorityQueueProps> = ({
           })
         )}
       </div>
+
+      {onViewAll && (
+        <div className="p-2.5 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-xs">
+          <span className="text-[11px] text-slate-500 font-medium">
+            Showing top {displayList.length} urgent issues of {complaints.length}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onViewAll}
+            className="h-7 text-xs text-[#1769D2] hover:bg-blue-50 border-blue-200 font-semibold gap-1"
+          >
+            <span>View All Complaints</span>
+            <ArrowRight className="w-3 h-3" />
+          </Button>
+        </div>
+      )}
     </div>
   );
 };

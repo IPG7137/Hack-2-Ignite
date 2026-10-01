@@ -14,9 +14,11 @@ import { KPISkeleton } from '../ui/LoadingSkeleton';
 interface KPISummaryGridProps {
   kpis: KPISummary | null;
   loading?: boolean;
+  onCardClick?: (key: 'total' | 'open' | 'critical' | 'overdue' | 'in_progress' | 'resolved') => void;
 }
 
 interface KPICardData {
+  key: 'total' | 'open' | 'critical' | 'overdue' | 'in_progress' | 'resolved';
   title: string;
   value: number;
   subtext: string;
@@ -29,7 +31,7 @@ interface KPICardData {
   badgeText: string;
 }
 
-export const KPISummaryGrid: React.FC<KPISummaryGridProps> = ({ kpis, loading = false }) => {
+export const KPISummaryGrid: React.FC<KPISummaryGridProps> = ({ kpis, loading = false, onCardClick }) => {
   if (loading) {
     return <KPISkeleton />;
   }
@@ -44,6 +46,7 @@ export const KPISummaryGrid: React.FC<KPISummaryGridProps> = ({ kpis, loading = 
 
   const cards: KPICardData[] = [
     {
+      key: 'total',
       title: 'Total Grievances',
       value: total,
       subtext: 'Registered municipal reports',
@@ -56,6 +59,7 @@ export const KPISummaryGrid: React.FC<KPISummaryGridProps> = ({ kpis, loading = 
       badgeText: 'text-slate-700',
     },
     {
+      key: 'open',
       title: 'Active Issues',
       value: open,
       subtext: 'Awaiting completion/closure',
@@ -68,6 +72,7 @@ export const KPISummaryGrid: React.FC<KPISummaryGridProps> = ({ kpis, loading = 
       badgeText: 'text-sky-800',
     },
     {
+      key: 'critical',
       title: 'Critical Under SLA',
       value: critical,
       subtext: 'Life-safety 12h response limit',
@@ -80,6 +85,7 @@ export const KPISummaryGrid: React.FC<KPISummaryGridProps> = ({ kpis, loading = 
       badgeText: critical > 0 ? 'text-red-800' : 'text-emerald-800',
     },
     {
+      key: 'overdue',
       title: 'Overdue Breaches',
       value: overdue,
       subtext: 'Exceeded statutory SLA hours',
@@ -92,6 +98,7 @@ export const KPISummaryGrid: React.FC<KPISummaryGridProps> = ({ kpis, loading = 
       badgeText: overdue > 0 ? 'text-amber-800' : 'text-slate-700',
     },
     {
+      key: 'in_progress',
       title: 'Active Field Crews',
       value: inProgress,
       subtext: 'Work orders on-site',
@@ -104,6 +111,7 @@ export const KPISummaryGrid: React.FC<KPISummaryGridProps> = ({ kpis, loading = 
       badgeText: 'text-indigo-800',
     },
     {
+      key: 'resolved',
       title: 'Resolved & Verified',
       value: resolved,
       subtext: `${compliance}% statutory SLA compliance`,
@@ -119,19 +127,22 @@ export const KPISummaryGrid: React.FC<KPISummaryGridProps> = ({ kpis, loading = 
 
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-3.5">
-      {cards.map((card, idx) => {
+      {cards.map((card) => {
         const Icon = card.icon;
         return (
           <div
-            key={idx}
-            className="p-3.5 sm:p-4 rounded-xl border border-slate-200 bg-white shadow-2xs hover:shadow-xs transition-shadow flex flex-col justify-between"
+            key={card.key}
+            onClick={() => onCardClick?.(card.key)}
+            className={`p-3.5 sm:p-4 rounded-xl border border-slate-200 bg-white shadow-2xs transition-all flex flex-col justify-between ${
+              onCardClick ? 'hover:border-blue-300 hover:shadow-xs cursor-pointer group' : ''
+            }`}
           >
             <div className="flex items-center justify-between gap-1 mb-2.5">
-              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider truncate">
+              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider truncate group-hover:text-slate-900 transition-colors">
                 {card.title}
               </span>
               <div
-                className={`w-7 h-7 rounded-lg ${card.iconBg} ${card.iconColor} flex items-center justify-center shrink-0`}
+                className={`w-7 h-7 rounded-lg ${card.iconBg} ${card.iconColor} flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform`}
               >
                 <Icon className="w-4 h-4 stroke-[2.25]" />
               </div>
@@ -148,6 +159,11 @@ export const KPISummaryGrid: React.FC<KPISummaryGridProps> = ({ kpis, loading = 
                 >
                   {card.contextTag}
                 </span>
+                {onCardClick && (
+                  <span className="text-[10px] text-slate-400 group-hover:text-[#1769D2] font-semibold transition-colors">
+                    View →
+                  </span>
+                )}
               </div>
 
               <div className="text-[10px] text-slate-500 mt-1.5 truncate">

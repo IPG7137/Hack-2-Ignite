@@ -8,8 +8,9 @@ import {
   ResponsiveContainer,
   Cell,
 } from 'recharts';
-import { TrendingUp, BarChart2 } from 'lucide-react';
+import { TrendingUp, BarChart2, ArrowUpRight } from 'lucide-react';
 import { Card } from '../ui/Card';
+import { Button } from '../ui/Button';
 import { Complaint } from '../../types/complaint';
 
 const CATEGORY_NAMES: Record<string, string> = {
@@ -24,9 +25,10 @@ const CATEGORY_NAMES: Record<string, string> = {
 
 interface IssueTrendsChartProps {
   complaints: Complaint[];
+  onViewAnalytics?: () => void;
 }
 
-export const IssueTrendsChart: React.FC<IssueTrendsChartProps> = ({ complaints }) => {
+export const IssueTrendsChart: React.FC<IssueTrendsChartProps> = ({ complaints, onViewAnalytics }) => {
   const chartData = useMemo(() => {
     const categoryCounts: Record<string, { total: number; resolved: number; active: number }> = {};
 
@@ -71,12 +73,23 @@ export const IssueTrendsChart: React.FC<IssueTrendsChartProps> = ({ complaints }
         </div>
 
         <div className="flex items-center gap-3 text-[10px] font-mono">
-          <span className="flex items-center gap-1 text-slate-600">
+          <span className="hidden sm:flex items-center gap-1 text-slate-600">
             <span className="w-2.5 h-2.5 rounded-sm bg-[#1769D2]" /> Active
           </span>
-          <span className="flex items-center gap-1 text-slate-600">
+          <span className="hidden sm:flex items-center gap-1 text-slate-600">
             <span className="w-2.5 h-2.5 rounded-sm bg-[#10B981]" /> Resolved
           </span>
+          {onViewAnalytics && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onViewAnalytics}
+              className="h-6 text-[11px] text-[#1769D2] hover:text-[#123B6D] hover:bg-blue-50 font-bold gap-1 px-1.5"
+            >
+              <span>Full Analytics</span>
+              <ArrowUpRight className="w-3 h-3" />
+            </Button>
+          )}
         </div>
       </div>
 
