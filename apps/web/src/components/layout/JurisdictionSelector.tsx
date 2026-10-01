@@ -54,17 +54,40 @@ export const JurisdictionSelector: React.FC<JurisdictionSelectorProps> = ({
 
   // Zone Admin: Permanently locked to assigned zone. Dropdown disabled.
   if (isZoneAdmin) {
+    const displayDistrict = district || (user?.districtId ? user.districtId.charAt(0).toUpperCase() + user.districtId.slice(1) : 'District');
+    const displayZone = user?.zone || zone || 'Zone Command';
+
     return (
       <div
-        className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-blue-50/90 border border-blue-200 text-xs font-semibold text-[#123B6D] select-none ${className}`}
+        className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-blue-50/90 border border-blue-200 text-xs font-semibold text-[#123B6D] select-none whitespace-nowrap shadow-2xs ${className}`}
         title="Zone Admin is permanently locked to assigned zone under Municipal RBAC"
       >
         <MapPin className="w-3.5 h-3.5 text-[#1769D2] shrink-0" />
-        <span className="truncate">
-          {district || 'Solapur'} • <strong className="text-[#1769D2]">{user?.zone || zone || 'Zone Command'}</strong>
+        <span className="whitespace-nowrap">
+          {displayDistrict} • <strong className="text-[#1769D2]">{displayZone}</strong>
         </span>
-        <span className="text-[9px] uppercase font-mono px-1.5 py-0.2 rounded bg-blue-100 text-[#1769D2] font-bold border border-blue-200 shrink-0">
+        <span className="text-[9px] uppercase font-mono px-1.5 py-0.5 rounded bg-blue-100/90 text-[#1769D2] font-bold border border-blue-200 shrink-0">
           ZONE LOCKED
+        </span>
+      </div>
+    );
+  }
+
+  // District Admin: Permanently locked to assigned district. Dropdown disabled.
+  if (isDistrictAdmin) {
+    const displayDistrict = district || (user?.districtId ? user.districtId.charAt(0).toUpperCase() + user.districtId.slice(1) : 'District');
+
+    return (
+      <div
+        className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-blue-50/90 border border-blue-200 text-xs font-semibold text-[#123B6D] select-none whitespace-nowrap shadow-2xs ${className}`}
+        title="District Admin is permanently locked to assigned district under Municipal RBAC"
+      >
+        <Building2 className="w-3.5 h-3.5 text-[#1769D2] shrink-0" />
+        <span className="whitespace-nowrap">
+          District: <strong className="text-[#1769D2]">{displayDistrict}</strong> • {currentCorporation?.shortName || 'ULB HQ'}
+        </span>
+        <span className="text-[9px] uppercase font-mono px-1.5 py-0.5 rounded bg-blue-100/90 text-[#1769D2] font-bold border border-blue-200 shrink-0">
+          DISTRICT LOCKED
         </span>
       </div>
     );

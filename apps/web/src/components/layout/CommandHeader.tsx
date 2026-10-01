@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { RefreshCw, LogIn, LogOut, ShieldCheck, MapPin, Building, Menu, Bot, FilePlus } from 'lucide-react';
+import { RefreshCw, LogIn, LogOut, ShieldCheck, Building, Menu, Bot, FilePlus } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { useAuth } from '../../hooks/useAuth';
 import { useOrganization } from '../../context/OrganizationContext';
@@ -101,14 +101,6 @@ export const CommandHeader: React.FC<CommandHeaderProps> = ({
     ? 'Statewide Municipal Operations & Multi-Corporation Oversight'
     : `${municipalCorporationName || 'Municipal Corporation'} • Command Center Operations Desk`;
 
-  const scopeBadgeLabel = isCitizen
-    ? `${user?.districtId?.toUpperCase() || 'PUNE'} Citizen • ${user?.ward || 'Zone 2'}`
-    : isStateAdmin
-    ? 'Maharashtra Statewide'
-    : isMunicipalAdmin
-    ? `${currentCorporation?.shortName || 'City-wide'} HQ`
-    : user?.ward || `${currentCorporation?.shortName || 'Zone'} Command`;
-
   const orgEmblemTitle = isCitizen
     ? `CITIZEN GRIEVANCE PORTAL — ${(user?.districtId || district || 'MAHARASHTRA').toUpperCase()}`
     : isStateAdmin
@@ -176,17 +168,9 @@ export const CommandHeader: React.FC<CommandHeaderProps> = ({
         </div>
 
         {/* ==================================================
-            3. RIGHT CONTROLS: [ Location ] [ Status ] [ Time ] [ Copilot ] [ Sync ] [ Notification ] [ User ]
+            3. RIGHT CONTROLS: [ Status ] [ Demo ] [ Time ] [ Copilot ] [ Sync ] [ Notification ] [ User ]
             ================================================== */}
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-          {/* Location Badge */}
-          <div className="hidden sm:flex items-center gap-1 px-2 py-1 rounded-md bg-[#F8FAFC] border border-[#D9E2EC] text-[#526581] shadow-2xs shrink-0 max-w-[150px]">
-            <MapPin className="w-3 h-3 text-[#1769D2] shrink-0" />
-            <span className="text-[#172B4D] font-bold text-[11px] font-mono truncate">
-              {scopeBadgeLabel}
-            </span>
-          </div>
-
           {/* Status Heartbeat */}
           <div className="hidden md:flex items-center gap-1.5 px-2 py-1 rounded-md bg-[#F8FAFC] border border-[#D9E2EC] shadow-2xs shrink-0">
             <span className="w-2 h-2 rounded-full bg-[#16803C] live-pulse-dot shrink-0" />
