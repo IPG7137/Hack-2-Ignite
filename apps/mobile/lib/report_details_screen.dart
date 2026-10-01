@@ -877,13 +877,13 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> with TickerPr
                   final dy = (index ~/ 3) - 1;
                   final x = tileX + dx;
                   final y = tileY + dy;
-                  final tileUrl = 'https://basemaps.cartocdn.com/rastertiles/voyager/$_webZoom/$x/$y.png';
+                  final tileUrl = 'https://tile.openstreetmap.org/$_webZoom/$x/$y.png';
                   return Image.network(
                     tileUrl,
                     fit: BoxFit.cover,
                     errorBuilder: (context, error, stackTrace) {
                       return Image.network(
-                        'https://tile.openstreetmap.org/$_webZoom/$x/$y.png',
+                        'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/$_webZoom/$y/$x',
                         fit: BoxFit.cover,
                         errorBuilder: (context, err2, st2) => Container(
                           color: const Color(0xFFE2E8F0),
@@ -1049,7 +1049,7 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> with TickerPr
               borderRadius: BorderRadius.circular(4),
             ),
             child: const Text(
-              '© OpenStreetMap & CARTO',
+              '© OpenStreetMap & Esri',
               style: TextStyle(
                 fontSize: 9,
                 color: Color(0xFF64748B),
