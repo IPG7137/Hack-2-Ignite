@@ -84,33 +84,51 @@ export const RecognitionFrameworkCard: React.FC<RecognitionFrameworkCardProps> =
           <span className="text-[10px] font-mono text-[#718096]">Top Verified Score</span>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3.5">
           {eligibleChampions.length === 0 ? (
-            <div className="col-span-3 py-6 text-center text-xs text-slate-400">
-              No eligible contributors yet. Build score through verified submissions.
+            <div className="col-span-full py-8 text-center text-xs text-slate-400 bg-slate-50 rounded-xl border border-slate-200">
+              No eligible contributors yet in this district. Submit genuine complaints and verify resolutions to appear on this shortlist.
             </div>
           ) : (
             eligibleChampions.map((c) => (
               <div
                 key={c.profileId}
-                className="p-3 rounded-lg border border-[#E8EEF5] bg-slate-50/60 hover:bg-white hover:border-blue-200 transition-all flex items-center justify-between shadow-2xs"
+                className="p-3.5 rounded-xl border border-[#E8EEF5] bg-slate-50/70 hover:bg-white hover:border-blue-300 hover:shadow-md transition-all flex flex-col justify-between gap-2.5 shadow-2xs min-w-0"
               >
-                <div className="flex items-center gap-2.5">
-                  <span className="font-mono text-xs font-extrabold text-[#1769D2] w-6">
-                    #{c.rank}
-                  </span>
-                  <div>
-                    <div className="font-bold text-xs text-[#172B4D]">{c.displayName}</div>
-                    <div className="text-[10px] text-[#718096] font-mono">
-                      {c.verifiedReportsCount} verified • {c.verifiedResolutionsCount} resolved
-                    </div>
+                {/* Top: Rank badge + Name + Trophy / Badge */}
+                <div className="flex items-center justify-between gap-2 min-w-0">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="inline-flex items-center justify-center font-mono text-xs font-black text-[#1769D2] bg-blue-50 border border-blue-200 rounded-md w-7 h-7 shrink-0 shadow-2xs">
+                      #{c.rank}
+                    </span>
+                    <span className="font-bold text-xs text-[#172B4D] truncate" title={c.displayName}>
+                      {c.displayName}
+                    </span>
                   </div>
-                </div>
-                <div className="text-right">
-                  <span className="font-mono font-bold text-xs text-[#16803C]">
-                    {c.civicScore}
+                  <span className="text-sm shrink-0" title={c.badgeLabel || 'Civic Contributor'}>
+                    {c.rank === 1 ? '🥇' : c.rank === 2 ? '🥈' : c.rank === 3 ? '🥉' : '🎖️'}
                   </span>
-                  <span className="text-[9px] text-[#718096] ml-0.5">pts</span>
+                </div>
+
+                {/* Middle: Clear metric badges */}
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200 font-semibold whitespace-nowrap">
+                    ✓ {c.verifiedReportsCount} verified
+                  </span>
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-teal-50 text-teal-800 border border-teal-200 font-semibold whitespace-nowrap">
+                    ⚡ {c.verifiedResolutionsCount} resolved
+                  </span>
+                </div>
+
+                {/* Bottom: Civic Score */}
+                <div className="flex items-center justify-between pt-1.5 border-t border-slate-200/70">
+                  <span className="text-[10px] font-mono uppercase text-slate-500 font-semibold">Civic Score</span>
+                  <div className="flex items-baseline gap-1">
+                    <span className="font-mono font-extrabold text-sm text-[#16803C]">
+                      {c.civicScore.toLocaleString()}
+                    </span>
+                    <span className="text-[10px] text-[#718096] font-semibold">pts</span>
+                  </div>
                 </div>
               </div>
             ))
@@ -118,7 +136,7 @@ export const RecognitionFrameworkCard: React.FC<RecognitionFrameworkCardProps> =
         </div>
 
         {/* Footnote */}
-        <div className="pt-2 text-[10px] text-[#718096] font-mono flex items-center justify-between">
+        <div className="pt-2 text-[10px] text-[#718096] font-mono flex flex-col sm:flex-row sm:items-center justify-between gap-1 border-t border-slate-100">
           <span>Award Format: {currentCycle.rewardType}</span>
           <span>Status: {currentCycle.status.toUpperCase()}</span>
         </div>

@@ -226,25 +226,19 @@ export const CivicChampions: React.FC = () => {
       {/* ==================================================
           DISTRICT CITIZEN IMPACT & LEADERBOARD SECTION
           ================================================== */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
         {/* Left Column: Citizen Impact Card */}
-        <div className="space-y-5 lg:col-span-1">
+        <div className="lg:col-span-5">
           <CitizenImpactCard
             profile={citizenProfile}
             rank={leaderboard.find((l) => l.isCurrentUser)?.rank || 1}
             districtName={currentDistrictObj.name}
             onOpenHistory={() => setIsHistoryModalOpen(true)}
           />
-
-          <RecognitionFrameworkCard
-            cycles={recognitionCycles}
-            leaderboard={leaderboard}
-            districtName={currentDistrictObj.name}
-          />
         </div>
 
         {/* Right Column: District Leaderboard */}
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-7">
           <DistrictLeaderboardCard
             entries={leaderboard}
             districtName={currentDistrictObj.name}
@@ -252,6 +246,17 @@ export const CivicChampions: React.FC = () => {
             currentUserId={citizenProfile?.userId}
           />
         </div>
+      </div>
+
+      {/* ==================================================
+          ANNUAL DISTRICT CIVIC RECOGNITION FRAMEWORK (FULL WIDTH)
+          ================================================== */}
+      <div className="w-full">
+        <RecognitionFrameworkCard
+          cycles={recognitionCycles}
+          leaderboard={leaderboard}
+          districtName={currentDistrictObj.name}
+        />
       </div>
 
       {/* ==================================================

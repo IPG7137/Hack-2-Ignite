@@ -35,53 +35,51 @@ import {
 } from 'lucide-react';
 
 export type MapViewMode = 'hybrid' | 'markers' | 'heatmap' | 'hotspots';
-export type BaseMapStyle = 'google' | 'googleHybrid' | 'googleTerrain' | 'satellite' | 'dark';
+export type BaseMapStyle = 'voyager' | 'osm' | 'positron' | 'satellite' | 'dark' | 'google';
 
 export const BASEMAPS: Record<
   BaseMapStyle,
   { name: string; icon: string; tiles: string[]; maxZoom: number; attribution: string }
 > = {
-  google: {
-    name: 'Google Maps',
+  voyager: {
+    name: 'Civic Voyager',
     icon: '🗺️',
     tiles: [
-      'https://mt0.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
-      'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
-      'https://mt2.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
-      'https://mt3.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
-    ],
-    maxZoom: 22,
-    attribution: '&copy; Google Maps',
-  },
-  googleHybrid: {
-    name: 'Google Satellite',
-    icon: '🛰️',
-    tiles: [
-      'https://mt0.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',
-      'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',
-      'https://mt2.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',
-      'https://mt3.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',
-    ],
-    maxZoom: 22,
-    attribution: '&copy; Google Maps',
-  },
-  googleTerrain: {
-    name: 'Google Terrain',
-    icon: '⛰️',
-    tiles: [
-      'https://mt0.google.com/vt/lyrs=p&x={x}&y={y}&z={z}',
-      'https://mt1.google.com/vt/lyrs=p&x={x}&y={y}&z={z}',
-      'https://mt2.google.com/vt/lyrs=p&x={x}&y={y}&z={z}',
-      'https://mt3.google.com/vt/lyrs=p&x={x}&y={y}&z={z}',
+      'https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
+      'https://b.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
+      'https://c.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
+      'https://d.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
     ],
     maxZoom: 20,
-    attribution: '&copy; Google Maps',
+    attribution: '&copy; CARTO &copy; OpenStreetMap contributors',
+  },
+  osm: {
+    name: 'OpenStreetMap',
+    icon: '🌐',
+    tiles: [
+      'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+    ],
+    maxZoom: 19,
+    attribution: '&copy; OpenStreetMap contributors',
+  },
+  positron: {
+    name: 'Command Light',
+    icon: '🏛️',
+    tiles: [
+      'https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
+      'https://b.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
+      'https://c.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
+      'https://d.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
+    ],
+    maxZoom: 20,
+    attribution: '&copy; CARTO &copy; OpenStreetMap contributors',
   },
   satellite: {
     name: 'Esri Satellite',
     icon: '🛰️',
     tiles: [
       'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+      'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
     ],
     maxZoom: 19,
     attribution: '&copy; Esri World Imagery',
@@ -97,6 +95,18 @@ export const BASEMAPS: Record<
     ],
     maxZoom: 20,
     attribution: '&copy; CARTO &copy; OpenStreetMap contributors',
+  },
+  google: {
+    name: 'Google Maps',
+    icon: '📍',
+    tiles: [
+      'https://mt0.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
+      'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
+      'https://mt2.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
+      'https://mt3.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
+    ],
+    maxZoom: 22,
+    attribution: '&copy; Google Maps',
   },
 };
 
@@ -197,8 +207,8 @@ export const CommandMap: React.FC<CommandMapProps> = ({
   const [legendCollapsed, setLegendCollapsed] = useState(false);
   const prevOrgCenterRef = useRef<string>('');
 
-  // Enhanced Basemap State
-  const [activeBasemap, setActiveBasemap] = useState<BaseMapStyle>('google');
+  // Enhanced Basemap State (defaults to robust CORS-compliant Civic Voyager)
+  const [activeBasemap, setActiveBasemap] = useState<BaseMapStyle>('voyager');
   const [cursorCoords, setCursorCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [currentZoom, setCurrentZoom] = useState<number>(orgCenter?.zoom ?? DEFAULT_MAP_CENTER.zoom);
 
@@ -225,23 +235,23 @@ export const CommandMap: React.FC<CommandMapProps> = ({
     const mapStyle: maplibregl.StyleSpecification = {
       version: 8,
       sources: {
-        'basemap-source-google': {
+        'basemap-source-voyager': {
           type: 'raster',
-          tiles: BASEMAPS.google.tiles,
+          tiles: BASEMAPS.voyager.tiles,
           tileSize: 256,
-          attribution: BASEMAPS.google.attribution,
+          attribution: BASEMAPS.voyager.attribution,
         },
-        'basemap-source-googleHybrid': {
+        'basemap-source-osm': {
           type: 'raster',
-          tiles: BASEMAPS.googleHybrid.tiles,
+          tiles: BASEMAPS.osm.tiles,
           tileSize: 256,
-          attribution: BASEMAPS.googleHybrid.attribution,
+          attribution: BASEMAPS.osm.attribution,
         },
-        'basemap-source-googleTerrain': {
+        'basemap-source-positron': {
           type: 'raster',
-          tiles: BASEMAPS.googleTerrain.tiles,
+          tiles: BASEMAPS.positron.tiles,
           tileSize: 256,
-          attribution: BASEMAPS.googleTerrain.attribution,
+          attribution: BASEMAPS.positron.attribution,
         },
         'basemap-source-satellite': {
           type: 'raster',
@@ -255,6 +265,12 @@ export const CommandMap: React.FC<CommandMapProps> = ({
           tileSize: 256,
           attribution: BASEMAPS.dark.attribution,
         },
+        'basemap-source-google': {
+          type: 'raster',
+          tiles: BASEMAPS.google.tiles,
+          tileSize: 256,
+          attribution: BASEMAPS.google.attribution,
+        },
       },
       layers: [
         {
@@ -267,7 +283,7 @@ export const CommandMap: React.FC<CommandMapProps> = ({
         {
           id: 'basemap-raster-layer',
           type: 'raster',
-          source: 'basemap-source-google',
+          source: 'basemap-source-voyager',
           minzoom: 0,
           maxzoom: 22,
         },
