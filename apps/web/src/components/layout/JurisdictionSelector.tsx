@@ -13,6 +13,7 @@ import {
   useOrganization,
   OrganizationType,
 } from '../../context/OrganizationContext';
+import { useAuthContext } from '../../context/AuthContext';
 import {
   ALL_MUNICIPAL_CORPORATIONS,
   MAHARASHTRA_DISTRICTS,
@@ -31,12 +32,14 @@ export const JurisdictionSelector: React.FC<JurisdictionSelectorProps> = ({
   variant = 'header',
   onJurisdictionChange,
 }) => {
+  const { user } = useAuthContext();
   const {
     organizationType,
     currentCorporation,
     currentDistrict,
     municipalCorporationName,
     district,
+    zone,
     setOrganization,
   } = useOrganization();
 
@@ -46,6 +49,26 @@ export const JurisdictionSelector: React.FC<JurisdictionSelectorProps> = ({
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   const isState = organizationType === 'STATE';
+  const isZoneAdmin = user?.role === 'zone_admin';
+  const isDistrictAdmin = user?.role === 'district_admin';
+
+  // Zone Admin: Permanently locked to assigned zone. Dropdown disabled.
+  if (isZoneAdmin) {
+    return (
+      <div
+        className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-blue-50/90 border border-blue-200 text-xs font-semibold text-[#123B6D] select-none ${className}`}
+        title="Zone Admin is permanently locked to assigned zone under Municipal RBAC"
+      >
+        <MapPin className="w-3.5 h-3.5 text-[#1769D2] shrink-0" />
+        <span className="truncate">
+          {district || 'Solapur'} • <strong className="text-[#1769D2]">{user?.zone || zone || 'Zone Command'}</strong>
+        </span>
+        <span className="text-[9px] uppercase font-mono px-1.5 py-0.2 rounded bg-blue-100 text-[#1769D2] font-bold border border-blue-200 shrink-0">
+          ZONE LOCKED
+        </span>
+      </div>
+    );
+  }
 
   // Close when clicking outside or pressing Escape
   useEffect(() => {

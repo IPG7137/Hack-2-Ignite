@@ -26,6 +26,7 @@ import { runResolutionFeedbackIntegrityTests } from './resolutionFeedbackIntegri
 import { runCivicRecognitionTests } from './civicRecognition.test';
 import { runDashboardIntelligenceTests } from './dashboardIntelligence.test';
 import { runLiveCommuteHazardRadarTests } from './liveCommuteHazardRadar.test';
+import { runPlatformRoleIsolationTests } from './platformRoleIsolation.test';
 
 async function main() {
   console.log('===========================================================');
@@ -189,6 +190,12 @@ async function main() {
   totalFailed += resCommute.failed;
   allErrors.push(...resCommute.errors);
 
+  // Platform Role & Strict Zone Isolation
+  const resPlatform = runPlatformRoleIsolationTests();
+  totalPassed += resPlatform.passed;
+  totalFailed += resPlatform.failed;
+  allErrors.push(...resPlatform.errors);
+
   console.log('\n===========================================================');
   console.log('📊 FINAL VERIFICATION SCORECARD:');
   console.log(`   3A Similarity:             ${res3A.passed}/${res3A.passed + res3A.failed}`);
@@ -217,6 +224,7 @@ async function main() {
   console.log(`   Civic Recognition:         ${resRecognition.passed}/${resRecognition.passed + resRecognition.failed}`);
   console.log(`   Unified Dashboard Intel:   ${resDashboard.passed}/${resDashboard.passed + resDashboard.failed}`);
   console.log(`   Live Commute Radar:        ${resCommute.passed}/${resCommute.passed + resCommute.failed}`);
+  console.log(`   Platform & Zone Isolation: ${resPlatform.passed}/${resPlatform.passed + resPlatform.failed}`);
   console.log('-----------------------------------------------------------');
   console.log(`   TOTAL:                     ${totalPassed} PASSED / ${totalFailed} FAILED`);
   console.log('===========================================================');

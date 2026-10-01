@@ -16,6 +16,7 @@ export interface ComplaintFilterParams {
   organizationType?: string;
   districtId?: string;
   corporationId?: string;
+  zone?: string;
 }
 
 import { JointActionRequest, JointActionResult, IncidentClusterRecord } from './incidentGroupingEngine';

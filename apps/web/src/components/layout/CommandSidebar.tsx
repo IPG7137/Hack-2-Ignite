@@ -78,7 +78,56 @@ export const CommandSidebar: React.FC<CommandSidebarProps> = ({
   const { user } = useAuth();
   const { organizationType, currentCorporation, municipalCorporationName, setOrganization } = useOrganization();
   const isStateAdmin = organizationType === 'STATE' || user?.role === 'state_admin';
-  const isMunicipalAdmin = user?.role === 'municipal_admin' || user?.role === 'super_admin' || isStateAdmin;
+  const isDistrictAdmin = user?.role === 'district_admin' || user?.role === 'municipal_admin' || user?.role === 'super_admin';
+  const isMunicipalAdmin = isDistrictAdmin;
+  const isZoneAdmin = user?.role === 'zone_admin';
+
+  const zoneSections: NavSection[] = [
+    {
+      title: 'ZONE OVERVIEW',
+      items: [
+        { id: 'dashboard', label: 'Zone Dashboard', icon: LayoutDashboard },
+        { id: 'map', label: 'Zone GIS Map', icon: MapPin },
+        { id: 'civic_champions', label: 'Civic Champions & Rewards', icon: Trophy },
+      ],
+    },
+    {
+      title: 'ZONE OPERATIONS',
+      items: [
+        {
+          id: 'alerts',
+          label: 'Zone Alert Center',
+          icon: ShieldAlert,
+          badge: alertCount,
+          badgeColor: 'bg-red-50 text-red-700 border-red-200',
+        },
+        { id: 'notifications', label: 'Notifications', icon: Bell },
+        { id: 'complaints', label: 'Zone Complaints Queue', icon: FileText, badge: openCount },
+        {
+          id: 'sla',
+          label: 'Zone SLA Compliance',
+          icon: Timer,
+          badge: urgentCount,
+          badgeColor: 'bg-amber-50 text-amber-800 border-amber-200',
+        },
+        { id: 'field_teams', label: 'Zone Field Crews', icon: Users },
+      ],
+    },
+    {
+      title: 'ZONE INTELLIGENCE',
+      items: [
+        {
+          id: 'ai_insights',
+          label: 'Zone Hazard Radar',
+          icon: Cpu,
+          badge: 3,
+          badgeColor: 'bg-red-50 text-red-700 border-red-200',
+        },
+        { id: 'analytics', label: 'Zone Analytics', icon: BarChart3 },
+        { id: 'copilot', label: 'Zone Copilot', icon: Bot },
+      ],
+    },
+  ];
 
   const stateSections: NavSection[] = [
     {
@@ -159,7 +208,7 @@ export const CommandSidebar: React.FC<CommandSidebarProps> = ({
           badgeColor: 'bg-amber-50 text-amber-800 border-amber-200',
         },
         { id: 'field_teams', label: 'Field Response Crews', icon: Users },
-        ...(isMunicipalAdmin
+        ...(isDistrictAdmin
           ? [{ id: 'departments' as ActivePage, label: 'Departments & Wards', icon: Building2 }]
           : []),
       ],
@@ -178,7 +227,7 @@ export const CommandSidebar: React.FC<CommandSidebarProps> = ({
         { id: 'copilot', label: 'Decision Copilot', icon: Bot },
       ],
     },
-    ...(isMunicipalAdmin
+    ...(isDistrictAdmin
       ? [
           {
             title: 'ADMINISTRATION',
@@ -216,6 +265,8 @@ export const CommandSidebar: React.FC<CommandSidebarProps> = ({
   const sections: NavSection[] =
     user?.role === 'citizen'
       ? citizenSections
+      : isZoneAdmin
+      ? zoneSections
       : organizationType === 'STATE'
       ? stateSections
       : municipalSections;

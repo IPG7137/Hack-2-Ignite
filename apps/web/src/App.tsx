@@ -31,11 +31,18 @@ import { TermsOfService } from './pages/TermsOfService';
 import { useOrganization } from './context/OrganizationContext';
 import { isComplaintInZone } from './lib/zoneFilter';
 
-const ALLOWED_MUNICIPAL_ROLES = ['officer', 'dept_admin', 'municipal_admin', 'super_admin', 'state_admin'];
+const ALLOWED_ADMIN_ROLES = [
+  'state_admin',
+  'district_admin',
+  'zone_admin',
+  'municipal_admin',
+  'super_admin',
+  'dept_admin',
+];
 
 export function App() {
   const { user, isAuthenticated, loading: authLoading, signOut } = useAuthContext();
-  const { organizationType } = useOrganization();
+  const { organizationType, districtId, zone } = useOrganization();
   const [activePage, setActivePage] = useState<ActivePage>('dashboard');
   const [selectedComplaintId, setSelectedComplaintId] = useState<string | null>(null);
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -106,19 +113,22 @@ export function App() {
     return <MunicipalAuthScreen />;
   }
 
-  // 3. Citizen Unauthorized Screen
-  if (!ALLOWED_MUNICIPAL_ROLES.includes(user.role)) {
+  // 3. Platform Rule: Citizen Workflow Restricted to Mobile
+  if (user.role === 'citizen') {
     return (
       <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center text-white p-4">
         <div className="max-w-md w-full rounded-2xl bg-slate-950 border border-slate-800 p-6 text-center space-y-4 shadow-2xl">
-          <div className="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400 flex items-center justify-center mx-auto">
+          <div className="w-12 h-12 rounded-xl bg-blue-500/10 border border-blue-500/30 text-blue-400 flex items-center justify-center mx-auto">
             <ShieldAlert className="w-6 h-6" />
           </div>
-          <h2 className="text-lg font-bold text-white">Access Restricted: Citizen Account</h2>
+          <h2 className="text-lg font-bold text-white">Citizen Operations: Mobile App Only</h2>
           <p className="text-xs text-slate-300 leading-relaxed">
-            Your current account (<span className="font-mono text-blue-400">{user.email}</span>) has the role <strong className="text-amber-300">citizen</strong>.
-            The Municipal Command Center is strictly restricted to verified municipal officers and administrators under PostgreSQL Row Level Security.
+            Your account (<span className="font-mono text-blue-400">{user.email}</span>) is registered as a <strong className="text-blue-300">Citizen</strong>.
+            Citizen workflows (reporting grievances, live tracking, rewards, feedback) are provided exclusively through the <strong>CivicResolve Flutter Mobile Application</strong>.
           </p>
+          <div className="p-3 rounded-lg bg-slate-900 border border-slate-800 text-[11px] text-slate-400">
+            The Web Portal is reserved for State, District, and Zone Administrative command.
+          </div>
           <div className="pt-2 flex justify-center">
             <Button
               variant="outline"
@@ -135,14 +145,70 @@ export function App() {
     );
   }
 
-  const isStateAdmin = organizationType === 'STATE' || user.role === 'state_admin';
-  const isMunicipalAdmin = isStateAdmin || user.role === 'municipal_admin' || user.role === 'super_admin';
-  const isZoneAdmin = user.role === 'officer' || user.role === 'dept_admin';
+  // 4. Platform Rule: Field Officer Workflow Restricted to Mobile
+  if (user.role === 'officer') {
+    return (
+      <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center text-white p-4">
+        <div className="max-w-md w-full rounded-2xl bg-slate-950 border border-slate-800 p-6 text-center space-y-4 shadow-2xl">
+          <div className="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400 flex items-center justify-center mx-auto">
+            <ShieldAlert className="w-6 h-6" />
+          </div>
+          <h2 className="text-lg font-bold text-white">Field Operations: Mobile App Only</h2>
+          <p className="text-xs text-slate-300 leading-relaxed">
+            Your account (<span className="font-mono text-amber-400">{user.email}</span>) is a <strong className="text-amber-300">Field Officer</strong>.
+            Field task execution, GPS dispatch routing, photo evidence capture, and resolution workflows are managed exclusively via the <strong>CivicResolve Mobile Application</strong>.
+          </p>
+          <div className="p-3 rounded-lg bg-slate-900 border border-slate-800 text-[11px] text-slate-400">
+            Administrative command dashboards are restricted to State, District, and Zone Administrators.
+          </div>
+          <div className="pt-2 flex justify-center">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => signOut()}
+              className="border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800 hover:text-white text-xs font-semibold gap-1.5"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span>Sign Out & Switch Account</span>
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
-  // State Admin & Municipal Admin see statewide / city-wide complaints; Zone Officer sees scoped complaints
+  // 5. Unrecognized Role Gate
+  if (!ALLOWED_ADMIN_ROLES.includes(user.role)) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center text-white p-4">
+        <div className="max-w-md w-full rounded-2xl bg-slate-950 border border-slate-800 p-6 text-center space-y-4 shadow-2xl">
+          <ShieldAlert className="w-8 h-8 text-rose-500 mx-auto" />
+          <h2 className="text-base font-bold text-white">Access Denied: Unrecognized Administrative Role</h2>
+          <p className="text-xs text-slate-400">Your account does not possess authorized Web Administrative clearance.</p>
+          <Button variant="outline" size="sm" onClick={() => signOut()} className="text-xs">
+            Sign Out
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  const isStateAdmin = organizationType === 'STATE' || user.role === 'state_admin';
+  const isDistrictAdmin = user.role === 'district_admin' || user.role === 'municipal_admin' || user.role === 'super_admin';
+  const isMunicipalAdmin = isDistrictAdmin;
+  const isZoneAdmin = user.role === 'zone_admin';
+
+  // Strict Data Scoping:
+  // - State Admin: State-wide complaints
+  // - District Admin: All complaints inside assigned district
+  // - Zone Admin: Complaints strictly scoped to assigned zone
   const visibleComplaints = complaints.filter((c) => {
-    if (isStateAdmin || isMunicipalAdmin) return true;
-    return isComplaintInZone(c, user.ward || 'Zone 2');
+    if (isStateAdmin) return true;
+    if (isZoneAdmin) {
+      const activeZone = user.zone || user.ward || zone || 'Zone 2';
+      return isComplaintInZone(c, activeZone);
+    }
+    return true;
   });
 
   const selectedComplaint = selectedComplaintId
@@ -167,8 +233,8 @@ export function App() {
     if (filterParams) {
       setFilters((prev) => ({ ...prev, ...filterParams }));
     }
-    // Enforce role boundary: Only Municipal/State Admin can access system-wide configuration
-    if (!isMunicipalAdmin && (page === 'departments' || page === 'settings')) {
+    // Enforce role boundary: Only District/State Admin can access system-wide configuration
+    if (!isDistrictAdmin && !isStateAdmin && (page === 'departments' || page === 'settings')) {
       setActivePage('dashboard');
       return;
     }

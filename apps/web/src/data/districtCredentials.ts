@@ -223,6 +223,121 @@ export function resolveDistrictCredential(loginId: string): DistrictCredential |
 }
 
 /**
+ * Zone credential registry for Zone-scoped administrative accounts.
+ */
+export interface ZoneCredential {
+  loginId: string;
+  districtName: string;
+  districtId: string;
+  zoneName: string;
+  zoneId: string;
+  primaryCorpId: string;
+  role: 'zone_admin';
+  fullName: string;
+  departmentName: string;
+}
+
+export const ZONE_CREDENTIAL_REGISTRY: ZoneCredential[] = [
+  {
+    loginId: 'solapur_north_admin',
+    districtName: 'Solapur',
+    districtId: 'solapur',
+    zoneName: 'Solapur North',
+    zoneId: 'solapur_north',
+    primaryCorpId: 'smc',
+    role: 'zone_admin',
+    fullName: 'Solapur North Zone Administrator',
+    departmentName: 'Solapur Municipal Corporation — North Zone Command',
+  },
+  {
+    loginId: 'solapur_south_admin',
+    districtName: 'Solapur',
+    districtId: 'solapur',
+    zoneName: 'Solapur South',
+    zoneId: 'solapur_south',
+    primaryCorpId: 'smc',
+    role: 'zone_admin',
+    fullName: 'Solapur South Zone Administrator',
+    departmentName: 'Solapur Municipal Corporation — South Zone Command',
+  },
+  {
+    loginId: 'pune_zone1_admin',
+    districtName: 'Pune',
+    districtId: 'pune',
+    zoneName: 'Zone 1 (Central Pune)',
+    zoneId: 'pune_zone_1',
+    primaryCorpId: 'pmc',
+    role: 'zone_admin',
+    fullName: 'Pune Zone 1 Administrator',
+    departmentName: 'Pune Municipal Corporation — Central Sector Command',
+  },
+  {
+    loginId: 'pune_zone2_admin',
+    districtName: 'Pune',
+    districtId: 'pune',
+    zoneName: 'Zone 2 (Kothrud)',
+    zoneId: 'pune_zone_2',
+    primaryCorpId: 'pmc',
+    role: 'zone_admin',
+    fullName: 'Pune Zone 2 Administrator',
+    departmentName: 'Pune Municipal Corporation — Kothrud Sector Command',
+  },
+  {
+    loginId: 'pune_zone3_admin',
+    districtName: 'Pune',
+    districtId: 'pune',
+    zoneName: 'Zone 3 (Ghole Road)',
+    zoneId: 'pune_zone_3',
+    primaryCorpId: 'pmc',
+    role: 'zone_admin',
+    fullName: 'Pune Zone 3 Administrator',
+    departmentName: 'Pune Municipal Corporation — Ghole Road Sector Command',
+  },
+  {
+    loginId: 'nashik_zone1_admin',
+    districtName: 'Nashik',
+    districtId: 'nashik',
+    zoneName: 'Zone 1 (Nashik West)',
+    zoneId: 'nashik_zone_1',
+    primaryCorpId: 'nmc',
+    role: 'zone_admin',
+    fullName: 'Nashik West Zone Administrator',
+    departmentName: 'Nashik Municipal Corporation — West Zone Command',
+  },
+  {
+    loginId: 'nashik_zone2_admin',
+    districtName: 'Nashik',
+    districtId: 'nashik',
+    zoneName: 'Zone 2 (Nashik East)',
+    zoneId: 'nashik_zone_2',
+    primaryCorpId: 'nmc',
+    role: 'zone_admin',
+    fullName: 'Nashik East Zone Administrator',
+    departmentName: 'Nashik Municipal Corporation — East Zone Command',
+  },
+  {
+    loginId: 'csn_zone1_admin',
+    districtName: 'Chhatrapati Sambhajinagar',
+    districtId: 'chhatrapati_sambhajinagar',
+    zoneName: 'Zone 1 (Cantonment)',
+    zoneId: 'csn_zone_1',
+    primaryCorpId: 'csmc',
+    role: 'zone_admin',
+    fullName: 'CSN Zone 1 Administrator',
+    departmentName: 'CSMC — Zone 1 Administrative Cell',
+  },
+];
+
+/**
+ * Resolve zone credential by loginId (case-insensitive).
+ */
+export function resolveZoneCredential(loginId: string): ZoneCredential | undefined {
+  return ZONE_CREDENTIAL_REGISTRY.find(
+    (z) => z.loginId.toLowerCase() === loginId.toLowerCase()
+  );
+}
+
+/**
  * The state admin account.
  * loginId is unique and does not match any district.
  */
@@ -244,3 +359,8 @@ export function isStateAdminLogin(loginId: string): boolean {
     loginId.toLowerCase() === 'state.admin@civicresolve.gov'
   );
 }
+
+export function isZoneAdminLogin(loginId: string): boolean {
+  return resolveZoneCredential(loginId) !== undefined;
+}
+

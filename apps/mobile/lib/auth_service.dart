@@ -102,6 +102,12 @@ class AuthService {
   /// Login strictly with real Supabase Auth
   Future<AuthResult> login(String emailOrId, String password, {String role = 'citizen'}) async {
     try {
+      final lowerInput = emailOrId.toLowerCase().trim();
+      final isAdminIdentifier = lowerInput.contains('admin') || lowerInput.startsWith('state_') || lowerInput.contains('_admin');
+      if (isAdminIdentifier) {
+        return AuthResult.error('Administrative accounts (State Admin, District Admin, Zone Admin) must use the CivicResolve Web Administrative Portal. The Mobile app is reserved exclusively for Citizens and Field Officers.');
+      }
+
       final isOfficerRequest = role.toLowerCase().trim() == 'contractor' || role.toLowerCase().trim() == 'officer';
       final canonicalRole = isOfficerRequest ? 'officer' : 'citizen';
 
@@ -168,6 +174,15 @@ class AuthService {
 
         // Sync database profile and user_roles table
         await _syncDatabaseProfileAndRole(_userId!);
+
+        if (_userRole == 'state_admin' ||
+            _userRole == 'district_admin' ||
+            _userRole == 'zone_admin' ||
+            _userRole == 'municipal_admin' ||
+            _userRole == 'super_admin') {
+          await logout();
+          return AuthResult.error('Administrative accounts must log in via the CivicResolve Web Administrative Portal.');
+        }
 
         await AppPreferences.setUserRole(_userRole);
         await _saveLoginState();

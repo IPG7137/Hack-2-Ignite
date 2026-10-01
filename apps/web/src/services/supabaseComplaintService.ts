@@ -22,6 +22,7 @@ import {
   MAHARASHTRA_DISTRICTS,
 } from '../data/maharashtraDistricts';
 import { isComplaintInDistrict } from '../lib/districtFilter';
+import { isComplaintInZone } from '../lib/zoneFilter';
 import { NotificationService } from './notificationService';
 
 export class SupabaseComplaintService implements IComplaintService {
@@ -127,10 +128,29 @@ export class SupabaseComplaintService implements IComplaintService {
       );
     }
 
-    // Resolve active organization context for strict district isolation
+    // Resolve active organization context for strict district & zone isolation
     let orgType = filters.organizationType;
     let districtId = filters.districtId;
     let corporationId = filters.corporationId;
+    let zone = filters.zone;
+
+    // Hard boundary: Authenticated user role permanently enforces jurisdiction
+    try {
+      const savedUser = localStorage.getItem('civicresolve_user');
+      if (savedUser) {
+        const parsedUser = JSON.parse(savedUser);
+        if (parsedUser.role === 'zone_admin') {
+          orgType = 'MUNICIPAL_CORPORATION';
+          districtId = parsedUser.districtId;
+          zone = parsedUser.zone || parsedUser.ward;
+        } else if (parsedUser.role === 'district_admin') {
+          orgType = 'MUNICIPAL_CORPORATION';
+          districtId = parsedUser.districtId;
+        } else if (parsedUser.role === 'state_admin') {
+          orgType = 'STATE';
+        }
+      }
+    } catch (_) {}
 
     if (!orgType || (!districtId && !corporationId)) {
       try {
@@ -140,6 +160,7 @@ export class SupabaseComplaintService implements IComplaintService {
           if (!orgType && parsed.organizationType) orgType = parsed.organizationType;
           if (!districtId && parsed.districtId) districtId = parsed.districtId;
           if (!corporationId && parsed.corporationId) corporationId = parsed.corporationId;
+          if (!zone && parsed.zone) zone = parsed.zone;
         }
       } catch (_) {}
     }
@@ -231,6 +252,12 @@ export class SupabaseComplaintService implements IComplaintService {
       }
     }
 
+    // Strict Zone isolation filtering:
+    // If zone is specified or enforced for zone admin, exclude grievances from other zones
+    if (zone) {
+      mapped = mapped.filter((c) => isComplaintInZone(c, zone!));
+    }
+
     // Category filtering
     if (filters.category && filters.category !== 'all') {
       mapped = mapped.filter((c) => c.category === filters.category);
@@ -271,6 +298,25 @@ export class SupabaseComplaintService implements IComplaintService {
   }
 
   async getComplaintById(id: string): Promise<Complaint | null> {
+    const enforceJurisdiction = (complaint: Complaint | null): Complaint | null => {
+      if (!complaint) return null;
+      try {
+        const savedUser = localStorage.getItem('civicresolve_user');
+        if (savedUser) {
+          const parsedUser = JSON.parse(savedUser);
+          if (parsedUser.role === 'zone_admin') {
+            const targetDist = MAHARASHTRA_DISTRICTS.find((d) => d.id === parsedUser.districtId);
+            if (targetDist && !isComplaintInDistrict(complaint, targetDist)) return null;
+            if (!isComplaintInZone(complaint, parsedUser.zone || parsedUser.ward || '')) return null;
+          } else if (parsedUser.role === 'district_admin') {
+            const targetDist = MAHARASHTRA_DISTRICTS.find((d) => d.id === parsedUser.districtId);
+            if (targetDist && !isComplaintInDistrict(complaint, targetDist)) return null;
+          }
+        }
+      } catch (_) {}
+      return complaint;
+    };
+
     const dbId = this.parseDbId(id);
     if (dbId != null) {
       try {
@@ -289,7 +335,7 @@ export class SupabaseComplaintService implements IComplaintService {
             .eq('report_id', dbId)
             .order('created_at', { ascending: true });
 
-          return mapSupabaseRowToComplaint(reportData, historyData || []);
+          return enforceJurisdiction(mapSupabaseRowToComplaint(reportData, historyData || []));
         }
       } catch (_) {}
     }
@@ -305,7 +351,7 @@ export class SupabaseComplaintService implements IComplaintService {
     );
 
     if (mockMatch) {
-      return { ...mockMatch };
+      return enforceJurisdiction({ ...mockMatch });
     }
 
     console.warn(`⚠️ Complaint ${id} not found in database or mock datasets.`);

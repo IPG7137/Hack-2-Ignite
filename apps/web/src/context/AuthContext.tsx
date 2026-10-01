@@ -3,6 +3,7 @@ import { Session } from '@supabase/supabase-js';
 import { AuthService, AuthUser, UserRole } from '../services/authService';
 import {
   resolveDistrictCredential,
+  resolveZoneCredential,
   isStateAdminLogin,
   STATE_ADMIN_CREDENTIAL,
 } from '../data/districtCredentials';
@@ -93,9 +94,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       : `${cleanInput.toLowerCase().replace(/[^a-z0-9._-]/g, '')}@civicresolve.gov`;
 
     // ──────────────────────────────────────────────────
-    // STEP 1: Resolve identity from district registry
+    // STEP 1: Resolve identity from district/zone registry
     // ──────────────────────────────────────────────────
     const districtCred = resolveDistrictCredential(cleanInput);
+    const zoneCred = resolveZoneCredential(cleanInput);
     const isStateAdmin = isStateAdminLogin(cleanInput);
 
     // ──────────────────────────────────────────────────
@@ -104,7 +106,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (isStateAdmin) {
       localStorage.setItem(
         'civicresolve_org_context',
-        JSON.stringify({ organizationType: 'STATE', districtId: null, corporationId: null })
+        JSON.stringify({ organizationType: 'STATE', districtId: null, corporationId: null, zone: null })
+      );
+    } else if (zoneCred) {
+      localStorage.setItem(
+        'civicresolve_org_context',
+        JSON.stringify({
+          organizationType: 'MUNICIPAL_CORPORATION',
+          districtId: zoneCred.districtId,
+          corporationId: zoneCred.primaryCorpId,
+          zone: zoneCred.zoneName,
+        })
       );
     } else if (districtCred) {
       localStorage.setItem(
@@ -113,6 +125,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           organizationType: 'MUNICIPAL_CORPORATION',
           districtId: districtCred.districtId,
           corporationId: districtCred.primaryCorpId,
+          zone: null,
         })
       );
     }
@@ -123,20 +136,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const res = await AuthService.signInWithPassword(emailToTry, cleanPassword);
       if (!res.error && res.user) {
-        // Determine role: district credentials/state admin resolve their administrative roles,
-        // while citizen accounts strictly maintain their citizen role.
         let resolvedRole: UserRole = res.user.role;
         if (isStateAdmin) {
           resolvedRole = 'state_admin';
+        } else if (zoneCred) {
+          resolvedRole = 'zone_admin';
         } else if (districtCred) {
-          resolvedRole = 'municipal_admin';
+          resolvedRole = districtCred.role === 'citizen' ? 'citizen' : 'district_admin';
         }
 
         const finalUser: AuthUser = {
           ...res.user,
           role: resolvedRole,
-          fullName: districtCred?.fullName || (isStateAdmin ? STATE_ADMIN_CREDENTIAL.fullName : res.user.fullName),
-          departmentName: districtCred?.departmentName || (isStateAdmin ? STATE_ADMIN_CREDENTIAL.departmentName : res.user.departmentName),
+          districtId: zoneCred?.districtId || districtCred?.districtId || res.user.districtId,
+          zone: zoneCred?.zoneName || res.user.zone,
+          zoneId: zoneCred?.zoneId || res.user.zoneId,
+          fullName: zoneCred?.fullName || districtCred?.fullName || (isStateAdmin ? STATE_ADMIN_CREDENTIAL.fullName : res.user.fullName),
+          departmentName: zoneCred?.departmentName || districtCred?.departmentName || (isStateAdmin ? STATE_ADMIN_CREDENTIAL.departmentName : res.user.departmentName),
         };
         setUser(finalUser);
         setSession(res.session);
@@ -167,11 +183,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return { success: true, error: null };
     }
 
+    if (zoneCred) {
+      const zoneAdminUser: AuthUser = {
+        id: `zone-admin-${zoneCred.zoneId}-001`,
+        email: emailToTry,
+        role: 'zone_admin',
+        fullName: zoneCred.fullName,
+        districtId: zoneCred.districtId,
+        zone: zoneCred.zoneName,
+        zoneId: zoneCred.zoneId,
+        departmentId: `DEP-${zoneCred.zoneId.toUpperCase()}`,
+        departmentName: zoneCred.departmentName,
+        ward: zoneCred.zoneName,
+        isVerified: true,
+      };
+      setUser(zoneAdminUser);
+      localStorage.setItem('civicresolve_user', JSON.stringify(zoneAdminUser));
+      setLoading(false);
+      return { success: true, error: null };
+    }
+
     if (districtCred) {
+      const assignedRole: UserRole = districtCred.role === 'citizen' ? 'citizen' : 'district_admin';
       const districtAdminUser: AuthUser = {
         id: `district-admin-${districtCred.districtId}-001`,
         email: emailToTry,
-        role: 'municipal_admin',
+        role: assignedRole,
         fullName: districtCred.fullName,
         districtId: districtCred.districtId,
         departmentId: `DEP-${districtCred.districtId.toUpperCase()}`,

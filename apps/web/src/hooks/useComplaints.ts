@@ -11,7 +11,7 @@ import { JointActionRequest, JointActionResult, IncidentClusterRecord } from '..
 
 export function useComplaints(initialFilters: ComplaintFilterParams = {}) {
   const { user, isAuthenticated } = useAuthContext();
-  const { organizationType, districtId, municipalCorporationId } = useOrganization();
+  const { organizationType, districtId, municipalCorporationId, zone } = useOrganization();
   const [complaints, setComplaints] = useState<Complaint[]>([]);
   const [incidentClusters, setIncidentClusters] = useState<IncidentClusterRecord[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -24,12 +24,25 @@ export function useComplaints(initialFilters: ComplaintFilterParams = {}) {
     try {
       setLoading(true);
       setError(null);
+
+      const activeZone =
+        user?.role === 'zone_admin'
+          ? (user.zone || user.ward || zone)
+          : (filters.zone || zone);
+
+      const targetDistrictId =
+        user?.role === 'zone_admin' || user?.role === 'district_admin'
+          ? (user.districtId || districtId)
+          : districtId;
+
       const mergedFilters: ComplaintFilterParams = {
         ...filters,
         organizationType,
-        districtId: districtId || undefined,
+        districtId: targetDistrictId || undefined,
         corporationId: municipalCorporationId || undefined,
+        zone: activeZone || undefined,
       };
+
       const [data, clusters] = await Promise.all([
         complaintService.getComplaints(mergedFilters),
         complaintService.getIncidentClusters().catch(() => []),
@@ -42,12 +55,12 @@ export function useComplaints(initialFilters: ComplaintFilterParams = {}) {
     } finally {
       setLoading(false);
     }
-  }, [filters, isAuthenticated, user?.id, organizationType, districtId, municipalCorporationId]);
+  }, [filters, isAuthenticated, user?.id, user?.role, user?.districtId, user?.zone, organizationType, districtId, municipalCorporationId, zone]);
 
-  // Re-fetch when the org context changes (district/corporation switch) or filters change
+  // Re-fetch when the org context changes (district/corporation/zone switch) or filters change
   useEffect(() => {
     fetchComplaints();
-  }, [organizationType, districtId, municipalCorporationId, filters, fetchComplaints]);
+  }, [organizationType, districtId, municipalCorporationId, zone, filters, fetchComplaints]);
 
   // Live Supabase Realtime Subscription
   useEffect(() => {

@@ -2,10 +2,10 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import {
   MunicipalCorporation,
   MaharashtraDistrict,
-  ALL_MUNICIPAL_CORPORATIONS,
   MAHARASHTRA_DISTRICTS,
   getCorporationById,
 } from '../data/maharashtraDistricts';
+import { AuthService } from '../services/authService';
 
 export type OrganizationType = 'STATE' | 'DISTRICT' | 'MUNICIPAL_CORPORATION';
 
@@ -21,6 +21,8 @@ export interface OrganizationContextValue {
   division: string | null;
   district: string | null;
   districtId: string | null;
+  zone: string | null;
+  zoneName: string | null;
   municipalCorporationId: string | null;
   municipalCorporationName: string | null;
   currentCorporation: MunicipalCorporation | null;
@@ -30,7 +32,8 @@ export interface OrganizationContextValue {
   setOrganization: (
     type: OrganizationType,
     districtId?: string | null,
-    corporationId?: string | null
+    corporationId?: string | null,
+    zone?: string | null
   ) => void;
   resetToDefault: () => void;
 }
@@ -45,9 +48,27 @@ const STORAGE_KEY = 'civicresolve_org_context';
 function getMapCenterForContext(
   type: OrganizationType,
   districtId: string | null,
-  corporationId: string | null
+  corporationId: string | null,
+  zone: string | null
 ): OrgMapCenter {
   if (type === 'STATE') return MAHARASHTRA_CENTER;
+
+  // Zone-level specialized coordinates
+  if (zone) {
+    const lz = zone.toLowerCase();
+    if (lz.includes('north') || lz.includes('saat rasta')) {
+      return { lat: 17.6685, lng: 75.9042, zoom: 13.5 };
+    }
+    if (lz.includes('south') || lz.includes('hotgi')) {
+      return { lat: 17.6380, lng: 75.9020, zoom: 13.5 };
+    }
+    if (lz.includes('kothrud') || lz.includes('zone 2')) {
+      return { lat: 18.5074, lng: 73.8077, zoom: 13.5 };
+    }
+    if (lz.includes('ghole') || lz.includes('zone 3')) {
+      return { lat: 18.5284, lng: 73.8415, zoom: 13.5 };
+    }
+  }
 
   // Corporation-level: use corporation's exact coordinates
   if (corporationId) {
@@ -70,23 +91,63 @@ function getMapCenterForContext(
   return MAHARASHTRA_CENTER;
 }
 
+function getStoredUser() {
+  try {
+    const saved = localStorage.getItem('civicresolve_user');
+    if (saved) return JSON.parse(saved);
+  } catch (_) {}
+  return null;
+}
+
 export const OrganizationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const getInitialState = () => {
+    const storedUser = getStoredUser();
+
+    // If an administrative user is logged in, their assigned role strictly determines jurisdiction
+    if (storedUser?.role === 'zone_admin') {
+      return {
+        organizationType: 'MUNICIPAL_CORPORATION' as OrganizationType,
+        districtId: storedUser.districtId || 'solapur',
+        corporationId: storedUser.districtId === 'solapur' ? 'smc' : (storedUser.districtId === 'pune' ? 'pmc' : null),
+        zone: storedUser.zone || 'Solapur North',
+      };
+    }
+
+    if (storedUser?.role === 'district_admin') {
+      return {
+        organizationType: 'MUNICIPAL_CORPORATION' as OrganizationType,
+        districtId: storedUser.districtId || 'solapur',
+        corporationId: storedUser.districtId === 'solapur' ? 'smc' : (storedUser.districtId === 'pune' ? 'pmc' : null),
+        zone: null,
+      };
+    }
+
+    if (storedUser?.role === 'state_admin') {
+      return {
+        organizationType: 'STATE' as OrganizationType,
+        districtId: null,
+        corporationId: null,
+        zone: null,
+      };
+    }
+
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
         return {
           organizationType: (parsed.organizationType || 'MUNICIPAL_CORPORATION') as OrganizationType,
-          districtId: parsed.districtId !== undefined ? parsed.districtId : 'pune',
-          corporationId: parsed.corporationId !== undefined ? parsed.corporationId : 'pmc',
+          districtId: parsed.districtId !== undefined ? parsed.districtId : 'solapur',
+          corporationId: parsed.corporationId !== undefined ? parsed.corporationId : 'smc',
+          zone: parsed.zone || null,
         };
       }
     } catch (_) {}
     return {
       organizationType: 'MUNICIPAL_CORPORATION' as OrganizationType,
-      districtId: 'pune',
-      corporationId: 'pmc',
+      districtId: 'solapur',
+      corporationId: 'smc',
+      zone: null,
     };
   };
 
@@ -94,9 +155,35 @@ export const OrganizationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const [organizationType, setOrganizationType] = useState<OrganizationType>(initial.organizationType);
   const [districtId, setDistrictId] = useState<string | null>(initial.districtId);
   const [corporationId, setCorporationId] = useState<string | null>(initial.corporationId);
+  const [zone, setZone] = useState<string | null>(initial.zone);
 
-  // Re-sync from localStorage after mount (handles stale state from previous session)
+  // Sync state and enforce strict RBAC locks
   useEffect(() => {
+    const storedUser = getStoredUser();
+
+    // STRICT LOCK: Zone Admin is locked to assigned district & zone
+    if (storedUser?.role === 'zone_admin') {
+      setOrganizationType('MUNICIPAL_CORPORATION');
+      setDistrictId(storedUser.districtId);
+      setZone(storedUser.zone);
+      return;
+    }
+
+    // STRICT LOCK: District Admin is locked to assigned district
+    if (storedUser?.role === 'district_admin') {
+      setOrganizationType('MUNICIPAL_CORPORATION');
+      setDistrictId(storedUser.districtId);
+      return;
+    }
+
+    // State Admin
+    if (storedUser?.role === 'state_admin') {
+      setOrganizationType('STATE');
+      setDistrictId(null);
+      setZone(null);
+      return;
+    }
+
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
@@ -104,6 +191,7 @@ export const OrganizationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         if (parsed.organizationType) setOrganizationType(parsed.organizationType);
         if (parsed.districtId !== undefined) setDistrictId(parsed.districtId);
         if (parsed.corporationId !== undefined) setCorporationId(parsed.corporationId);
+        if (parsed.zone !== undefined) setZone(parsed.zone);
       }
     } catch (_) {}
   }, []);
@@ -111,34 +199,91 @@ export const OrganizationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const setOrganization = (
     type: OrganizationType,
     newDistrictId?: string | null,
-    newCorporationId?: string | null
+    newCorporationId?: string | null,
+    newZone?: string | null
   ) => {
+    const storedUser = getStoredUser();
+
+    // STRICT SECURITY BOUNDARY:
+    // A Zone Admin CANNOT escape their assigned district or zone
+    if (storedUser?.role === 'zone_admin') {
+      const lockedDist = storedUser.districtId;
+      const lockedZone = storedUser.zone;
+      setOrganizationType('MUNICIPAL_CORPORATION');
+      setDistrictId(lockedDist);
+      setZone(lockedZone);
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({
+          organizationType: 'MUNICIPAL_CORPORATION',
+          districtId: lockedDist,
+          corporationId: corporationId,
+          zone: lockedZone,
+        })
+      );
+      return;
+    }
+
+    // STRICT SECURITY BOUNDARY:
+    // A District Admin CANNOT escape their assigned district
+    if (storedUser?.role === 'district_admin') {
+      const lockedDist = storedUser.districtId;
+      const finalCorpId = newCorporationId ?? corporationId ?? null;
+      const finalZone = newZone ?? null;
+      setOrganizationType('MUNICIPAL_CORPORATION');
+      setDistrictId(lockedDist);
+      setCorporationId(finalCorpId);
+      setZone(finalZone);
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({
+          organizationType: 'MUNICIPAL_CORPORATION',
+          districtId: lockedDist,
+          corporationId: finalCorpId,
+          zone: finalZone,
+        })
+      );
+      return;
+    }
+
+    // State Admin or General Navigation
     setOrganizationType(type);
     if (type === 'STATE') {
       setDistrictId(null);
       setCorporationId(null);
+      setZone(null);
       localStorage.setItem(
         STORAGE_KEY,
-        JSON.stringify({ organizationType: 'STATE', districtId: null, corporationId: null })
+        JSON.stringify({ organizationType: 'STATE', districtId: null, corporationId: null, zone: null })
       );
     } else {
-      const finalDistId = newDistrictId ?? districtId ?? 'pune';
+      const finalDistId = newDistrictId ?? districtId ?? 'solapur';
       const finalCorpId = newCorporationId ?? corporationId ?? null;
+      const finalZone = newZone ?? null;
       setDistrictId(finalDistId);
       setCorporationId(finalCorpId);
+      setZone(finalZone);
       localStorage.setItem(
         STORAGE_KEY,
         JSON.stringify({
           organizationType: type,
           districtId: finalDistId,
           corporationId: finalCorpId,
+          zone: finalZone,
         })
       );
     }
   };
 
   const resetToDefault = () => {
-    setOrganization('MUNICIPAL_CORPORATION', 'pune', 'pmc');
+    const storedUser = getStoredUser();
+    if (storedUser?.role === 'zone_admin') {
+      setOrganization('MUNICIPAL_CORPORATION', storedUser.districtId, null, storedUser.zone);
+    } else if (storedUser?.role === 'district_admin') {
+      setOrganization('MUNICIPAL_CORPORATION', storedUser.districtId, null, null);
+    } else {
+      setOrganization('STATE', null, null, null);
+    }
   };
 
   // Derive current district object
@@ -153,7 +298,7 @@ export const OrganizationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const districtName =
     currentDistrict?.name ||
     currentCorporation?.district ||
-    null;
+    (districtId ? districtId.toUpperCase() : null);
 
   // Derive division
   const division = currentDistrict?.division || null;
@@ -164,7 +309,7 @@ export const OrganizationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     (districtName ? `${districtName} Municipal Corporation` : null);
 
   // Stable map center for current context
-  const mapCenter = getMapCenterForContext(organizationType, districtId, corporationId);
+  const mapCenter = getMapCenterForContext(organizationType, districtId, corporationId, zone);
 
   const value: OrganizationContextValue = {
     organizationType,
@@ -172,6 +317,8 @@ export const OrganizationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     division,
     district: districtName,
     districtId,
+    zone,
+    zoneName: zone,
     municipalCorporationId: corporationId,
     municipalCorporationName,
     currentCorporation,

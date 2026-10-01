@@ -7,7 +7,9 @@ export type UserRole =
   | 'dept_admin'
   | 'municipal_admin'
   | 'super_admin'
-  | 'state_admin';
+  | 'state_admin'
+  | 'district_admin'
+  | 'zone_admin';
 
 export const VALID_ROLES: readonly UserRole[] = [
   'citizen',
@@ -18,13 +20,21 @@ export const VALID_ROLES: readonly UserRole[] = [
   'state_admin',
 ] as const;
 
+export const EXTENDED_ADMIN_ROLES = ['district_admin', 'zone_admin'] as const;
+
 export function isValidRole(role: any): role is UserRole {
-  return typeof role === 'string' && VALID_ROLES.includes(role as UserRole);
+  return (
+    typeof role === 'string' &&
+    ((VALID_ROLES as readonly string[]).includes(role) ||
+      (EXTENDED_ADMIN_ROLES as readonly string[]).includes(role))
+  );
 }
 
 export function normalizeLegacyRole(rawRole: string): UserRole {
   const r = rawRole.toLowerCase().trim();
   if (r === 'state_admin' || r === 'stateadmin') return 'state_admin';
+  if (r === 'district_admin' || r === 'districtadmin') return 'district_admin';
+  if (r === 'zone_admin' || r === 'zoneadmin') return 'zone_admin';
   if (r === 'super_admin' || r === 'superadmin') return 'super_admin';
   if (r === 'municipal_admin' || r === 'admin' || r === 'administrator') return 'municipal_admin';
   if (r === 'dept_admin' || r === 'department_admin') return 'dept_admin';
@@ -38,6 +48,8 @@ export interface AuthUser {
   role: UserRole;
   fullName: string;
   districtId?: string;
+  zone?: string;
+  zoneId?: string;
   phone?: string;
   departmentId?: string;
   departmentName?: string;
@@ -94,16 +106,28 @@ export class AuthService {
     // 4. If no valid database role exists, default strictly to 'citizen'.
     const role: UserRole = dbRole && isValidRole(dbRole) ? dbRole : 'citizen';
 
+    const resolvedDistrictId =
+      role === 'state_admin'
+        ? undefined
+        : dbProfile?.district_id || meta.district_id || meta.districtId || undefined;
+
+    const resolvedZone =
+      role === 'state_admin'
+        ? undefined
+        : dbProfile?.ward || meta.zone || meta.ward || undefined;
+
     return {
       id: user.id,
       email,
       role,
       fullName: dbProfile?.full_name || meta.full_name || meta.name || email.split('@')[0],
-      districtId: dbProfile?.district_id || meta.district_id || meta.districtId || 'pune',
+      districtId: resolvedDistrictId,
+      zone: resolvedZone,
+      zoneId: meta.zone_id || meta.zoneId || undefined,
       phone: dbProfile?.phone || meta.phone || meta.phone_number || undefined,
       departmentId: dbProfile?.department_id || meta.department_id || 'DEP-GEN',
       departmentName: dbProfile?.department_name || meta.department_name || 'General Municipal Command',
-      ward: dbProfile?.ward || meta.ward || 'Zone 2 Command',
+      ward: dbProfile?.ward || meta.ward || resolvedZone || 'Zone 2 Command',
       // Authoritative Supabase verification state: strictly check email_confirmed_at.
       // Never use '|| true' fallback and do not trust client-controlled user metadata (meta.is_verified).
       isVerified: Boolean(user.email_confirmed_at),
@@ -380,7 +404,13 @@ export class AuthService {
       if (fromStatus === 'IN_PROGRESS' && toStatus === 'RESOLVED_AWAITING_VERIFICATION') return true;
       return false;
     }
-    if (role === 'municipal_admin' || role === 'state_admin' || role === 'super_admin') {
+    if (
+      role === 'municipal_admin' ||
+      role === 'district_admin' ||
+      role === 'zone_admin' ||
+      role === 'state_admin' ||
+      role === 'super_admin'
+    ) {
       return true;
     }
     return false;
@@ -409,6 +439,22 @@ export class AuthService {
         'complaints:assign',
         'alerts:view_department',
         'alerts:acknowledge'
+      ],
+      zone_admin: [
+        'complaints:view_zone',
+        'complaints:assign_zone',
+        'alerts:view_zone',
+        'alerts:acknowledge_zone',
+        'sla:view_zone'
+      ],
+      district_admin: [
+        'complaints:view_district',
+        'complaints:view_ulb',
+        'complaints:assign',
+        'complaints:reassign',
+        'alerts:manage',
+        'alerts:acknowledge',
+        'sla:configure'
       ],
       municipal_admin: [
         'complaints:view_ulb',
