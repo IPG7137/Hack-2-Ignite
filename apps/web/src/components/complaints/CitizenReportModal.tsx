@@ -268,14 +268,14 @@ export const CitizenReportModal: React.FC<CitizenReportModalProps> = ({
                   className="w-full rounded-lg border border-[#D9E2EC] bg-slate-50/50 px-3 py-2 text-xs text-[#172B4D] placeholder-[#9CA3AF] focus:border-[#1769D2] focus:bg-white focus:outline-hidden"
                 />
 
-                {/* 3A Duplicate Advisory */}
+                {/* Duplicate Advisory */}
                 {duplicateAdvisory && (
                   <div className="mt-2 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50/80 p-2.5 text-[11px] text-amber-900 animate-in fade-in">
                     <Sparkles className="w-4 h-4 shrink-0 text-amber-600 mt-0.5" />
                     <div>
-                      <span className="font-bold">3A Related Report Detected:</span> A similar grievance (
+                      <span className="font-bold">Possible Duplicate Detected:</span> A similar grievance (
                       <strong className="text-amber-800">#{duplicateAdvisory.candidateComplaint.id}</strong>) was recently reported nearby.
-                      Submitting will automatically link to community clustering.
+                      Submitting will automatically link to community clustering for prioritized action.
                     </div>
                   </div>
                 )}

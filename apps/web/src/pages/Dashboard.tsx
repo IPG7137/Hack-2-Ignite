@@ -5,6 +5,10 @@ import { EmergingProblemsHotspotsCard } from '../components/dashboard/EmergingPr
 import { PotentialIncidentsCard } from '../components/dashboard/PotentialIncidentsCard';
 import { DepartmentWorkload } from '../components/dashboard/DepartmentWorkload';
 import { CommandMap } from '../components/map/CommandMap';
+import { JurisdictionSelector } from '../components/layout/JurisdictionSelector';
+import { GrievanceLifecycleBanner } from '../components/dashboard/GrievanceLifecycleBanner';
+import { IssueTrendsChart } from '../components/dashboard/IssueTrendsChart';
+import { RecentComplaintsList } from '../components/dashboard/RecentComplaintsList';
 import { EmergingProblemEngine } from '../services/emergingProblemEngine';
 import { IncidentGroupingEngine } from '../services/incidentGroupingEngine';
 import { Complaint } from '../types/complaint';
@@ -194,38 +198,49 @@ export const Dashboard: React.FC<DashboardProps> = ({
           <div className="w-11 h-11 rounded-xl bg-blue-50 border border-blue-200/80 flex items-center justify-center text-[#1769D2] shrink-0 shadow-2xs font-bold text-lg">
             🏢
           </div>
-          <div>
+          <div className="space-y-1">
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-slate-500">
                 CIVICRESOLVE
               </span>
               <span className="text-slate-300">•</span>
-              <h1 className="text-lg sm:text-xl font-bold tracking-tight text-[#123B6D]">
-                {municipalCorporationName || 'Municipal Corporation'}
+              <h1 className="text-base sm:text-lg font-bold tracking-tight text-[#123B6D]">
+                Maharashtra Municipal Operations
               </h1>
-              <span className="text-xs text-[#526581] font-medium hidden sm:inline">
-                District: {district || 'Maharashtra'} • Municipal Command Center
-              </span>
               <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
                 LIVE ● OPERATIONAL
               </span>
             </div>
 
-            <p className="text-xs text-slate-600 mt-1 flex items-center gap-2 flex-wrap">
-              <span>
-                {currentCorporation?.shortName || 'Municipal'} Command Headquarters • {complaints.length} municipal grievances on record
-              </span>
-              <span className="text-slate-300">•</span>
+            <div className="flex items-center gap-2 sm:gap-3 flex-wrap text-xs text-slate-600 pt-0.5">
+              <div className="flex items-center gap-1.5">
+                <span className="text-slate-500 font-medium">Current jurisdiction:</span>
+                <JurisdictionSelector variant="banner" />
+              </div>
+              <span className="text-slate-300 hidden sm:inline">•</span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-slate-500 font-medium">Role:</span>
+                <span className="font-mono font-bold text-slate-800 bg-slate-100 px-2 py-0.5 rounded border border-slate-200 text-[11px]">
+                  {user?.role === 'state_admin'
+                    ? 'State Administration'
+                    : user?.role === 'municipal_admin'
+                    ? 'Municipal Administration (HQ)'
+                    : user?.role === 'officer'
+                    ? 'Field Duty Officer'
+                    : 'Municipal Command Desk'}
+                </span>
+              </div>
+              <span className="text-slate-300 hidden sm:inline">•</span>
               <span className="font-mono text-slate-500 text-[11px]">
-                Last synced at <strong className="text-slate-700">{lastSyncTime || 'now'}</strong> IST
+                Last updated: <strong className="text-slate-700">{lastSyncTime || 'now'}</strong> IST
               </span>
-            </p>
+            </div>
           </div>
         </div>
 
         {/* Quick Operational Directives */}
-        <div className="flex items-center gap-2 w-full sm:w-auto justify-end flex-wrap">
+        <div className="flex items-center gap-2 w-full lg:w-auto justify-end flex-wrap">
           <Button
             variant="outline"
             size="sm"
@@ -254,6 +269,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </Button>
         </div>
       </div>
+
+      {/* Grievance Redressal Architecture Lifecycle Banner */}
+      <GrievanceLifecycleBanner onNavigatePage={onNavigatePage} />
 
       {/* Guest Authentication Banner (When not signed in under Supabase RLS) */}
       {!isAuthenticated && (
@@ -517,6 +535,57 @@ export const Dashboard: React.FC<DashboardProps> = ({
             />
           </div>
         </div>
+      </div>
+
+      {/* ==================================================
+          LOWER SECTION: ISSUE TRENDS & RECENT INTAKE
+          ================================================== */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+        {/* Left (6 cols): Issue Trends Chart */}
+        <div className="lg:col-span-6">
+          <IssueTrendsChart complaints={complaints} />
+        </div>
+
+        {/* Right (6 cols): Recent Grievances Intake */}
+        <div className="lg:col-span-6">
+          <RecentComplaintsList
+            complaints={complaints}
+            onSelectComplaint={onSelectComplaint}
+            onViewAll={() => onNavigatePage('complaints')}
+          />
+        </div>
+      </div>
+
+      {/* Compact AI Decision Support Brief */}
+      <div className="p-4 rounded-xl bg-gradient-to-br from-blue-50/70 to-indigo-50/40 border border-blue-200/80 shadow-2xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <div className="flex items-start gap-3">
+          <div className="w-8 h-8 rounded-lg bg-[#1769D2] text-white flex items-center justify-center shrink-0 shadow-xs">
+            <Sparkles className="w-4 h-4" />
+          </div>
+          <div className="space-y-0.5">
+            <div className="text-xs font-bold text-[#123B6D] flex items-center gap-1.5">
+              <span>Municipal Operational Telemetry & Insights</span>
+              <span className="text-[10px] font-mono text-blue-700 bg-white px-1.5 py-0.2 rounded border border-blue-200 font-bold">
+                DECISION SUPPORT
+              </span>
+            </div>
+            <p className="text-xs text-slate-700 leading-relaxed max-w-3xl">
+              {insights.length > 0
+                ? insights[0].description
+                : `Analyzing ${complaints.length} active grievances for ${municipalCorporationName || 'this corporation'}. Triage queues and spatial radar indicate normal municipal responsiveness within statutory SLA guidelines.`}
+            </p>
+          </div>
+        </div>
+
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => onNavigatePage('ai_insights')}
+          className="h-7.5 text-xs bg-white border-blue-200 text-[#1769D2] hover:bg-blue-50 shrink-0 font-semibold gap-1"
+        >
+          <span>View Full Telemetry</span>
+          <ArrowUpRight className="w-3.5 h-3.5" />
+        </Button>
       </div>
 
       {isLoginOpen && (

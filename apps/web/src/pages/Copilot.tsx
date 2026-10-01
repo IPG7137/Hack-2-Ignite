@@ -50,13 +50,13 @@ export const Copilot: React.FC<CopilotStudioProps> = ({ complaints = [], onSelec
       sender: 'assistant',
       content: `### 🏛️ Municipal AI Copilot Operational Desk
 
-I am your evidence-grounded Municipal Intelligence Copilot. I analyze live grievance telemetry using deterministic **Phases 3A–3E Civic Intelligence Engines**:
+I am your evidence-grounded Municipal Intelligence Copilot. I assist municipal administrators and field duty officers by synthesizing live grievance telemetry across 5 core operational intelligence capabilities:
 
-- **Phase 3A:** Similarity & Duplicate Analysis (200m spatial + text embeddings)
-- **Phase 3B:** Smart Civic Priority (5 weighted signals: Severity, Safety, Clusters, Age, Category)
-- **Phase 3C:** Emerging Problems & Hotspots (500m localized surge detection)
-- **Phase 3D:** Potential Common Incidents (Multi-report work order grouping)
-- **Phase 3E:** Resolution Verification (Before/after proof & citizen feedback sentiment)
+- **Duplicate Detection & Similarity Analysis:** 200m spatial proximity + semantic text correlation
+- **Priority Intelligence & Dynamic Triage:** Weighted severity, vulnerability zones, age & community impact
+- **Emerging Hotspot Radar:** 500m localized cluster surge detection
+- **Root Cause & Common Incident Analysis:** Grouped multi-report infrastructure work orders
+- **Resolution Verification & Visual Audit:** Before/after photographic evidence & citizen sign-off sentiment
 
 Currently evaluating **${complaints.length} live municipal reports**. Click **"Generate Municipal Briefing"** above or select a quick operational inquiry below.`,
       timestamp: new Date().toISOString(),
@@ -172,28 +172,28 @@ Currently evaluating **${complaints.length} live municipal reports**. Click **"G
       icon: <AlertTriangle className="w-3.5 h-3.5 text-[#D92D20]" />,
       label: 'Critical Dispatch Cases',
       prompt: "What are today's highest-priority complaints?",
-      tag: 'Phase 3B',
+      tag: 'Priority Intelligence',
       action: () => handleAsk("What are today's highest-priority complaints?"),
     },
     {
       icon: <Flame className="w-3.5 h-3.5 text-[#EA580C]" />,
       label: 'Emerging Hotspots (500m)',
       prompt: 'Where are the emerging hotspots?',
-      tag: 'Phase 3C',
+      tag: 'Hotspot Intelligence',
       action: () => handleAsk('Where are the emerging hotspots?'),
     },
     {
       icon: <Layers className="w-3.5 h-3.5 text-[#D99A00]" />,
       label: 'Common Incident Clusters',
       prompt: 'Which complaints may belong to the same incident?',
-      tag: 'Phase 3D',
+      tag: 'Root Cause Analysis',
       action: () => handleAsk('Which complaints may belong to the same incident?'),
     },
     {
       icon: <FileCheck2 className="w-3.5 h-3.5 text-[#16803C]" />,
       label: 'Resolution Audit Flags',
       prompt: 'Which resolved cases need verification?',
-      tag: 'Phase 3E',
+      tag: 'Resolution Verification',
       action: () => handleAsk('Which resolved cases need verification?'),
     },
     {
@@ -443,7 +443,7 @@ Currently evaluating **${complaints.length} live municipal reports**. Click **"G
                       {loadingStep === 0 ? 'Analyzing authorized municipal data...' : 'Preparing grounded response...'}
                     </span>
                     <span className="text-[10px] text-[#526581]">
-                      Evaluating Phase 3A–3E deterministic engines across active civic telemetry
+                      Evaluating municipal decision intelligence across active civic telemetry
                     </span>
                   </div>
                 </div>

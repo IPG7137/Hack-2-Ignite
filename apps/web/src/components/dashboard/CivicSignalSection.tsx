@@ -57,7 +57,7 @@ export const CivicSignalSection: React.FC<CivicSignalSectionProps> = ({
             Most-Supported Open Neighborhood Grievances:
           </span>
           <span className="text-[10px] font-mono text-[#718096]">
-            Duplicates reduced via 3A routing
+            Duplicates consolidated via Similarity Intelligence
           </span>
         </div>
 

@@ -36,7 +36,7 @@ export const ResolutionVerificationCard: React.FC<ResolutionVerificationCardProp
           <ShieldCheck className={`w-4 h-4 ${isStrong ? 'text-emerald-600' : isLikely ? 'text-[#1769D2]' : isReview ? 'text-amber-600' : 'text-red-600'}`} />
           <div>
             <h3 className="text-xs font-bold uppercase tracking-wider text-[#172B4D]">
-              Resolution Verification & Evidence (Phase 3E)
+              Resolution Verification & Evidence Assessment
             </h3>
             <div className="text-[10px] text-[#526581] font-mono mt-0.5">
               Multi-Signal Remediation Decision Support

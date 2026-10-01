@@ -46,7 +46,7 @@ export const EmergingProblemsHotspotsCard: React.FC<EmergingProblemsHotspotsCard
           <Radio className="w-4 h-4 text-red-600 animate-pulse" />
           <div>
             <h3 className="text-xs font-bold text-[#172B4D] uppercase tracking-wider flex items-center gap-1.5">
-              <span>Emerging Problems & Hotspot Detection (Phase 3C)</span>
+              <span>Emerging Problems & Hotspot Intelligence</span>
             </h3>
           </div>
         </div>

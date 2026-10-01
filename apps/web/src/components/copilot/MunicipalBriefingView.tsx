@@ -168,7 +168,7 @@ export const MunicipalBriefingView: React.FC<MunicipalBriefingViewProps> = ({
         <div className="p-2.5 rounded bg-orange-50/50 border border-orange-200">
           <div className="text-[10px] text-orange-800 flex items-center gap-1">
             <Flame className="w-3 h-3 text-orange-600" />
-            <span>3C Hotspots</span>
+            <span>Hotspots</span>
           </div>
           <div className="text-base font-bold text-orange-900 mt-0.5">
             {m.emergingHotspotsCount} <span className="text-[10px] font-normal">zones</span>
@@ -178,7 +178,7 @@ export const MunicipalBriefingView: React.FC<MunicipalBriefingViewProps> = ({
         <div className="p-2.5 rounded bg-purple-50/50 border border-purple-200">
           <div className="text-[10px] text-purple-800 flex items-center gap-1">
             <Layers className="w-3 h-3 text-purple-600" />
-            <span>3D Clusters</span>
+            <span>Common Incidents</span>
           </div>
           <div className="text-base font-bold text-purple-900 mt-0.5">
             {m.potentialIncidentsCount} <span className="text-[10px] font-normal">groups</span>

@@ -771,7 +771,7 @@ export const ComplaintDetails: React.FC<ComplaintDetailsProps> = ({
                     </div>
                   </div>
                   <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-white text-purple-800 border border-purple-200 font-bold shrink-0">
-                    PHASE 3D INCIDENT
+                    COMMON INCIDENT GROUP
                   </span>
                 </div>
 
@@ -921,7 +921,7 @@ export const ComplaintDetails: React.FC<ComplaintDetailsProps> = ({
                   <div className="flex items-center gap-1.5">
                     <Flame className="w-4 h-4 text-orange-600" />
                     <h3 className="text-xs font-bold uppercase tracking-wider text-[#172B4D]">
-                      Smart Civic Priority (Phase 3B)
+                      Smart Civic Priority Assessment
                     </h3>
                   </div>
                   <span

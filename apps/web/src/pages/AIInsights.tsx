@@ -137,7 +137,7 @@ export const AIInsights: React.FC<AIInsightsProps> = ({
               Municipal AI Decision Support & Insights
             </h1>
             <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-blue-50 text-[#1769D2] border border-blue-200">
-              Grounded 3A–3E Intelligence
+              Grounded Decision Intelligence
             </span>
           </div>
           <p className="text-xs text-[#526581] mt-1">
@@ -202,7 +202,7 @@ export const AIInsights: React.FC<AIInsightsProps> = ({
                 Critical Dispatch
               </span>
               <span className="font-mono text-[10px] text-red-600 bg-red-50 px-1.5 py-0.5 rounded border border-red-100">
-                Phase 3B
+                Priority Triage
               </span>
             </div>
             <div className="text-xl font-bold text-[#172B4D] mt-1.5">
@@ -223,7 +223,7 @@ export const AIInsights: React.FC<AIInsightsProps> = ({
                 Hotspot Surges
               </span>
               <span className="font-mono text-[10px] text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded border border-orange-100">
-                Phase 3C
+                Hotspot Radar
               </span>
             </div>
             <div className="text-xl font-bold text-[#172B4D] mt-1.5">
@@ -244,7 +244,7 @@ export const AIInsights: React.FC<AIInsightsProps> = ({
                 Common Incidents
               </span>
               <span className="font-mono text-[10px] text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-100">
-                Phase 3D
+                Root Cause Analysis
               </span>
             </div>
             <div className="text-xl font-bold text-[#172B4D] mt-1.5">
@@ -265,7 +265,7 @@ export const AIInsights: React.FC<AIInsightsProps> = ({
                 Resolution Audits
               </span>
               <span className="font-mono text-[10px] text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100">
-                Phase 3E
+                Verification Audit
               </span>
             </div>
             <div className="text-xl font-bold text-[#172B4D] mt-1.5">
@@ -351,7 +351,7 @@ export const AIInsights: React.FC<AIInsightsProps> = ({
                   1. Critical Dispatch Briefing
                 </h2>
                 <span className="text-[11px] text-[#526581] font-normal">
-                  (Phase 3B Multi-Signal Priority Engine)
+                  (Multi-Signal Priority Intelligence)
                 </span>
               </div>
               <span className="text-xs font-mono font-semibold text-[#D92D20]">
@@ -471,7 +471,7 @@ export const AIInsights: React.FC<AIInsightsProps> = ({
                   2. Emerging Anomaly & Hotspot Alerts
                 </h2>
                 <span className="text-[11px] text-[#526581] font-normal">
-                  (Phase 3C 500m Spatio-Temporal Engine)
+                  (Spatial Radar & Hotspot Intelligence)
                 </span>
               </div>
               <span className="text-xs font-mono font-semibold text-[#EA580C]">
@@ -607,7 +607,7 @@ export const AIInsights: React.FC<AIInsightsProps> = ({
                   3. Potential Common Incident Groupings
                 </h2>
                 <span className="text-[11px] text-[#526581] font-normal">
-                  (Phase 3D Multi-Report Work Order Consolidation)
+                  (Common Incident & Work Order Consolidation)
                 </span>
               </div>
               <span className="text-xs font-mono font-semibold text-[#D99A00]">
@@ -771,7 +771,7 @@ export const AIInsights: React.FC<AIInsightsProps> = ({
                   4. Resolution Verification & Audit Flags
                 </h2>
                 <span className="text-[11px] text-[#526581] font-normal">
-                  (Phase 3E Photographic & Citizen Feedback Verification)
+                  (Photographic & Citizen Resolution Audit)
                 </span>
               </div>
               <span className="text-xs font-mono font-semibold text-[#16803C]">

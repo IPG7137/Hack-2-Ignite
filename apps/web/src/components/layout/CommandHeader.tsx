@@ -5,6 +5,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { useOrganization } from '../../context/OrganizationContext';
 import { LoginModal } from '../auth/LoginModal';
 import { NotificationBell } from '../notifications/NotificationBell';
+import { JurisdictionSelector } from './JurisdictionSelector';
 import { STATE_OF_MAHARASHTRA_SEAL } from '../../data/maharashtraDistricts';
 
 interface CommandHeaderProps {
@@ -168,26 +169,10 @@ export const CommandHeader: React.FC<CommandHeaderProps> = ({
         </div>
 
         {/* ==================================================
-            2. COMMAND TITLE (CENTER - FLEXIBLE)
+            2. COMMAND JURISDICTION SWITCHER (CENTER)
             ================================================== */}
-        <div className="flex-1 min-w-0 px-2 flex flex-col items-center justify-center text-center">
-          <div className="flex items-center justify-center gap-1.5 max-w-full">
-            <span className="text-xs sm:text-[13px] lg:text-sm font-bold text-[#123B6D] tracking-tight truncate">
-              {headerTitle}
-            </span>
-            <span
-              className={`text-[9px] sm:text-[10px] uppercase font-mono px-1.5 py-0.5 rounded font-bold shrink-0 border ${
-                isMunicipalAdmin
-                  ? 'bg-blue-50 text-[#1769D2] border-blue-200'
-                  : 'bg-emerald-50 text-emerald-700 border-emerald-200'
-              }`}
-            >
-              {isMunicipalAdmin ? 'HQ Command' : 'Zone 2 Operations'}
-            </span>
-          </div>
-          <span className="text-[10px] text-[#526581] font-medium tracking-tight truncate max-w-full hidden md:block">
-            {headerSubtitle}
-          </span>
+        <div className="flex-1 min-w-0 px-2 flex items-center justify-center">
+          <JurisdictionSelector variant="header" />
         </div>
 
         {/* ==================================================
@@ -207,6 +192,14 @@ export const CommandHeader: React.FC<CommandHeaderProps> = ({
             <span className="w-2 h-2 rounded-full bg-[#16803C] live-pulse-dot shrink-0" />
             <span className="text-[#172B4D] text-[10.5px] font-mono font-bold tracking-wider whitespace-nowrap">
               OPERATIONAL
+            </span>
+          </div>
+
+          {/* Demonstration Environment Tag */}
+          <div className="hidden 2xl:flex items-center gap-1.5 px-2 py-1 rounded-md bg-amber-50/80 border border-amber-200/80 text-amber-800 shadow-2xs shrink-0" title="Demonstration & Evaluation Environment for Hack-2-Ignite">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
+            <span className="text-[10px] font-mono font-bold tracking-wider uppercase whitespace-nowrap">
+              DEMO ENVIRONMENT
             </span>
           </div>
 

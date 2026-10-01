@@ -48,7 +48,7 @@ export const PotentialIncidentsCard: React.FC<PotentialIncidentsCardProps> = ({
         <div className="flex items-center gap-2">
           <Layers className="w-4 h-4 text-purple-600" />
           <h3 className="text-xs font-bold text-[#172B4D] uppercase tracking-wider">
-            Potential Common Incidents (Phase 3D)
+            Root Cause & Common Incident Analysis
           </h3>
         </div>
         <span

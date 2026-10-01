@@ -44,7 +44,7 @@ export const RelatedComplaintsPanel: React.FC<RelatedComplaintsPanelProps> = ({
           </div>
           <div>
             <h3 className="text-xs font-bold uppercase tracking-wider text-[#172B4D] flex items-center gap-1.5">
-              <span>Phase 3A: Related Complaints & Duplicate Intelligence</span>
+              <span>Duplicate Detection & Similarity Intelligence</span>
             </h3>
             <p className="text-[10px] text-[#526581]">
               Multi-signal analysis (Location 30% · Category 25% · Text 30% · Temporal 15%)

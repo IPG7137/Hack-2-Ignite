@@ -36,6 +36,7 @@ import { isComplaintInDistrict } from '../lib/districtFilter';
 import { useOrganization } from '../context/OrganizationContext';
 import { ActivePage } from '../components/layout/CommandSidebar';
 import { SmartAlertEngine } from '../services/smartAlertEngine';
+import { JurisdictionSelector } from '../components/layout/JurisdictionSelector';
 
 interface StateDashboardProps {
   complaints: Complaint[];
@@ -173,7 +174,8 @@ export const StateDashboard: React.FC<StateDashboardProps> = ({
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+            <JurisdictionSelector variant="banner" onJurisdictionChange={() => onNavigatePage('dashboard')} />
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-medium">
               <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse" />
               <span className="font-bold">Live ● Operational</span>
