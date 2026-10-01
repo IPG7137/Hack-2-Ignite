@@ -1,11 +1,10 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState } from 'react';
 import { KPISummaryGrid } from '../components/dashboard/KPISummaryGrid';
 import { PriorityQueue } from '../components/dashboard/PriorityQueue';
 import { EmergingProblemsHotspotsCard } from '../components/dashboard/EmergingProblemsHotspotsCard';
 import { PotentialIncidentsCard } from '../components/dashboard/PotentialIncidentsCard';
 import { DepartmentWorkload } from '../components/dashboard/DepartmentWorkload';
 import { CommandMap } from '../components/map/CommandMap';
-import { JurisdictionSelector } from '../components/layout/JurisdictionSelector';
 import { GrievanceLifecycleBanner } from '../components/dashboard/GrievanceLifecycleBanner';
 import { IssueTrendsChart } from '../components/dashboard/IssueTrendsChart';
 import { RecentComplaintsList } from '../components/dashboard/RecentComplaintsList';
@@ -67,20 +66,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const [radarTab, setRadarTab] = useState<'hotspots' | 'incidents'>('hotspots');
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const { isAuthenticated, user } = useAuth();
-  const { municipalCorporationName, currentCorporation, district, mapCenter } = useOrganization();
-  const [lastSyncTime, setLastSyncTime] = useState<string>('');
-
-  useEffect(() => {
-    setLastSyncTime(
-      new Date().toLocaleTimeString('en-IN', {
-        timeZone: 'Asia/Kolkata',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: false,
-      })
-    );
-  }, [complaints]);
+  const { municipalCorporationName, mapCenter } = useOrganization();
 
   // Compute live active hotspot and incident counts for tab badges
   const intelligenceCounts = useMemo(() => {
@@ -190,86 +176,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
   return (
     <div className="space-y-4">
-      {/* ==================================================
-          TOP SECTION: COMMAND OVERVIEW & OPERATIONAL STATUS
-          ================================================== */}
-      <div className="p-4 sm:p-5 rounded-xl bg-white border border-slate-200 shadow-2xs flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
-        <div className="flex items-start sm:items-center gap-3.5">
-          <div className="w-11 h-11 rounded-xl bg-blue-50 border border-blue-200/80 flex items-center justify-center text-[#1769D2] shrink-0 shadow-2xs font-bold text-lg">
-            🏢
-          </div>
-          <div className="space-y-1">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-slate-500">
-                CIVICRESOLVE
-              </span>
-              <span className="text-slate-300">•</span>
-              <h1 className="text-base sm:text-lg font-bold tracking-tight text-[#123B6D]">
-                Maharashtra Municipal Operations
-              </h1>
-              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
-                LIVE ● OPERATIONAL
-              </span>
-            </div>
-
-            <div className="flex items-center gap-2 sm:gap-3 flex-wrap text-xs text-slate-600 pt-0.5">
-              <div className="flex items-center gap-1.5">
-                <span className="text-slate-500 font-medium">Current jurisdiction:</span>
-                <JurisdictionSelector variant="banner" />
-              </div>
-              <span className="text-slate-300 hidden sm:inline">•</span>
-              <div className="flex items-center gap-1.5">
-                <span className="text-slate-500 font-medium">Role:</span>
-                <span className="font-mono font-bold text-slate-800 bg-slate-100 px-2 py-0.5 rounded border border-slate-200 text-[11px]">
-                  {user?.role === 'state_admin'
-                    ? 'State Administration'
-                    : user?.role === 'municipal_admin'
-                    ? 'Municipal Administration (HQ)'
-                    : user?.role === 'officer'
-                    ? 'Field Duty Officer'
-                    : 'Municipal Command Desk'}
-                </span>
-              </div>
-              <span className="text-slate-300 hidden sm:inline">•</span>
-              <span className="font-mono text-slate-500 text-[11px]">
-                Last updated: <strong className="text-slate-700">{lastSyncTime || 'now'}</strong> IST
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Quick Operational Directives */}
-        <div className="flex items-center gap-2 w-full lg:w-auto justify-end flex-wrap">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onNavigatePage('alerts')}
-            className="h-8 text-xs bg-white border-red-200 text-red-700 hover:bg-red-50 font-bold gap-1.5"
-          >
-            <ShieldAlert className="w-3.5 h-3.5 text-red-600" />
-            <span>Smart Alert Center</span>
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onNavigatePage('sla')}
-            className="h-8 text-xs bg-white border-slate-200 text-slate-700 hover:bg-slate-50 font-medium"
-          >
-            <span>SLA Escalation Matrix</span>
-          </Button>
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={onOpenCopilot}
-            className="h-8 text-xs bg-[#1769D2] hover:bg-[#123B6D] text-white gap-1.5 shadow-xs font-semibold"
-          >
-            <Sparkles className="w-3.5 h-3.5 text-white" />
-            <span>AI Handover Brief</span>
-          </Button>
-        </div>
-      </div>
-
       {/* Grievance Redressal Architecture Lifecycle Banner */}
       <GrievanceLifecycleBanner onNavigatePage={onNavigatePage} />
 
