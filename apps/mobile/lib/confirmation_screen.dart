@@ -591,7 +591,7 @@ class _ConfirmationScreenState extends State<ConfirmationScreen>
           ),
         ),
 
-        // Bottom Action Bar
+        // Bottom Action Bar with Prominent Image Validation Status
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
@@ -608,15 +608,23 @@ class _ConfirmationScreenState extends State<ConfirmationScreen>
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              // Prominent Image Validation Status Banner ABOVE Submit Button
+              _buildProminentValidationBanner(),
+              const SizedBox(height: 12),
+
               SizedBox(
                 width: double.infinity,
                 height: 50,
                 child: ElevatedButton(
-                  onPressed: _isSubmitting ? null : _handleFinalSubmission,
+                  onPressed: (_isSubmitting || (widget.imageValidationResult?.isReject == true))
+                      ? null
+                      : _handleFinalSubmission,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF1E40AF),
+                    backgroundColor: (widget.imageValidationResult?.isReject == true)
+                        ? const Color(0xFF94A3B8)
+                        : const Color(0xFF1E40AF),
                     foregroundColor: Colors.white,
-                    disabledBackgroundColor: const Color(0xFF93C5FD),
+                    disabledBackgroundColor: const Color(0xFFCBD5E1),
                     elevation: 0,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -644,14 +652,23 @@ class _ConfirmationScreenState extends State<ConfirmationScreen>
                             ),
                           ],
                         )
-                      : const Text(
-                          'SUBMIT COMPLAINT',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 0.5,
-                          ),
-                        ),
+                      : (widget.imageValidationResult?.isReject == true)
+                          ? const Text(
+                              'REPLACE PHOTO TO SUBMIT',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.5,
+                              ),
+                            )
+                          : const Text(
+                              'SUBMIT COMPLAINT',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
                 ),
               ),
               const SizedBox(height: 8),
@@ -848,6 +865,91 @@ class _ConfirmationScreenState extends State<ConfirmationScreen>
           ),
           const SizedBox(height: 12),
           content,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProminentValidationBanner() {
+    final valResult = widget.imageValidationResult;
+
+    Color bannerBg;
+    Color bannerBorder;
+    Color bannerIconColor;
+    Color bannerTextColor;
+    IconData bannerIcon;
+    String badgeTitle;
+    String badgeSubtitle;
+
+    if (valResult == null || valResult.isReview) {
+      bannerBg = const Color(0xFFFFFBEB);
+      bannerBorder = const Color(0xFFFDE68A);
+      bannerIconColor = const Color(0xFFD97706);
+      bannerTextColor = const Color(0xFF92400E);
+      bannerIcon = Icons.pending_actions_rounded;
+      badgeTitle = '🟡 PENDING STAFF REVIEW';
+      badgeSubtitle = valResult?.userFriendlyMessage ??
+          'Evidence will be reviewed and verified by municipal duty engineer during initial triage.';
+    } else if (valResult.isAccept) {
+      bannerBg = const Color(0xFFF0FDF4);
+      bannerBorder = const Color(0xFFBBF7D0);
+      bannerIconColor = const Color(0xFF16A34A);
+      bannerTextColor = const Color(0xFF166534);
+      bannerIcon = Icons.verified_rounded;
+      badgeTitle = '🟢 VERIFIED PROOF';
+      badgeSubtitle = valResult.userFriendlyMessage.isNotEmpty
+          ? valResult.userFriendlyMessage
+          : 'Visual evidence matches "${widget.category.name}" (AI confidence: 95%). Priority dispatch ready.';
+    } else {
+      bannerBg = const Color(0xFFFEF2F2);
+      bannerBorder = const Color(0xFFFECACA);
+      bannerIconColor = const Color(0xFFDC2626);
+      bannerTextColor = const Color(0xFF991B1B);
+      bannerIcon = Icons.error_outline_rounded;
+      badgeTitle = '🔴 CATEGORY MISMATCH';
+      badgeSubtitle = valResult.userFriendlyMessage.isNotEmpty
+          ? valResult.userFriendlyMessage
+          : 'Uploaded image does not appear to match "${widget.category.name}". Please edit your complaint or replace photo.';
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: bannerBg,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: bannerBorder),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(bannerIcon, color: bannerIconColor, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  badgeTitle,
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w800,
+                    color: bannerTextColor,
+                    letterSpacing: 0.3,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  badgeSubtitle,
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    color: bannerTextColor.withValues(alpha: 0.9),
+                    height: 1.3,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );

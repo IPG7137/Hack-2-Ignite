@@ -12,6 +12,7 @@ import 'language_service.dart';
 import 'dashboard_screen.dart';
 import 'priority_engine.dart';
 import 'leaflet_map_service.dart';
+import 'category_selection_screen.dart';
 
 class ComprehensiveTrackReportsScreen extends StatefulWidget {
   const ComprehensiveTrackReportsScreen({super.key});
@@ -1038,7 +1039,7 @@ class _ComprehensiveTrackReportsScreenState extends State<ComprehensiveTrackRepo
             ),
             const SizedBox(height: 16),
             Text(
-              isSearching ? 'No matching complaints' : 'No complaints submitted yet',
+              isSearching ? 'No matching complaints' : 'No complaints yet',
               style: const TextStyle(
                 fontSize: 17,
                 fontWeight: FontWeight.bold,
@@ -1049,7 +1050,7 @@ class _ComprehensiveTrackReportsScreenState extends State<ComprehensiveTrackRepo
             Text(
               isSearching
                   ? 'Try changing your search keywords or filter selection.'
-                  : 'Your submitted complaints and their real-time municipal status will appear here.',
+                  : 'Report your first civic issue and track its resolution here.',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 13,
@@ -1074,10 +1075,13 @@ class _ComprehensiveTrackReportsScreenState extends State<ComprehensiveTrackRepo
             else
               ElevatedButton.icon(
                 onPressed: () {
-                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => CategorySelectionScreen()),
+                  );
                 },
                 icon: const Icon(Icons.add, size: 18),
-                label: const Text('Report New Issue'),
+                label: const Text('Report Your First Issue'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF1E3A8A),
                   foregroundColor: Colors.white,
