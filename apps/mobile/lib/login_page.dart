@@ -32,8 +32,8 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
   final _signupPhoneController = TextEditingController();
   final _signupEmailController = TextEditingController();
   final _signupPasswordController = TextEditingController();
-  final _signupDistrictController = TextEditingController(text: 'Solapur');
-  final _signupWardController = TextEditingController(text: 'Ward 4');
+  final _signupDistrictController = TextEditingController();
+  final _signupWardController = TextEditingController();
 
   // State variables
   bool _isCitizenSelected = true;
@@ -597,8 +597,8 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
       final email = _signupEmailController.text.trim();
       final phone = _signupPhoneController.text.trim();
       final password = _signupPasswordController.text.trim();
-      final district = _signupDistrictController.text.trim().isEmpty ? 'Solapur' : _signupDistrictController.text.trim();
-      final ward = _signupWardController.text.trim().isEmpty ? 'Ward 4' : _signupWardController.text.trim();
+      final district = _signupDistrictController.text.trim().isEmpty ? 'Municipal Area' : _signupDistrictController.text.trim();
+      final ward = _signupWardController.text.trim().isEmpty ? 'Ward 1' : _signupWardController.text.trim();
 
       final result = await _authService.register(
         fullName: name,
@@ -746,7 +746,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
               Expanded(
                 child: _buildInputField(
                   controller: _signupDistrictController,
-                  placeholder: 'District (e.g. Solapur)',
+                  placeholder: 'District / City',
                   prefixIcon: Icons.location_city_outlined,
                   validator: (val) => (val == null || val.trim().isEmpty) ? 'District required' : null,
                 ),
@@ -755,7 +755,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
               Expanded(
                 child: _buildInputField(
                   controller: _signupWardController,
-                  placeholder: 'Ward (e.g. Ward 4)',
+                  placeholder: 'Ward / Area',
                   prefixIcon: Icons.map_outlined,
                   validator: (val) => (val == null || val.trim().isEmpty) ? 'Ward required' : null,
                 ),
@@ -776,8 +776,8 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                     _signupPhoneController.text = '9876543210';
                     _signupEmailController.text = 'judge.$uniqueId@civicresolve.gov';
                     _signupPasswordController.text = 'civic123456';
-                    _signupDistrictController.text = 'Solapur';
-                    _signupWardController.text = 'Ward 4';
+                    _signupDistrictController.text = 'Municipal Area';
+                    _signupWardController.text = 'Ward 1';
                   });
                 },
                 icon: const Icon(Icons.flash_on, size: 16, color: Color(0xFF3B82F6)),

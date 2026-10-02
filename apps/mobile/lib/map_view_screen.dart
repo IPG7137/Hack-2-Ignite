@@ -13,6 +13,7 @@ import 'language_service.dart';
 import 'dashboard_screen.dart';
 import 'emerging_problem_engine.dart';
 import 'geospatial_geojson_service.dart';
+import 'location_service.dart';
 
 class MapViewScreen extends StatefulWidget {
   const MapViewScreen({super.key});
@@ -25,7 +26,7 @@ class _MapViewScreenState extends State<MapViewScreen> with TickerProviderStateM
   final LanguageService _languageService = LanguageService();
   final ComprehensiveDatabaseService _databaseService = ComprehensiveDatabaseService();
   
-  // Default coordinates for Solapur Municipal Corporation, Maharashtra
+  // Default fallback center coordinates if device GPS is not available
   static const double _defaultLatitude = 17.6599;
   static const double _defaultLongitude = 75.9064;
 
@@ -223,8 +224,8 @@ class _MapViewScreenState extends State<MapViewScreen> with TickerProviderStateM
     }
   }
 
-  double get _effectiveLat => _currentPosition?.latitude ?? _defaultLatitude;
-  double get _effectiveLng => _currentPosition?.longitude ?? _defaultLongitude;
+  double get _effectiveLat => _currentPosition?.latitude ?? LocationService.instance.latitude ?? _defaultLatitude;
+  double get _effectiveLng => _currentPosition?.longitude ?? LocationService.instance.longitude ?? _defaultLongitude;
 
   Future<void> _fetchNearbyReports() async {
     if (!mounted) return;

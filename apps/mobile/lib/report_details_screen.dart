@@ -65,7 +65,7 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> with TickerPr
   
   // WebView controller for Leaflet map (mobile/desktop)
   WebViewController? _webViewController;
-  // Default coordinates for Solapur, Maharashtra, India
+  // Default center coordinates fallback when GPS is not yet available
   static const double _defaultLatitude = 17.68687;
   static const double _defaultLongitude = 75.92275;
 
@@ -341,7 +341,7 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> with TickerPr
     } catch (e) {
       debugPrint('❌ Location detection failed: $e');
       
-      // Fallback to default location (Solapur)
+      // Fallback to default municipal coordinates
       const mockLatitude = _defaultLatitude;
       const mockLongitude = _defaultLongitude;
       final mockAddress = await _reverseGeocode(mockLatitude, mockLongitude);

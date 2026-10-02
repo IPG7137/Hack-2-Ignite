@@ -14,6 +14,7 @@ import 'comprehensive_database_service.dart';
 import 'comprehensive_report_models.dart';
 import 'ai_copilot_sheet.dart';
 import 'civic_feed_screen.dart';
+import 'location_service.dart';
 
 class DashboardScreen extends StatefulWidget {
   final bool isAdmin;
@@ -26,6 +27,7 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   final LanguageService _languageService = LanguageService();
+  final LocationService _locationService = LocationService.instance;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final ComprehensiveDatabaseService _databaseService = ComprehensiveDatabaseService();
 
@@ -37,6 +39,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void initState() {
     super.initState();
     _languageService.addListener(_onLanguageChanged);
+    _locationService.addListener(_onLocationChanged);
+    _locationService.resolveLocation();
     _initializeRecentReports();
   }
 
@@ -44,11 +48,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void dispose() {
     _reportsSubscription?.cancel();
     _languageService.removeListener(_onLanguageChanged);
+    _locationService.removeListener(_onLocationChanged);
     super.dispose();
   }
 
   void _onLanguageChanged() {
     setState(() {});
+  }
+
+  void _onLocationChanged() {
+    if (mounted) setState(() {});
   }
 
   void _initializeRecentReports() {
@@ -282,12 +291,41 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                 ),
                 const SizedBox(height: 2),
-                const Text(
-                  'Solapur Municipal Grievance Redressal Portal',
-                  style: TextStyle(
+                Text(
+                  _locationService.municipalityTitle,
+                  style: const TextStyle(
                     fontSize: 12,
-                    color: Color(0xFF667085),
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF475467),
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 3),
+                Row(
+                  children: [
+                    const Icon(Icons.location_on, size: 12, color: Color(0xFF155EEF)),
+                    const SizedBox(width: 3),
+                    Expanded(
+                      child: Text(
+                        _locationService.currentAreaLabel,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: Color(0xFF155EEF),
+                          fontWeight: FontWeight.w500,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    InkWell(
+                      onTap: () => _locationService.resolveLocation(forceRefresh: true),
+                      child: const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 4),
+                        child: Icon(Icons.refresh_rounded, size: 14, color: Color(0xFF155EEF)),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -508,13 +546,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        const Text(
-          'Recent Grievances',
-          style: TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w700,
-            color: Color(0xFF172B4D),
-          ),
+        const Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'My Recent Complaints',
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF172B4D),
+              ),
+            ),
+            SizedBox(height: 2),
+            Text(
+              'Personal grievance submissions & status',
+              style: TextStyle(
+                fontSize: 11,
+                color: Color(0xFF667085),
+              ),
+            ),
+          ],
         ),
         if (_recentReports.isNotEmpty)
           TextButton(
@@ -524,7 +575,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               visualDensity: VisualDensity.compact,
               foregroundColor: const Color(0xFF155EEF),
             ),
-            child: const Text('View All', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+            child: const Text('View All Track', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold)),
           ),
       ],
     );
@@ -575,7 +626,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
             const SizedBox(height: 12),
             const Text(
-              "You're ready to report your first civic issue!",
+              "No personal grievances registered yet",
               style: TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w700,
@@ -585,7 +636,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
             const SizedBox(height: 6),
             const Text(
-              'Your verified citizen profile is active (Score 0 • 🌱 Civic Starter). Submit issues with photo proof to earn credits and track real-time resolution.',
+              'Your verified citizen account is active. When you report a municipal issue, track real-time dispatch progress and field resolution evidence right here.',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 12.5,
@@ -597,7 +648,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ElevatedButton.icon(
               onPressed: _navigateToReportIssue,
               icon: const Icon(Icons.add_a_photo_outlined, size: 16),
-              label: const Text('Report a Problem', style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold)),
+              label: const Text('Register New Grievance', style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold)),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF155EEF),
                 foregroundColor: Colors.white,
@@ -620,87 +671,120 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final formattedId = '#CR-${report.id.padLeft(4, '0')}';
     final statusColor = _getStatusColor(report.status);
     final statusText = _getStatusLabel(report.status);
+    final displayTitle = report.title.isNotEmpty ? report.title : report.category;
+    final displayDescription = report.description.trim().isNotEmpty
+        ? report.description.trim()
+        : 'No description provided.';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: const Color(0xFFE4E7EC)),
       ),
       child: InkWell(
-        onTap: _navigateToTrackReports,
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF2F4F7),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(_getCategoryIcon(report.category), size: 18, color: const Color(0xFF344054)),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+        borderRadius: BorderRadius.circular(12),
+        onTap: () {
+          ComprehensiveTrackReportsScreen.showReportDetailsModal(
+            context,
+            report,
+            onFeedbackSubmitted: _initializeRecentReports,
+          );
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
                 children: [
-                  Row(
-                    children: [
-                      Text(
-                        formattedId,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF155EEF),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: statusColor.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          statusText,
-                          style: TextStyle(
-                            fontSize: 10.5,
-                            fontWeight: FontWeight.bold,
-                            color: statusColor,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    report.title.isNotEmpty ? report.title : report.category,
-                    style: const TextStyle(
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF172B4D),
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF2F4F7),
+                      borderRadius: BorderRadius.circular(6),
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                    child: Icon(_getCategoryIcon(report.category), size: 16, color: const Color(0xFF344054)),
                   ),
-                  const SizedBox(height: 2),
+                  const SizedBox(width: 8),
                   Text(
-                    '${report.location.isNotEmpty ? report.location : "Ward Area"} • ${report.submittedTime}',
+                    formattedId,
                     style: const TextStyle(
-                      fontSize: 11.5,
-                      color: Color(0xFF667085),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF155EEF),
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const Spacer(),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: statusColor.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      statusText,
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.bold,
+                        color: statusColor,
+                      ),
+                    ),
                   ),
                 ],
               ),
-            ),
-            const Icon(Icons.chevron_right, size: 18, color: Color(0xFF98A2B3)),
-          ],
+              const SizedBox(height: 8),
+              Text(
+                displayTitle,
+                style: const TextStyle(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF172B4D),
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 3),
+              Text(
+                displayDescription,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: Color(0xFF475467),
+                  height: 1.3,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  const Icon(Icons.location_on, size: 12, color: Color(0xFF98A2B3)),
+                  const SizedBox(width: 3),
+                  Expanded(
+                    child: Text(
+                      report.location.isNotEmpty ? report.location : "Location on file",
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: Color(0xFF667085),
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  Text(
+                    report.submittedTime,
+                    style: const TextStyle(
+                      fontSize: 10.5,
+                      color: Color(0xFF98A2B3),
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  const Icon(Icons.chevron_right, size: 16, color: Color(0xFF98A2B3)),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -903,7 +987,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void _navigateToCivicFeed() {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => const CivicFeedScreen()),
+      MaterialPageRoute(
+        builder: (context) => CivicFeedScreen(
+          userLatitude: _locationService.latitude,
+          userLongitude: _locationService.longitude,
+        ),
+      ),
     );
   }
 

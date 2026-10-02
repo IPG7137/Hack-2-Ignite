@@ -126,9 +126,9 @@ class _AiCopilotSheetState extends State<AiCopilotSheet> {
     // 1. Cross-district isolation defense
     if (qLower.contains('ignore previous') ||
         qLower.contains('bypass') ||
-        (qLower.contains('solapur') && !qLower.contains('pune')) ||
-        (qLower.contains('mumbai') && !qLower.contains('pune'))) {
-      if (qLower.contains('show other district') || qLower.contains('all district')) {
+        qLower.contains('other district') ||
+        qLower.contains('all districts')) {
+      if (qLower.contains('show other district') || qLower.contains('all district') || qLower.contains('bypass')) {
         return CopilotMessageItem(
           id: 'resp-${DateTime.now().millisecondsSinceEpoch}',
           sender: 'copilot',

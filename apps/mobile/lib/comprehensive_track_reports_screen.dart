@@ -17,6 +17,28 @@ import 'category_selection_screen.dart';
 class ComprehensiveTrackReportsScreen extends StatefulWidget {
   const ComprehensiveTrackReportsScreen({super.key});
 
+  /// Opens the rich 7-stage municipal complaint details sheet for any report
+  static Future<void> showReportDetailsModal(
+    BuildContext context,
+    ComprehensiveReportModel report, {
+    VoidCallback? onFeedbackSubmitted,
+    bool isAdmin = false,
+  }) async {
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => _ReportDetailsBottomSheet(
+        report: report,
+        databaseService: ComprehensiveDatabaseService(),
+        isAdmin: isAdmin,
+        onFeedbackSubmitted: () {
+          onFeedbackSubmitted?.call();
+        },
+      ),
+    );
+  }
+
   @override
   State<ComprehensiveTrackReportsScreen> createState() => _ComprehensiveTrackReportsScreenState();
 }

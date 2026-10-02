@@ -180,7 +180,7 @@ class IncidentGroupingEngine {
     'in', 'is', 'it', 'its', 'of', 'on', 'that', 'the', 'to', 'was', 'were',
     'will', 'with', 'there', 'this', 'near', 'area', 'please', 'complaint',
     'issue', 'problem', 'sir', 'madam', 'colony', 'nagar', 'ward', 'daily',
-    'urgent', 'kindly', 'help', 'report', 'reported', 'solapur'
+    'urgent', 'kindly', 'help', 'report', 'reported', 'municipal', 'city', 'location'
   };
 
   /// Primary entry point: Group a collection of reports into potential common incidents

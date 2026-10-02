@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import 'comprehensive_database_service.dart';
 import 'comprehensive_report_models.dart';
+import 'comprehensive_track_reports_screen.dart';
 import 'auth_service.dart';
 import 'language_service.dart';
 import 'credit_service.dart';
+import 'location_service.dart';
+import 'category_selection_screen.dart';
 
 class CivicFeedScreen extends StatefulWidget {
   final double? userLatitude;
@@ -23,13 +26,16 @@ class CivicFeedScreen extends StatefulWidget {
 class _CivicFeedScreenState extends State<CivicFeedScreen> {
   final LanguageService _languageService = LanguageService();
   final ComprehensiveDatabaseService _dbService = ComprehensiveDatabaseService();
+  final LocationService _locationService = LocationService.instance;
   final TextEditingController _searchController = TextEditingController();
 
   List<ComprehensiveReportModel> _feedItems = [];
   bool _isLoading = true;
   String _selectedCategory = 'All';
+  String _selectedStatus = 'All'; // 'All', 'Active', 'In Progress', 'Resolved'
   String _sortBy = 'most_supported'; // 'most_supported', 'recent', 'nearby'
-  final Set<int> _supportingReports = {}; // loading state for support buttons
+  double _selectedRadiusKm = 15.0; // 5, 15, 25, 50, 999 (City-wide)
+  final Set<int> _supportingReports = {};
 
   final List<String> _categories = [
     'All',
@@ -42,22 +48,62 @@ class _CivicFeedScreenState extends State<CivicFeedScreen> {
     'Parks & Trees',
   ];
 
+  final List<double> _radii = [5.0, 15.0, 25.0, 50.0, 999.0];
+
+  double? _activeLat;
+  double? _activeLng;
+
   @override
   void initState() {
     super.initState();
     _languageService.addListener(_onLanguageChanged);
-    _loadFeed();
+    _locationService.addListener(_onLocationUpdated);
+
+    _activeLat = widget.userLatitude ?? _locationService.latitude;
+    _activeLng = widget.userLongitude ?? _locationService.longitude;
+
+    if (_activeLat == null || _activeLng == null) {
+      _resolveLocationAndLoad();
+    } else {
+      _loadFeed();
+    }
   }
 
   @override
   void dispose() {
     _searchController.dispose();
     _languageService.removeListener(_onLanguageChanged);
+    _locationService.removeListener(_onLocationUpdated);
     super.dispose();
   }
 
   void _onLanguageChanged() {
     setState(() {});
+  }
+
+  void _onLocationUpdated() {
+    if (mounted) {
+      final newLat = widget.userLatitude ?? _locationService.latitude;
+      final newLng = widget.userLongitude ?? _locationService.longitude;
+      if (newLat != _activeLat || newLng != _activeLng) {
+        setState(() {
+          _activeLat = newLat;
+          _activeLng = newLng;
+        });
+        _loadFeed();
+      }
+    }
+  }
+
+  Future<void> _resolveLocationAndLoad() async {
+    await _locationService.resolveLocation();
+    if (mounted) {
+      setState(() {
+        _activeLat = widget.userLatitude ?? _locationService.latitude;
+        _activeLng = widget.userLongitude ?? _locationService.longitude;
+      });
+      _loadFeed();
+    }
   }
 
   Future<void> _loadFeed() async {
@@ -70,10 +116,11 @@ class _CivicFeedScreenState extends State<CivicFeedScreen> {
 
     try {
       final reports = await _dbService.getCivicFeed(
-        latitude: widget.userLatitude,
-        longitude: widget.userLongitude,
-        radiusKm: 25.0,
+        latitude: _activeLat,
+        longitude: _activeLng,
+        radiusKm: _selectedRadiusKm,
         category: _selectedCategory == 'All' ? null : _selectedCategory,
+        statusFilter: _selectedStatus == 'All' ? null : _selectedStatus,
         userId: userId,
       );
 
@@ -172,7 +219,6 @@ class _CivicFeedScreenState extends State<CivicFeedScreen> {
       });
 
       if (res['success'] == true && !currentlySupported) {
-        // Award green credits on first support
         await CreditService.awardCreditsForReport(userId, item.id);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -195,6 +241,16 @@ class _CivicFeedScreenState extends State<CivicFeedScreen> {
     }
   }
 
+  void _openReportDetails(ComprehensiveReportModel item) {
+    ComprehensiveTrackReportsScreen.showReportDetailsModal(
+      context,
+      item,
+      onFeedbackSubmitted: () {
+        _loadFeed();
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final filtered = _feedItems.where((item) {
@@ -212,98 +268,292 @@ class _CivicFeedScreenState extends State<CivicFeedScreen> {
         backgroundColor: const Color(0xFF123B63),
         foregroundColor: Colors.white,
         elevation: 0,
-        title: const Column(
+        title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
+            const Text(
               'Local Civic Feed',
               style: TextStyle(
-                fontSize: 18,
+                fontSize: 17,
                 fontWeight: FontWeight.w700,
                 color: Colors.white,
               ),
             ),
             Text(
-              'Discover & support neighborhood issues',
-              style: TextStyle(
+              _activeLat != null
+                  ? '📍 Near ${_locationService.currentAreaLabel}'
+                  : 'Community Grievance Feed',
+              style: const TextStyle(
                 fontSize: 11,
                 color: Color(0xFFCBD5E1),
               ),
             ),
           ],
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh_rounded, size: 20),
+            tooltip: 'Refresh feed',
+            onPressed: _loadFeed,
+          ),
+        ],
       ),
       body: Column(
         children: [
-          // 1. Search & Sort Bar
-          Container(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-            color: Colors.white,
-            child: Column(
-              children: [
-                // Search Input
-                Container(
-                  height: 42,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF1F5F9),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: const Color(0xFFE2E8F0)),
-                  ),
-                  child: TextField(
-                    controller: _searchController,
-                    onChanged: (_) => setState(() {}),
-                    style: const TextStyle(fontSize: 13.5),
-                    decoration: InputDecoration(
-                      hintText: 'Search local grievances, wards, streets...',
-                      hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
-                      prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFF64748B), size: 20),
-                      suffixIcon: _searchController.text.isNotEmpty
-                          ? IconButton(
-                              icon: const Icon(Icons.clear_rounded, size: 18),
-                              onPressed: () {
-                                _searchController.clear();
-                                setState(() {});
-                              },
-                            )
-                          : null,
-                      border: InputBorder.none,
-                      contentPadding: const EdgeInsets.symmetric(vertical: 10),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                // Sort Tabs
-                Row(
-                  children: [
-                    const Text(
-                      'Sort by:',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF64748B),
+          // 1. Location & Radius Control Bar
+          _buildLocationRadiusBar(),
+
+          // 2. Search & Sort Bar
+          _buildSearchBar(),
+
+          // 3. Category & Status Filter Strips
+          _buildFilterStrips(),
+
+          const Divider(height: 1, thickness: 1, color: Color(0xFFE2E8F0)),
+
+          // 4. Feed List
+          Expanded(
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator(color: Color(0xFF155EEF)))
+                : filtered.isEmpty
+                    ? _buildEmptyState()
+                    : RefreshIndicator(
+                        onRefresh: _loadFeed,
+                        color: const Color(0xFF155EEF),
+                        child: ListView.separated(
+                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+                          itemCount: filtered.length,
+                          separatorBuilder: (_, __) => const SizedBox(height: 12),
+                          itemBuilder: (context, index) {
+                            return _buildFeedCard(filtered[index]);
+                          },
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    _buildSortChip('Most Supported', 'most_supported', Icons.trending_up_rounded),
-                    const SizedBox(width: 6),
-                    _buildSortChip('Recent', 'recent', Icons.access_time_rounded),
-                    const SizedBox(width: 6),
-                    _buildSortChip('Nearby', 'nearby', Icons.near_me_rounded),
-                  ],
-                ),
-              ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLocationRadiusBar() {
+    final hasGps = _activeLat != null && _activeLng != null;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: hasGps ? const Color(0xFFEFF8FF) : const Color(0xFFFFFBEB),
+        border: Border(
+          bottom: BorderSide(
+            color: hasGps ? const Color(0xFFD1E9FF) : const Color(0xFFFDE68A),
+          ),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            hasGps ? Icons.near_me_rounded : Icons.location_off_outlined,
+            size: 16,
+            color: hasGps ? const Color(0xFF155EEF) : const Color(0xFFD97706),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              hasGps
+                  ? '${_locationService.currentAreaLabel} • Radius: ${_selectedRadiusKm >= 900 ? "City-wide" : "${_selectedRadiusKm.toInt()} km"}'
+                  : 'GPS off: showing public grievances',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: hasGps ? const Color(0xFF175CD3) : const Color(0xFFB45309),
+              ),
             ),
           ),
+          if (!hasGps)
+            InkWell(
+              onTap: _resolveLocationAndLoad,
+              borderRadius: BorderRadius.circular(4),
+              child: const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                child: Text(
+                  'Enable GPS',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFFB45309),
+                    decoration: TextDecoration.underline,
+                  ),
+                ),
+              ),
+            )
+          else
+            // Radius drop menu
+            PopupMenuButton<double>(
+              initialValue: _selectedRadiusKm,
+              tooltip: 'Select search radius',
+              onSelected: (radius) {
+                setState(() {
+                  _selectedRadiusKm = radius;
+                });
+                _loadFeed();
+              },
+              itemBuilder: (context) => _radii.map((r) {
+                final label = r >= 900 ? 'City-wide (All)' : '${r.toInt()} km radius';
+                return PopupMenuItem<double>(
+                  value: r,
+                  child: Row(
+                    children: [
+                      Icon(
+                        r == _selectedRadiusKm ? Icons.radio_button_checked : Icons.radio_button_off,
+                        size: 16,
+                        color: r == _selectedRadiusKm ? const Color(0xFF155EEF) : Colors.grey,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(label, style: const TextStyle(fontSize: 13)),
+                    ],
+                  ),
+                );
+              }).toList(),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: const Color(0xFFB2DDFF)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      _selectedRadiusKm >= 900 ? 'City-wide' : '${_selectedRadiusKm.toInt()} km',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF155EEF),
+                      ),
+                    ),
+                    const Icon(Icons.arrow_drop_down, size: 16, color: Color(0xFF155EEF)),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
 
-          // 2. Category Filter Strip
+  Widget _buildSearchBar() {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
+      color: Colors.white,
+      child: Column(
+        children: [
+          // Search Input
           Container(
-            height: 46,
-            color: Colors.white,
+            height: 40,
+            decoration: BoxDecoration(
+              color: const Color(0xFFF1F5F9),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
+            child: TextField(
+              controller: _searchController,
+              onChanged: (_) => setState(() {}),
+              style: const TextStyle(fontSize: 13),
+              decoration: InputDecoration(
+                hintText: 'Search grievances, descriptions, locations...',
+                hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 12.5),
+                prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFF64748B), size: 19),
+                suffixIcon: _searchController.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear_rounded, size: 16),
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() {});
+                        },
+                      )
+                    : null,
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(vertical: 9),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          // Sort Options
+          Row(
+            children: [
+              const Text(
+                'Sort:',
+                style: TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF64748B),
+                ),
+              ),
+              const SizedBox(width: 6),
+              _buildSortChip('Most Supported', 'most_supported', Icons.trending_up_rounded),
+              const SizedBox(width: 6),
+              _buildSortChip('Recent', 'recent', Icons.access_time_rounded),
+              const SizedBox(width: 6),
+              _buildSortChip('Nearby', 'nearby', Icons.near_me_rounded),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFilterStrips() {
+    final statusList = ['All', 'Active', 'In Progress', 'Resolved'];
+
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Column(
+        children: [
+          // 1. Status Filter Chips
+          SizedBox(
+            height: 30,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              itemCount: statusList.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 6),
+              itemBuilder: (context, index) {
+                final st = statusList[index];
+                final isSelected = _selectedStatus == st;
+                return ChoiceChip(
+                  label: Text(st),
+                  selected: isSelected,
+                  onSelected: (selected) {
+                    if (selected) {
+                      setState(() {
+                        _selectedStatus = st;
+                      });
+                      _loadFeed();
+                    }
+                  },
+                  selectedColor: const Color(0xFF155EEF),
+                  backgroundColor: const Color(0xFFF1F5F9),
+                  labelStyle: TextStyle(
+                    color: isSelected ? Colors.white : const Color(0xFF475569),
+                    fontSize: 10.5,
+                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 0),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 6),
+          // 2. Category Chips
+          SizedBox(
+            height: 32,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
               itemCount: _categories.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 8),
+              separatorBuilder: (_, __) => const SizedBox(width: 6),
               itemBuilder: (context, index) {
                 final cat = _categories[index];
                 final isSelected = _selectedCategory == cat;
@@ -322,35 +572,14 @@ class _CivicFeedScreenState extends State<CivicFeedScreen> {
                   backgroundColor: const Color(0xFFF1F5F9),
                   labelStyle: TextStyle(
                     color: isSelected ? Colors.white : const Color(0xFF475569),
-                    fontSize: 12,
+                    fontSize: 11,
                     fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
                   ),
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
                 );
               },
             ),
-          ),
-          const Divider(height: 1, thickness: 1, color: Color(0xFFE2E8F0)),
-
-          // 3. Feed List
-          Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator(color: Color(0xFF155EEF)))
-                : filtered.isEmpty
-                    ? _buildEmptyState()
-                    : RefreshIndicator(
-                        onRefresh: _loadFeed,
-                        color: const Color(0xFF155EEF),
-                        child: ListView.separated(
-                          padding: const EdgeInsets.all(16),
-                          itemCount: filtered.length,
-                          separatorBuilder: (_, __) => const SizedBox(height: 12),
-                          itemBuilder: (context, index) {
-                            return _buildFeedCard(filtered[index]);
-                          },
-                        ),
-                      ),
           ),
         ],
       ),
@@ -367,7 +596,7 @@ class _CivicFeedScreenState extends State<CivicFeedScreen> {
         });
       },
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
         decoration: BoxDecoration(
           color: isSelected ? const Color(0xFFEFF8FF) : Colors.transparent,
           borderRadius: BorderRadius.circular(6),
@@ -380,14 +609,14 @@ class _CivicFeedScreenState extends State<CivicFeedScreen> {
           children: [
             Icon(
               icon,
-              size: 13,
+              size: 12,
               color: isSelected ? const Color(0xFF155EEF) : const Color(0xFF64748B),
             ),
-            const SizedBox(width: 4),
+            const SizedBox(width: 3),
             Text(
               label,
               style: TextStyle(
-                fontSize: 11,
+                fontSize: 10.5,
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
                 color: isSelected ? const Color(0xFF155EEF) : const Color(0xFF64748B),
               ),
@@ -402,187 +631,213 @@ class _CivicFeedScreenState extends State<CivicFeedScreen> {
     final reportId = int.tryParse(item.id) ?? 0;
     final isSupporting = _supportingReports.contains(reportId);
     final hasSupported = item.userHasSupported;
-    final isHighImpact = item.supportCount >= 10;
+    final isHighImpact = item.supportCount >= 5;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(14.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Top Row: Category badge + Distance + Status
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFEFF8FF),
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: const Color(0xFFB2DDFF)),
-                  ),
-                  child: Text(
-                    item.categoryDisplayName ?? 'Grievance',
-                    style: const TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF175CD3),
-                    ),
-                  ),
-                ),
-                if (item.distanceMeters != null) ...[
-                  const SizedBox(width: 6),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF1F5F9),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.location_on, size: 11, color: Color(0xFF64748B)),
-                        const SizedBox(width: 2),
-                        Text(
-                          item.distanceMeters! < 1000
-                              ? '${item.distanceMeters!.toStringAsFixed(0)}m'
-                              : '${(item.distanceMeters! / 1000).toStringAsFixed(1)}km',
-                          style: const TextStyle(
-                            fontSize: 10.5,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF475569),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-                const Spacer(),
-                _buildStatusBadge(item.statusDisplay),
-              ],
-            ),
-            const SizedBox(height: 8),
+    final displayTitle = item.title.isNotEmpty ? item.title : 'Grievance #${item.id}';
+    final displayDescription = item.description.trim().isNotEmpty
+        ? item.description.trim()
+        : 'No description provided.';
+    final displayLocation = item.location.trim().isNotEmpty
+        ? item.location.trim()
+        : 'Location registered via GPS';
 
-            // Title & ID
-            Text(
-              item.title.isNotEmpty ? item.title : 'Grievance #${item.id}',
-              style: const TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF0F172A),
-                height: 1.25,
-              ),
-            ),
-            if (item.description.isNotEmpty) ...[
-              const SizedBox(height: 4),
-              Text(
-                item.description,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 12.5,
-                  color: Color(0xFF475569),
-                  height: 1.35,
-                ),
-              ),
-            ],
-            const SizedBox(height: 8),
+    final priorityColor = _getPriorityColor(item.priority);
 
-            // Location
-            Row(
-              children: [
-                const Icon(Icons.pin_drop_outlined, size: 14, color: Color(0xFF64748B)),
-                const SizedBox(width: 4),
-                Expanded(
-                  child: Text(
-                    item.location,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 11.5,
-                      color: Color(0xFF64748B),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-
-            // Bottom Actions: Support Button + High Impact Badge + Time
-            Row(
-              children: [
-                // Support Button
-                ElevatedButton.icon(
-                  onPressed: isSupporting ? null : () => _toggleSupport(item),
-                  icon: isSupporting
-                      ? const SizedBox(
-                          width: 14,
-                          height: 14,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                        )
-                      : Icon(
-                          hasSupported ? Icons.check_circle_rounded : Icons.thumb_up_alt_rounded,
-                          size: 15,
-                        ),
-                  label: Text(
-                    hasSupported
-                        ? 'Supported (${item.supportCount})'
-                        : 'Support (${item.supportCount})',
-                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: hasSupported ? const Color(0xFF12B76A) : const Color(0xFF155EEF),
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  ),
-                ),
-                if (isHighImpact) ...[
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFEF3F2),
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: const Color(0xFFFECDCA)),
-                    ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.local_fire_department_rounded, size: 12, color: Color(0xFFD92D20)),
-                        SizedBox(width: 3),
-                        Text(
-                          'Community Priority',
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                            color: Color(0xFFD92D20),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-                const Spacer(),
-                Text(
-                  item.submittedTime,
-                  style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
-                ),
-              ],
+    return InkWell(
+      onTap: () => _openReportDetails(item),
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFE2E8F0)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.03),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
             ),
           ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(14.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // 1. Top Row: Category badge + Priority badge + Status badge
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEFF8FF),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: const Color(0xFFB2DDFF)),
+                    ),
+                    child: Text(
+                      item.categoryDisplayName ?? item.category,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF175CD3),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: priorityColor.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      item.priority.displayName.toUpperCase(),
+                      style: TextStyle(
+                        fontSize: 9.5,
+                        fontWeight: FontWeight.w700,
+                        color: priorityColor,
+                      ),
+                    ),
+                  ),
+                  const Spacer(),
+                  _buildStatusBadge(item.statusDisplay),
+                ],
+              ),
+              const SizedBox(height: 10),
+
+              // 2. Title / Problem Header
+              Text(
+                displayTitle,
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF0F172A),
+                  height: 1.25,
+                ),
+              ),
+              const SizedBox(height: 5),
+
+              // 3. Citizen Description
+              Text(
+                displayDescription,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 12.5,
+                  color: item.description.trim().isNotEmpty
+                      ? const Color(0xFF334155)
+                      : const Color(0xFF94A3B8),
+                  height: 1.38,
+                ),
+              ),
+              const SizedBox(height: 10),
+
+              // 4. Location & Distance
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.location_on, size: 14, color: Color(0xFF64748B)),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        displayLocation,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w500,
+                          color: Color(0xFF475569),
+                        ),
+                      ),
+                    ),
+                    if (item.distanceMeters != null) ...[
+                      const SizedBox(width: 6),
+                      Text(
+                        item.distanceMeters! < 1000
+                            ? '${item.distanceMeters!.toStringAsFixed(0)} m away'
+                            : '${(item.distanceMeters! / 1000).toStringAsFixed(1)} km away',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF155EEF),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              // 5. Bottom Actions: Support Button + High Impact Badge + Date
+              Row(
+                children: [
+                  // Support Button
+                  ElevatedButton.icon(
+                    onPressed: isSupporting ? null : () => _toggleSupport(item),
+                    icon: isSupporting
+                        ? const SizedBox(
+                            width: 12,
+                            height: 12,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          )
+                        : Icon(
+                            hasSupported ? Icons.check_circle_rounded : Icons.thumb_up_alt_rounded,
+                            size: 14,
+                          ),
+                    label: Text(
+                      hasSupported
+                          ? 'Supported (${item.supportCount})'
+                          : 'Support (${item.supportCount})',
+                      style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: hasSupported ? const Color(0xFF12B76A) : const Color(0xFF155EEF),
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                    ),
+                  ),
+                  if (isHighImpact) ...[
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFEF3F2),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: const Color(0xFFFECDCA)),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.local_fire_department_rounded, size: 12, color: Color(0xFFD92D20)),
+                          SizedBox(width: 3),
+                          Text(
+                            'High Priority',
+                            style: TextStyle(
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFFD92D20),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                  const Spacer(),
+                  Text(
+                    item.submittedTime,
+                    style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -593,7 +848,7 @@ class _CivicFeedScreenState extends State<CivicFeedScreen> {
     Color text = const Color(0xFF475569);
 
     final s = status.toLowerCase();
-    if (s.contains('resolved') || s.contains('closed')) {
+    if (s.contains('resolved') || s.contains('closed') || s.contains('verified')) {
       bg = const Color(0xFFECFDF3);
       text = const Color(0xFF027A48);
     } else if (s.contains('progress')) {
@@ -617,9 +872,22 @@ class _CivicFeedScreenState extends State<CivicFeedScreen> {
     );
   }
 
+  Color _getPriorityColor(ReportPriority priority) {
+    switch (priority) {
+      case ReportPriority.high:
+        return const Color(0xFFDC2626);
+      case ReportPriority.medium:
+        return const Color(0xFFD97706);
+      case ReportPriority.low:
+        return const Color(0xFF2563EB);
+    }
+  }
+
   Widget _buildEmptyState() {
+    final isRadiusRestricted = _selectedRadiusKm < 500 && _activeLat != null;
+
     return Center(
-      child: Padding(
+      child: SingleChildScrollView(
         padding: const EdgeInsets.all(32.0),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -632,24 +900,68 @@ class _CivicFeedScreenState extends State<CivicFeedScreen> {
               ),
               child: const Icon(
                 Icons.mark_chat_unread_outlined,
-                size: 40,
+                size: 38,
                 color: Color(0xFF64748B),
               ),
             ),
             const SizedBox(height: 16),
-            const Text(
-              'No Civic Issues in this Category',
-              style: TextStyle(
+            Text(
+              isRadiusRestricted
+                  ? 'No Civic Issues within ${_selectedRadiusKm.toInt()} km'
+                  : 'No Civic Issues in this Category',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
                 color: Color(0xFF0F172A),
               ),
             ),
             const SizedBox(height: 6),
-            const Text(
-              'Check other categories or report a new problem in your area.',
+            Text(
+              isRadiusRestricted
+                  ? 'There are no active civic grievances reported in this radius. Expand search distance or report a local issue.'
+                  : 'Check other filters or register a new grievance in your neighborhood.',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+              style: const TextStyle(fontSize: 13, color: Color(0xFF64748B), height: 1.4),
+            ),
+            const SizedBox(height: 18),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                if (isRadiusRestricted)
+                  OutlinedButton.icon(
+                    onPressed: () {
+                      setState(() {
+                        _selectedRadiusKm = 999.0;
+                      });
+                      _loadFeed();
+                    },
+                    icon: const Icon(Icons.travel_explore_rounded, size: 16),
+                    label: const Text('View City-wide'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF155EEF),
+                      side: const BorderSide(color: Color(0xFF155EEF)),
+                    ),
+                  ),
+                if (isRadiusRestricted) const SizedBox(width: 10),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const CategorySelectionScreen(),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.add_circle_outline, size: 16),
+                  label: const Text('Report a Problem'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF155EEF),
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                  ),
+                ),
+              ],
             ),
           ],
         ),

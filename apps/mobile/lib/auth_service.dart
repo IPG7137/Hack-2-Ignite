@@ -38,8 +38,8 @@ class AuthService {
           'email': _userEmail ?? supabaseUser?.email ?? '',
           'full_name': userName,
           'phone': _userPhone ?? '',
-          'district': _userDistrict ?? 'Solapur',
-          'ward': _userWard ?? 'Ward 4',
+          'district': _userDistrict ?? 'Municipal Area',
+          'ward': _userWard ?? 'Local Ward',
           'role': _userRole,
           'is_admin': _isAdmin,
         }
@@ -71,8 +71,8 @@ class AuthService {
           _userEmail = session.user.email;
           _userFullName = session.user.userMetadata?['full_name']?.toString() ?? _userFullName;
           _userPhone = session.user.userMetadata?['phone_number']?.toString() ?? _userPhone;
-          _userDistrict = session.user.userMetadata?['district']?.toString() ?? _userDistrict ?? 'Solapur';
-          _userWard = session.user.userMetadata?['ward']?.toString() ?? _userWard ?? 'Ward 4';
+          _userDistrict = session.user.userMetadata?['district']?.toString() ?? _userDistrict ?? 'Municipal Area';
+          _userWard = session.user.userMetadata?['ward']?.toString() ?? _userWard ?? 'Local Ward';
           // Security Model: Privileged roles must NEVER be inferred from client metadata.
           // Role authorization strictly relies on database verification via _syncDatabaseProfileAndRole.
           _userRole = 'citizen';
@@ -198,8 +198,8 @@ class AuthService {
                 'full_name': 'Verified Citizen (${authEmail.split('@')[0]})',
                 'phone_number': cleanId.length == 10 ? cleanId : '+91 98765 43210',
                 'aadhar_number': cleanId.length == 12 ? cleanId : null,
-                'district': 'Solapur',
-                'ward': 'Ward 4',
+                'district': 'Municipal Area',
+                'ward': 'Ward 1',
                 'role': 'citizen',
               },
             );
@@ -228,8 +228,8 @@ class AuthService {
         _userFullName = user.userMetadata?['full_name']?.toString() ??
             (isOfficerRequest ? 'Zone 2 Duty Officer' : 'Citizen');
         _userPhone = user.userMetadata?['phone_number']?.toString() ?? _userPhone;
-        _userDistrict = user.userMetadata?['district']?.toString() ?? 'Solapur';
-        _userWard = user.userMetadata?['ward']?.toString() ?? 'Ward 4';
+        _userDistrict = user.userMetadata?['district']?.toString() ?? 'Municipal Area';
+        _userWard = user.userMetadata?['ward']?.toString() ?? 'Ward 1';
         _userRole = canonicalRole;
         _isAdmin = isOfficerRequest;
 
@@ -272,8 +272,8 @@ class AuthService {
       _userFullName = isOfficerRequest
           ? (emailOrId.contains('@') ? emailOrId.split('@')[0] : 'Zone 2 Duty Officer')
           : (authEmail.contains('@') ? authEmail.split('@')[0] : 'Verified Citizen');
-      _userDistrict = 'Solapur';
-      _userWard = 'Ward 4';
+      _userDistrict = 'Municipal Area';
+      _userWard = 'Ward 1';
       _userRole = isOfficerRequest ? 'contractor' : 'citizen';
       _isAdmin = isOfficerRequest;
 
@@ -331,8 +331,8 @@ class AuthService {
             data: {
               'full_name': 'Hon. Hackathon Judge',
               'phone_number': '+91 98765 43210',
-              'district': 'Solapur',
-              'ward': 'Ward 4',
+              'district': 'Municipal Area',
+              'ward': 'Ward 1',
               'role': canonicalRole,
             },
           );
@@ -359,8 +359,8 @@ class AuthService {
         _userEmail = user.email ?? demoEmail;
         _userFullName = user.userMetadata?['full_name']?.toString() ?? 'Hon. Hackathon Judge';
         _userPhone = user.userMetadata?['phone_number']?.toString() ?? '+91 98765 43210';
-        _userDistrict = user.userMetadata?['district']?.toString() ?? 'Solapur';
-        _userWard = user.userMetadata?['ward']?.toString() ?? 'Ward 4';
+        _userDistrict = user.userMetadata?['district']?.toString() ?? 'Municipal Area';
+        _userWard = user.userMetadata?['ward']?.toString() ?? 'Ward 1';
         _userRole = canonicalRole;
         _isAdmin = false;
 
@@ -410,8 +410,8 @@ class AuthService {
       const canonicalRole = 'citizen';
       final cleanEmail = email.trim();
       final cleanName = fullName.trim();
-      final cleanDistrict = district?.trim() ?? 'Solapur';
-      final cleanWard = ward?.trim() ?? 'Ward 4';
+      final cleanDistrict = (district != null && district.trim().isNotEmpty) ? district.trim() : 'Municipal Area';
+      final cleanWard = (ward != null && ward.trim().isNotEmpty) ? ward.trim() : 'Ward 1';
       final cleanPhone = phoneNumber?.trim() ?? '';
 
       User? user;
@@ -532,8 +532,8 @@ class AuthService {
           _userEmail = currentUser.email;
           _userFullName = currentUser.userMetadata?['full_name']?.toString();
           _userPhone = currentUser.userMetadata?['phone_number']?.toString();
-          _userDistrict = currentUser.userMetadata?['district']?.toString() ?? 'Solapur';
-          _userWard = currentUser.userMetadata?['ward']?.toString() ?? 'Ward 4';
+          _userDistrict = currentUser.userMetadata?['district']?.toString() ?? 'Municipal Area';
+          _userWard = currentUser.userMetadata?['ward']?.toString() ?? 'Ward 1';
           final metaRole = currentUser.userMetadata?['role']?.toString();
           if (metaRole != null) {
             _userRole = metaRole;
@@ -555,8 +555,8 @@ class AuthService {
         _userId = prefs.getString('user_id');
         _userFullName = prefs.getString('user_full_name');
         _userPhone = prefs.getString('user_phone');
-        _userDistrict = prefs.getString('user_district') ?? 'Solapur';
-        _userWard = prefs.getString('user_ward') ?? 'Ward 4';
+        _userDistrict = prefs.getString('user_district') ?? 'Municipal Area';
+        _userWard = prefs.getString('user_ward') ?? 'Ward 1';
         return true;
       }
 

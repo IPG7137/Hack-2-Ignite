@@ -27,7 +27,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
   // Dynamic user data linked to authenticated session
   final Map<String, dynamic> _userProfile = {
     'name': 'Citizen Contributor',
-    'address': 'Ward 4, Solapur',
+    'address': 'Municipal Jurisdiction',
     'dateOfBirth': 'N/A',
     'occupation': 'Citizen Contributor',
     'memberSince': 'October 2026',
@@ -88,7 +88,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
           _userProfile['phone'] = authService.userPhone;
         }
         if (authService.userDistrict != null || authService.userWard != null) {
-          _userProfile['address'] = '${authService.userWard ?? "Ward 4"}, ${authService.userDistrict ?? "Solapur"}';
+          _userProfile['address'] = '${authService.userWard ?? "Local Ward"}, ${authService.userDistrict ?? "Municipal Area"}';
         }
       });
     }

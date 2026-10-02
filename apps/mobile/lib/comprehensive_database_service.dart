@@ -1518,18 +1518,19 @@ class ComprehensiveDatabaseService {
     }
   }
 
-  /// Fetches local civic feed reports with distance calculations and support tallies
+  /// Fetches local civic feed reports with distance calculations, descriptions, and support tallies
   Future<List<ComprehensiveReportModel>> getCivicFeed({
     double? latitude,
     double? longitude,
     double radiusKm = 25.0,
     String? category,
+    String? statusFilter,
     String? userId,
     int limit = 50,
     int offset = 0,
   }) async {
     try {
-      debugPrint('📰 Fetching local civic feed (lat: $latitude, lng: $longitude, radius: ${radiusKm}km)');
+      debugPrint('📰 Fetching local civic feed (lat: $latitude, lng: $longitude, radius: ${radiusKm}km, cat: $category, status: $statusFilter)');
 
       // 1. Primary Strategy: RPC get_civic_feed
       try {
@@ -1545,22 +1546,116 @@ class ComprehensiveDatabaseService {
 
         if (rpcRes is List && rpcRes.isNotEmpty) {
           debugPrint('✅ Loaded ${rpcRes.length} civic feed items via get_civic_feed RPC');
-          return rpcRes.map((json) => ComprehensiveReportModel.fromJson(json)).toList();
+          final parsed = <ComprehensiveReportModel>[];
+          for (final item in rpcRes) {
+            if (item is! Map<String, dynamic>) continue;
+            final model = ComprehensiveReportModel.fromJson(item);
+
+            // Filter by status if requested
+            if (statusFilter != null && statusFilter != 'All') {
+              if (statusFilter == 'Active' &&
+                  (model.status == ReportStatus.resolved || model.status == ReportStatus.closed)) {
+                continue;
+              }
+              if (statusFilter == 'Resolved' &&
+                  (model.status != ReportStatus.resolved && model.status != ReportStatus.closed && model.status != ReportStatus.verified)) {
+                continue;
+              }
+              if (statusFilter == 'In Progress' &&
+                  (model.status != ReportStatus.progress && model.status != ReportStatus.inProgress && model.status != ReportStatus.assigned)) {
+                continue;
+              }
+            }
+
+            // If user coordinates are provided, strictly enforce geographic radius
+            if (latitude != null && longitude != null) {
+              if (model.latitude == null || model.longitude == null) {
+                // Exclude records without coordinates from local radius-filtered feed
+                continue;
+              }
+              final dist = model.distanceMeters ??
+                  calculateDistanceMeters(latitude, longitude, model.latitude!, model.longitude!);
+              if (dist > (radiusKm * 1000)) {
+                continue;
+              }
+            }
+
+            parsed.add(model);
+          }
+          return parsed;
         }
       } catch (rpcErr) {
-        debugPrint('ℹ️ get_civic_feed RPC fallback ($rpcErr), aggregating from public markers...');
+        debugPrint('ℹ️ get_civic_feed RPC note ($rpcErr), falling back to direct table query...');
       }
 
-      // 2. Fallback: Aggregate from getNearbyMapReports
-      final baseReports = await getNearbyMapReports(
-        latitude: latitude,
-        longitude: longitude,
-        radiusKm: radiusKm,
-        category: category,
-      );
+      // 2. Direct Query Fallback: Fetch from public reports table with full metadata
+      var query = _supabase.from('reports').select();
+      if (category != null && category != 'All') {
+        query = query.ilike('category', '%$category%');
+      }
+      if (statusFilter != null && statusFilter != 'All') {
+        if (statusFilter == 'Active') {
+          query = query.not('status', 'in', '(resolved,closed,rejected)');
+        } else if (statusFilter == 'Resolved') {
+          query = query.inFilter('status', ['resolved', 'closed', 'verified']);
+        } else if (statusFilter == 'In Progress') {
+          query = query.inFilter('status', ['in_progress', 'progress', 'assigned']);
+        }
+      }
 
-      // Populate support counts if available
-      return baseReports;
+      final rawRows = await query.order('created_at', ascending: false).limit(100);
+
+      // Fetch user support states if userId available
+      final Set<int> userSupportedReportIds = {};
+      final Map<int, int> supportCounts = {};
+
+      try {
+        final supportsRes = await _supabase.from('report_supports').select('report_id, user_id');
+        for (final row in supportsRes) {
+          final rId = int.tryParse(row['report_id']?.toString() ?? '0') ?? 0;
+          if (rId > 0) {
+            supportCounts[rId] = (supportCounts[rId] ?? 0) + 1;
+            if (userId != null && row['user_id']?.toString() == userId) {
+              userSupportedReportIds.add(rId);
+            }
+          }
+        }
+      } catch (_) {}
+
+      final List<ComprehensiveReportModel> reports = [];
+      for (final json in rawRows) {
+        try {
+          final rId = int.tryParse(json['id']?.toString() ?? '0') ?? 0;
+          final jsonCopy = Map<String, dynamic>.from(json);
+          jsonCopy['support_count'] = supportCounts[rId] ?? 0;
+          jsonCopy['user_has_supported'] = userSupportedReportIds.contains(rId);
+
+          final model = ComprehensiveReportModel.fromJson(jsonCopy);
+
+          if (latitude != null && longitude != null) {
+            if (model.latitude != null && model.longitude != null) {
+              final distMeters = calculateDistanceMeters(
+                latitude,
+                longitude,
+                model.latitude!,
+                model.longitude!,
+              );
+              if (distMeters <= (radiusKm * 1000)) {
+                reports.add(model.copyWithSupport(
+                  supported: userSupportedReportIds.contains(rId),
+                  count: supportCounts[rId] ?? 0,
+                ));
+              }
+            }
+          } else {
+            reports.add(model);
+          }
+        } catch (parseErr) {
+          debugPrint('⚠️ Error parsing report for civic feed fallback: $parseErr');
+        }
+      }
+
+      return reports;
     } catch (e) {
       debugPrint('❌ Error fetching civic feed: $e');
       return [];
