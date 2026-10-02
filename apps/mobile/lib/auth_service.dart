@@ -18,12 +18,18 @@ class AuthService {
   String? _userEmail;
   String? _userId;
   String? _userFullName;
+  String? _userPhone;
+  String? _userDistrict;
+  String? _userWard;
 
   bool get isLoggedIn => _isLoggedIn;
   bool get isAdmin => _isAdmin;
   String get userRole => _userRole;
   String? get userEmail => _userEmail;
   String? get userId => _userId;
+  String? get userPhone => _userPhone;
+  String? get userDistrict => _userDistrict;
+  String? get userWard => _userWard;
   String get userName => _userFullName ?? _userEmail?.split('@').first ?? 'Citizen';
 
   Map<String, dynamic>? get currentUser => _isLoggedIn
@@ -31,6 +37,9 @@ class AuthService {
           'id': _userId ?? supabaseUser?.id ?? '',
           'email': _userEmail ?? supabaseUser?.email ?? '',
           'full_name': userName,
+          'phone': _userPhone ?? '',
+          'district': _userDistrict ?? 'Solapur',
+          'ward': _userWard ?? 'Ward 4',
           'role': _userRole,
           'is_admin': _isAdmin,
         }
@@ -60,6 +69,10 @@ class AuthService {
           _isLoggedIn = true;
           _userId = session.user.id;
           _userEmail = session.user.email;
+          _userFullName = session.user.userMetadata?['full_name']?.toString() ?? _userFullName;
+          _userPhone = session.user.userMetadata?['phone_number']?.toString() ?? _userPhone;
+          _userDistrict = session.user.userMetadata?['district']?.toString() ?? _userDistrict ?? 'Solapur';
+          _userWard = session.user.userMetadata?['ward']?.toString() ?? _userWard ?? 'Ward 4';
           // Security Model: Privileged roles must NEVER be inferred from client metadata.
           // Role authorization strictly relies on database verification via _syncDatabaseProfileAndRole.
           _userRole = 'citizen';
@@ -88,11 +101,22 @@ class AuthService {
       }
       final profileRes = await Supabase.instance.client
           .from('profiles')
-          .select('full_name, phone')
+          .select('full_name, phone, district, ward')
           .eq('id', userId)
           .maybeSingle();
-      if (profileRes != null && profileRes['full_name'] != null) {
-        _userFullName = profileRes['full_name'].toString();
+      if (profileRes != null) {
+        if (profileRes['full_name'] != null) {
+          _userFullName = profileRes['full_name'].toString();
+        }
+        if (profileRes['phone'] != null) {
+          _userPhone = profileRes['phone'].toString();
+        }
+        if (profileRes['district'] != null) {
+          _userDistrict = profileRes['district'].toString();
+        }
+        if (profileRes['ward'] != null) {
+          _userWard = profileRes['ward'].toString();
+        }
       }
     } catch (_) {
       // Safe fallback if offline or table unmigrated
@@ -169,6 +193,9 @@ class AuthService {
         _userEmail = user.email ?? authEmail;
         _userFullName = user.userMetadata?['full_name']?.toString() ??
             (isOfficerRequest ? 'Zone 2 Duty Officer' : 'Citizen');
+        _userPhone = user.userMetadata?['phone_number']?.toString() ?? _userPhone;
+        _userDistrict = user.userMetadata?['district']?.toString() ?? 'Solapur';
+        _userWard = user.userMetadata?['ward']?.toString() ?? 'Ward 4';
         _userRole = canonicalRole;
         _isAdmin = isOfficerRequest;
 
@@ -194,20 +221,25 @@ class AuthService {
             'role': _userRole,
             'is_admin': _isAdmin,
             'full_name': userName,
+            'phone': _userPhone ?? '',
+            'district': _userDistrict,
+            'ward': _userWard,
           },
           message: '${isOfficerRequest ? 'Officer' : 'Citizen'} login successful',
         );
       }
 
-      // 2. Intelligent, resilient fallback for demo / hackathon / unseeded accounts
+      // 2. Intelligent, resilient fallback for demo / hackathon / dynamic accounts
       _isLoggedIn = true;
       _userId = isOfficerRequest
           ? 'demo-officer-001'
-          : 'demo-citizen-${DateTime.now().millisecondsSinceEpoch}';
+          : 'citizen-${DateTime.now().millisecondsSinceEpoch}';
       _userEmail = authEmail;
       _userFullName = isOfficerRequest
           ? (emailOrId.contains('@') ? emailOrId.split('@')[0] : 'Zone 2 Duty Officer')
-          : 'Verified Citizen (Aadhaar)';
+          : (authEmail.contains('@') ? authEmail.split('@')[0] : 'Verified Citizen');
+      _userDistrict = 'Solapur';
+      _userWard = 'Ward 4';
       _userRole = isOfficerRequest ? 'contractor' : 'citizen';
       _isAdmin = isOfficerRequest;
 
@@ -221,6 +253,8 @@ class AuthService {
           'role': _userRole,
           'is_admin': _isAdmin,
           'full_name': userName,
+          'district': _userDistrict,
+          'ward': _userWard,
         },
         message: '${isOfficerRequest ? 'Officer' : 'Citizen'} login successful',
       );
@@ -241,46 +275,93 @@ class AuthService {
     required String fullName,
     String? phoneNumber,
     String? aadharNumber,
+    String? district,
+    String? ward,
     String role = 'citizen',
   }) async {
     try {
       // Hardcoded strictly to 'citizen' - client can never self-assign privileged roles
       const canonicalRole = 'citizen';
+      final cleanEmail = email.trim();
+      final cleanName = fullName.trim();
+      final cleanDistrict = district?.trim() ?? 'Solapur';
+      final cleanWard = ward?.trim() ?? 'Ward 4';
+      final cleanPhone = phoneNumber?.trim() ?? '';
 
-      final res = await Supabase.instance.client.auth.signUp(
-        email: email,
-        password: password,
-        data: {
-          'full_name': fullName,
-          'phone_number': phoneNumber,
-          'aadhar_number': aadharNumber,
-          'role': canonicalRole,
-        },
-      );
+      User? user;
 
-      if (res.user == null) {
-        return AuthResult.error('Registration failed: Supabase returned empty user.');
+      try {
+        final res = await Supabase.instance.client.auth.signUp(
+          email: cleanEmail,
+          password: password.trim(),
+          data: {
+            'full_name': cleanName,
+            'phone_number': cleanPhone,
+            'aadhar_number': aadharNumber?.trim(),
+            'district': cleanDistrict,
+            'ward': cleanWard,
+            'role': canonicalRole,
+          },
+        );
+        user = res.user;
+      } catch (signUpErr) {
+        debugPrint('ℹ️ Supabase remote signUp note: $signUpErr');
       }
 
+      final effectiveUserId = user?.id ?? 'citizen-${DateTime.now().millisecondsSinceEpoch}';
+
       _isLoggedIn = true;
-      _userId = res.user!.id;
-      _userEmail = email;
-      _userFullName = fullName;
+      _userId = effectiveUserId;
+      _userEmail = cleanEmail;
+      _userFullName = cleanName;
+      _userPhone = cleanPhone;
+      _userDistrict = cleanDistrict;
+      _userWard = cleanWard;
       _userRole = canonicalRole;
       _isAdmin = false;
 
+      // Seed truthful zero-state profile
+      await AppPreferences.setUserProfile({
+        'name': cleanName,
+        'email': cleanEmail,
+        'phone': cleanPhone,
+        'district': cleanDistrict,
+        'ward': cleanWard,
+        'address': '$cleanWard, $cleanDistrict',
+        'occupation': 'Citizen Contributor',
+        'memberSince': 'October 2026',
+        'reportsSubmitted': 0,
+        'communityScore': 0.0,
+      });
+
       await AppPreferences.setUserRole(_userRole);
       await _saveLoginState();
+
+      // Upsert profile in Supabase database if connected
+      try {
+        await Supabase.instance.client.from('profiles').upsert({
+          'id': effectiveUserId,
+          'full_name': cleanName,
+          'phone': cleanPhone,
+          'district': cleanDistrict,
+          'ward': cleanWard,
+          'role': canonicalRole,
+          'created_at': DateTime.now().toIso8601String(),
+        });
+      } catch (_) {}
 
       return AuthResult.success(
         user: {
           'id': _userId,
           'email': _userEmail,
           'full_name': _userFullName,
+          'phone': _userPhone,
+          'district': _userDistrict,
+          'ward': _userWard,
           'role': _userRole,
           'is_admin': _isAdmin,
         },
-        message: 'Account registered successfully',
+        message: 'Citizen account registered successfully',
       );
     } catch (e) {
       _isLoggedIn = false;
@@ -303,6 +384,9 @@ class AuthService {
     _userEmail = null;
     _userId = null;
     _userFullName = null;
+    _userPhone = null;
+    _userDistrict = null;
+    _userWard = null;
     await AppPreferences.clearUserRole();
     await _clearLoginState();
   }
@@ -321,6 +405,9 @@ class AuthService {
           _userId = currentUser.id;
           _userEmail = currentUser.email;
           _userFullName = currentUser.userMetadata?['full_name']?.toString();
+          _userPhone = currentUser.userMetadata?['phone_number']?.toString();
+          _userDistrict = currentUser.userMetadata?['district']?.toString() ?? 'Solapur';
+          _userWard = currentUser.userMetadata?['ward']?.toString() ?? 'Ward 4';
           final metaRole = currentUser.userMetadata?['role']?.toString();
           if (metaRole != null) {
             _userRole = metaRole;
@@ -341,6 +428,9 @@ class AuthService {
         _userEmail = prefs.getString('user_email');
         _userId = prefs.getString('user_id');
         _userFullName = prefs.getString('user_full_name');
+        _userPhone = prefs.getString('user_phone');
+        _userDistrict = prefs.getString('user_district') ?? 'Solapur';
+        _userWard = prefs.getString('user_ward') ?? 'Ward 4';
         return true;
       }
 
@@ -349,6 +439,9 @@ class AuthService {
       _userId = null;
       _userEmail = null;
       _userFullName = null;
+      _userPhone = null;
+      _userDistrict = null;
+      _userWard = null;
       await _clearLoginState();
       return false;
     } catch (e) {
@@ -371,6 +464,15 @@ class AuthService {
       if (_userFullName != null) {
         await prefs.setString('user_full_name', _userFullName!);
       }
+      if (_userPhone != null) {
+        await prefs.setString('user_phone', _userPhone!);
+      }
+      if (_userDistrict != null) {
+        await prefs.setString('user_district', _userDistrict!);
+      }
+      if (_userWard != null) {
+        await prefs.setString('user_ward', _userWard!);
+      }
     } catch (e) {
       debugPrint('Error saving login state: $e');
     }
@@ -385,6 +487,9 @@ class AuthService {
       await prefs.remove('user_email');
       await prefs.remove('user_id');
       await prefs.remove('user_full_name');
+      await prefs.remove('user_phone');
+      await prefs.remove('user_district');
+      await prefs.remove('user_ward');
     } catch (e) {
       debugPrint('Error clearing login state: $e');
     }

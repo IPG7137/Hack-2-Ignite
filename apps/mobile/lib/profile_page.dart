@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'auth_service.dart';
 import 'credit_service.dart';
 import 'plant_shop_page.dart';
@@ -25,15 +24,15 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
   int _userCredits = 0;
   bool _isLoadingCredits = true;
 
-  // Mock user data - in a real app this would come from a user service
+  // Dynamic user data linked to authenticated session
   final Map<String, dynamic> _userProfile = {
-    'name': 'Rajesh Kumar Sharma',
-    'address': '123, MG Road, Sector 14\nGurgaon, Haryana 122001',
-    'dateOfBirth': '15 Aug 1985',
-    'occupation': 'Software Engineer',
-    'memberSince': 'January 2024',
-    'reportsSubmitted': 12,
-    'communityScore': 4.8,
+    'name': 'Citizen Contributor',
+    'address': 'Ward 4, Solapur',
+    'dateOfBirth': 'N/A',
+    'occupation': 'Citizen Contributor',
+    'memberSince': 'October 2026',
+    'reportsSubmitted': 0,
+    'communityScore': 0.0,
   };
 
   @override
@@ -77,6 +76,23 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
   }
 
   Future<void> _loadUserProfile() async {
+    final authService = AuthService.instance;
+    final userId = authService.userId ?? authService.supabaseUser?.id ?? '';
+
+    if (mounted) {
+      setState(() {
+        if (authService.userName.isNotEmpty && authService.userName != 'Citizen') {
+          _userProfile['name'] = authService.userName;
+        }
+        if (authService.userPhone != null && authService.userPhone!.isNotEmpty) {
+          _userProfile['phone'] = authService.userPhone;
+        }
+        if (authService.userDistrict != null || authService.userWard != null) {
+          _userProfile['address'] = '${authService.userWard ?? "Ward 4"}, ${authService.userDistrict ?? "Solapur"}';
+        }
+      });
+    }
+
     final savedProfile = await AppPreferences.getUserProfile();
     if (savedProfile != null && mounted) {
       setState(() {
@@ -84,9 +100,20 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
       });
     }
 
+    // Load actual user reports count
+    if (userId.isNotEmpty) {
+      try {
+        final reports = await ComprehensiveDatabaseService().getUserReportsComprehensive(userId);
+        if (mounted) {
+          setState(() {
+            _userProfile['reportsSubmitted'] = reports.length;
+          });
+        }
+      } catch (_) {}
+    }
+
     try {
-      final userId = Supabase.instance.client.auth.currentUser?.id;
-      if (userId != null) {
+      if (userId.isNotEmpty) {
         final remoteProfile = await ComprehensiveDatabaseService().fetchUserProfile(userId);
         if (remoteProfile != null && mounted) {
           setState(() {

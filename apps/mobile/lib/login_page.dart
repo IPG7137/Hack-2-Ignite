@@ -18,6 +18,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
   final LanguageService _languageService = LanguageService();
   final AuthService _authService = AuthService.instance;
   final GlobalKey<FormState> _citizenFormKey = GlobalKey<FormState>();
+  final GlobalKey<FormState> _citizenSignupFormKey = GlobalKey<FormState>();
   final GlobalKey<FormState> _publicServantFormKey = GlobalKey<FormState>();
   
   // Controllers
@@ -26,9 +27,19 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
   final _passwordController = TextEditingController();
   final _otpController = TextEditingController();
   
+  // Registration Controllers
+  final _signupNameController = TextEditingController();
+  final _signupPhoneController = TextEditingController();
+  final _signupEmailController = TextEditingController();
+  final _signupPasswordController = TextEditingController();
+  final _signupDistrictController = TextEditingController(text: 'Solapur');
+  final _signupWardController = TextEditingController(text: 'Ward 4');
+
   // State variables
   bool _isCitizenSelected = true;
+  bool _isSignUpMode = false;
   bool _isPasswordVisible = false;
+  bool _isSignupPasswordVisible = false;
   bool _isLoading = false;
   bool _isOtpSent = false;
   int _otpTimer = 60;
@@ -78,6 +89,12 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
     _publicServantIdController.dispose();
     _passwordController.dispose();
     _otpController.dispose();
+    _signupNameController.dispose();
+    _signupPhoneController.dispose();
+    _signupEmailController.dispose();
+    _signupPasswordController.dispose();
+    _signupDistrictController.dispose();
+    _signupWardController.dispose();
     _languageService.removeListener(_onLanguageChanged);
     _animationController.dispose();
     super.dispose();
@@ -568,213 +585,526 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildCitizenLogin() {
+  Future<void> _handleCitizenRegistration() async {
+    if (!_citizenSignupFormKey.currentState!.validate()) return;
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final name = _signupNameController.text.trim();
+      final email = _signupEmailController.text.trim();
+      final phone = _signupPhoneController.text.trim();
+      final password = _signupPasswordController.text.trim();
+      final district = _signupDistrictController.text.trim().isEmpty ? 'Solapur' : _signupDistrictController.text.trim();
+      final ward = _signupWardController.text.trim().isEmpty ? 'Ward 4' : _signupWardController.text.trim();
+
+      final result = await _authService.register(
+        fullName: name,
+        email: email,
+        password: password,
+        phoneNumber: phone,
+        district: district,
+        ward: ward,
+      );
+
+      setState(() {
+        _isLoading = false;
+      });
+
+      if (result.success) {
+        await AppPreferences.setUserRole('citizen');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Account created! Welcome $name (🌱 Civic Starter)'),
+              backgroundColor: Colors.green,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+          );
+          _navigateToDashboard(selectedRole: 'citizen', isAdmin: false);
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(result.message),
+              backgroundColor: Colors.red,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Registration failed: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          ),
+        );
+      }
+    }
+  }
+
+  Widget _buildCitizenRegistrationForm() {
     return Form(
-      key: _citizenFormKey,
+      key: _citizenSignupFormKey,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Citizen Login',
+            'Create Citizen Account',
             style: TextStyle(
-              fontSize: 22,
+              fontSize: 20,
               fontWeight: FontWeight.bold,
               color: Color(0xFF1E293B),
             ),
           ),
-          const SizedBox(height: 20),
-          
-          if (!_isOtpSent) ...[
-            _buildInputField(
-              controller: _aadharController,
-              placeholder: '12-digit Aadhaar Number',
-              prefixIcon: Icons.credit_card,
-              keyboardType: TextInputType.number,
-              inputFormatters: [
-                FilteringTextInputFormatter.allow(RegExp(r'[0-9 ]')),
-                LengthLimitingTextInputFormatter(14),
-              ],
-              onChanged: (value) {
-                final formatted = _formatAadhar(value);
-                if (formatted != value) {
-                  _aadharController.value = TextEditingValue(
-                    text: formatted,
-                    selection: TextSelection.collapsed(offset: formatted.length),
-                  );
-                }
-              },
-              validator: _validateAadhar,
+          const SizedBox(height: 6),
+          const Text(
+            'Join your municipal zone as a verified citizen contributor (Score 0 • 🌱 Civic Starter)',
+            style: TextStyle(
+              fontSize: 13,
+              color: Color(0xFF64748B),
             ),
-            const SizedBox(height: 12),
-            
-            // Demo quick fill for Citizen (Debug / Development only)
-            if (kDebugMode) ...[
-              Align(
-                alignment: Alignment.centerLeft,
-                child: TextButton.icon(
-                  onPressed: () {
-                    setState(() {
-                      _aadharController.text = '9999 8888 7777';
-                    });
-                  },
-                  icon: const Icon(Icons.flash_on, size: 16, color: Color(0xFF3B82F6)),
-                  label: const Text(
-                    'Demo Citizen Fill',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF3B82F6),
-                    ),
-                  ),
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    backgroundColor: const Color(0xFFEFF6FF),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  ),
+          ),
+          const SizedBox(height: 16),
+
+          // Full Name
+          _buildInputField(
+            controller: _signupNameController,
+            placeholder: 'Full Legal Name (e.g. Vikram Patil)',
+            prefixIcon: Icons.badge_outlined,
+            validator: (val) => (val == null || val.trim().isEmpty) ? 'Full name is required' : null,
+          ),
+          const SizedBox(height: 12),
+
+          // Mobile Number
+          _buildInputField(
+            controller: _signupPhoneController,
+            placeholder: '10-digit Mobile Number',
+            prefixIcon: Icons.phone_android_outlined,
+            keyboardType: TextInputType.phone,
+            inputFormatters: [
+              FilteringTextInputFormatter.digitsOnly,
+              LengthLimitingTextInputFormatter(10),
+            ],
+            validator: (val) {
+              if (val == null || val.trim().length != 10) {
+                return 'Please enter a valid 10-digit mobile number';
+              }
+              return null;
+            },
+          ),
+          const SizedBox(height: 12),
+
+          // Email Address
+          _buildInputField(
+            controller: _signupEmailController,
+            placeholder: 'Email Address (e.g. name@example.com)',
+            prefixIcon: Icons.email_outlined,
+            keyboardType: TextInputType.emailAddress,
+            validator: (val) {
+              if (val == null || val.trim().isEmpty) return 'Email is required';
+              if (!val.contains('@') || !val.contains('.')) return 'Please enter a valid email';
+              return null;
+            },
+          ),
+          const SizedBox(height: 12),
+
+          // Password
+          _buildInputField(
+            controller: _signupPasswordController,
+            placeholder: 'Password (min 6 characters)',
+            prefixIcon: Icons.lock_outline,
+            isPassword: true,
+            obscureText: !_isSignupPasswordVisible,
+            toggleVisibility: () {
+              setState(() {
+                _isSignupPasswordVisible = !_isSignupPasswordVisible;
+              });
+            },
+            validator: (val) {
+              if (val == null || val.length < 6) return 'Password must be at least 6 characters';
+              return null;
+            },
+          ),
+          const SizedBox(height: 12),
+
+          // District & Ward Row
+          Row(
+            children: [
+              Expanded(
+                child: _buildInputField(
+                  controller: _signupDistrictController,
+                  placeholder: 'District (e.g. Solapur)',
+                  prefixIcon: Icons.location_city_outlined,
+                  validator: (val) => (val == null || val.trim().isEmpty) ? 'District required' : null,
                 ),
               ),
-              const SizedBox(height: 16),
-            ],
-            
-            _buildLoginButton(
-              text: 'Login with Aadhaar',
-              onPressed: _handleCitizenLogin,
-              isLoading: _isLoading,
-            ),
-          ] else ...[
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF3F4F6),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFE5E7EB)),
-              ),
-              child: Column(
-                children: [
-                  const Icon(
-                    Icons.message,
-                    color: Color(0xFF3B82F6),
-                    size: 32,
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'OTP sent to your mobile',
-                    style: TextStyle(
-                      color: Color(0xFF374151),
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Aadhaar: ${_aadharController.text}',
-                    style: const TextStyle(
-                      color: Color(0xFF6B7280),
-                      fontSize: 14,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
-            
-            _buildInputField(
-              controller: _otpController,
-              placeholder: '6-digit OTP (e.g. 123456)',
-              prefixIcon: Icons.lock_outline,
-              keyboardType: TextInputType.number,
-              inputFormatters: [
-                FilteringTextInputFormatter.digitsOnly,
-                LengthLimitingTextInputFormatter(6),
-              ],
-            ),
-            const SizedBox(height: 8),
-            
-            // Demo OTP quick fill (Debug / Development only)
-            if (kDebugMode) ...[
-              Align(
-                alignment: Alignment.centerLeft,
-                child: TextButton.icon(
-                  onPressed: () {
-                    setState(() {
-                      _otpController.text = '123456';
-                    });
-                  },
-                  icon: const Icon(Icons.flash_on, size: 16, color: Color(0xFF3B82F6)),
-                  label: const Text(
-                    'Demo OTP Fill (123456)',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF3B82F6),
-                    ),
-                  ),
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    backgroundColor: const Color(0xFFEFF6FF),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _buildInputField(
+                  controller: _signupWardController,
+                  placeholder: 'Ward (e.g. Ward 4)',
+                  prefixIcon: Icons.map_outlined,
+                  validator: (val) => (val == null || val.trim().isEmpty) ? 'Ward required' : null,
                 ),
               ),
-              const SizedBox(height: 12),
             ],
-            
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  _canResendOtp ? 'You can resend OTP now' : 'Resend OTP in ${_otpTimer}s',
-                  style: const TextStyle(
-                    color: Color(0xFF6B7280),
+          ),
+          const SizedBox(height: 12),
+
+          // Quick Demo Fill for Judges (Debug / Development only)
+          if (kDebugMode) ...[
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: () {
+                  final uniqueId = DateTime.now().millisecondsSinceEpoch % 1000;
+                  setState(() {
+                    _signupNameController.text = 'Judge Demo User $uniqueId';
+                    _signupPhoneController.text = '9876543210';
+                    _signupEmailController.text = 'judge.$uniqueId@civicresolve.gov';
+                    _signupPasswordController.text = 'civic123456';
+                    _signupDistrictController.text = 'Solapur';
+                    _signupWardController.text = 'Ward 4';
+                  });
+                },
+                icon: const Icon(Icons.flash_on, size: 16, color: Color(0xFF3B82F6)),
+                label: const Text(
+                  'Quick-Fill Dynamic Citizen (Score 0)',
+                  style: TextStyle(
                     fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF3B82F6),
                   ),
                 ),
-                if (_canResendOtp)
-                  TextButton(
-                    onPressed: () {
-                      setState(() {
-                        _isOtpSent = false;
-                      });
-                      _handleCitizenLogin();
-                    },
-                    child: const Text(
-                      'Resend',
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  backgroundColor: const Color(0xFFEFF6FF),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+              ),
+            ),
+            const SizedBox(height: 14),
+          ],
+
+          _buildLoginButton(
+            text: 'Register & Enter Portal',
+            onPressed: _handleCitizenRegistration,
+            isLoading: _isLoading,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCitizenLogin() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Mode Selector: Sign In vs Create Account
+        Container(
+          height: 42,
+          padding: const EdgeInsets.all(3),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF1F5F9),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _isSignUpMode = false;
+                    });
+                  },
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: !_isSignUpMode ? Colors.white : Colors.transparent,
+                      borderRadius: BorderRadius.circular(8),
+                      boxShadow: !_isSignUpMode
+                          ? [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.05),
+                                blurRadius: 4,
+                                offset: const Offset(0, 1),
+                              ),
+                            ]
+                          : null,
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      'Sign In (Aadhaar/OTP)',
                       style: TextStyle(
-                        color: Color(0xFF3B82F6),
+                        fontSize: 13,
                         fontWeight: FontWeight.w600,
+                        color: !_isSignUpMode ? const Color(0xFF1E293B) : const Color(0xFF64748B),
                       ),
                     ),
                   ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            
-            _buildLoginButton(
-              text: 'Verify & Login',
-              onPressed: _handleCitizenLogin,
-              isLoading: _isLoading,
-            ),
-            const SizedBox(height: 12),
-            
-            Center(
-              child: TextButton(
-                onPressed: () {
-                  setState(() {
-                    _isOtpSent = false;
-                    _otpController.clear();
-                  });
-                },
-                child: const Text(
-                  'Change Aadhaar Number',
-                  style: TextStyle(
-                    color: Color(0xFF6B7280),
-                    fontSize: 14,
+                ),
+              ),
+              Expanded(
+                child: GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _isSignUpMode = true;
+                    });
+                  },
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: _isSignUpMode ? Colors.white : Colors.transparent,
+                      borderRadius: BorderRadius.circular(8),
+                      boxShadow: _isSignUpMode
+                          ? [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.05),
+                                blurRadius: 4,
+                                offset: const Offset(0, 1),
+                              ),
+                            ]
+                          : null,
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      'New Citizen Sign Up',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: _isSignUpMode ? const Color(0xFF1E293B) : const Color(0xFF64748B),
+                      ),
+                    ),
                   ),
                 ),
               ),
-            ),
-          ],
-        ],
-      ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 20),
+
+        _isSignUpMode
+            ? _buildCitizenRegistrationForm()
+            : Form(
+                key: _citizenFormKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Citizen Login',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF1E293B),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    
+                    if (!_isOtpSent) ...[
+                      _buildInputField(
+                        controller: _aadharController,
+                        placeholder: '12-digit Aadhaar Number',
+                        prefixIcon: Icons.credit_card,
+                        keyboardType: TextInputType.number,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.allow(RegExp(r'[0-9 ]')),
+                          LengthLimitingTextInputFormatter(14),
+                        ],
+                        onChanged: (value) {
+                          final formatted = _formatAadhar(value);
+                          if (formatted != value) {
+                            _aadharController.value = TextEditingValue(
+                              text: formatted,
+                              selection: TextSelection.collapsed(offset: formatted.length),
+                            );
+                          }
+                        },
+                        validator: _validateAadhar,
+                      ),
+                      const SizedBox(height: 12),
+                      
+                      // Demo quick fill for Citizen (Debug / Development only)
+                      if (kDebugMode) ...[
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: TextButton.icon(
+                            onPressed: () {
+                              setState(() {
+                                _aadharController.text = '9999 8888 7777';
+                              });
+                            },
+                            icon: const Icon(Icons.flash_on, size: 16, color: Color(0xFF3B82F6)),
+                            label: const Text(
+                              'Demo Citizen Fill',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF3B82F6),
+                              ),
+                            ),
+                            style: TextButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              backgroundColor: const Color(0xFFEFF6FF),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+                      
+                      _buildLoginButton(
+                        text: 'Login with Aadhaar',
+                        onPressed: _handleCitizenLogin,
+                        isLoading: _isLoading,
+                      ),
+                    ] else ...[
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF3F4F6),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: const Color(0xFFE5E7EB)),
+                        ),
+                        child: Column(
+                          children: [
+                            const Icon(
+                              Icons.message,
+                              color: Color(0xFF3B82F6),
+                              size: 32,
+                            ),
+                            const SizedBox(height: 8),
+                            const Text(
+                              'OTP sent to your mobile',
+                              style: TextStyle(
+                                color: Color(0xFF374151),
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Aadhaar: ${_aadharController.text}',
+                              style: const TextStyle(
+                                color: Color(0xFF6B7280),
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      
+                      _buildInputField(
+                        controller: _otpController,
+                        placeholder: '6-digit OTP (e.g. 123456)',
+                        prefixIcon: Icons.lock_outline,
+                        keyboardType: TextInputType.number,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                          LengthLimitingTextInputFormatter(6),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      
+                      // Demo OTP quick fill (Debug / Development only)
+                      if (kDebugMode) ...[
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: TextButton.icon(
+                            onPressed: () {
+                              setState(() {
+                                _otpController.text = '123456';
+                              });
+                            },
+                            icon: const Icon(Icons.flash_on, size: 16, color: Color(0xFF3B82F6)),
+                            label: const Text(
+                              'Demo OTP Fill (123456)',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF3B82F6),
+                              ),
+                            ),
+                            style: TextButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              backgroundColor: const Color(0xFFEFF6FF),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                      ],
+                      
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            _canResendOtp ? 'You can resend OTP now' : 'Resend OTP in ${_otpTimer}s',
+                            style: const TextStyle(
+                              color: Color(0xFF6B7280),
+                              fontSize: 13,
+                            ),
+                          ),
+                          if (_canResendOtp)
+                            TextButton(
+                              onPressed: () {
+                                setState(() {
+                                  _isOtpSent = false;
+                                });
+                                _handleCitizenLogin();
+                              },
+                              child: const Text(
+                                'Resend',
+                                style: TextStyle(
+                                  color: Color(0xFF3B82F6),
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+                      
+                      _buildLoginButton(
+                        text: 'Verify & Login',
+                        onPressed: _handleCitizenLogin,
+                        isLoading: _isLoading,
+                      ),
+                      const SizedBox(height: 12),
+                      
+                      Center(
+                        child: TextButton(
+                          onPressed: () {
+                            setState(() {
+                              _isOtpSent = false;
+                              _otpController.clear();
+                            });
+                          },
+                          child: const Text(
+                            'Change Aadhaar Number',
+                            style: TextStyle(
+                              color: Color(0xFF6B7280),
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+      ],
     );
   }
 
