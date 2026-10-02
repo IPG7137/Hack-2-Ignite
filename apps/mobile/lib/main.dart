@@ -11,10 +11,22 @@ void main() async {
   // Initialize configuration and environment
   await AppConfig.initialize();
 
-  await Supabase.initialize(
-    url: AppConfig.supabaseUrl,
-    anonKey: AppConfig.supabaseAnonKey,
-  );
+  // Safe Diagnostic Logging (host and config state only, no secrets)
+  AppConfig.logDiagnostics();
+
+  try {
+    if (AppConfig.isConfigured) {
+      await Supabase.initialize(
+        url: AppConfig.supabaseUrl,
+        anonKey: AppConfig.supabaseAnonKey,
+      );
+      debugPrint('[Supabase] Initialization: SUCCESS');
+    } else {
+      debugPrint('[Supabase] Initialization FAILED: Supabase parameters missing');
+    }
+  } catch (e) {
+    debugPrint('[Supabase] Initialization FAILED: $e');
+  }
   
   runApp(const MyApp());
 }

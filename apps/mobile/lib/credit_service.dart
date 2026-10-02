@@ -103,18 +103,18 @@ class CouponModel {
 }
 
 class CreditService {
-  static final SupabaseClient _supabase = Supabase.instance.client;
+  static SupabaseClient get _supabase => Supabase.instance.client;
 
   // Official Civic Point Scoring Categories (exact 4 categories)
   static const int pointsVerifiedGrievance = 10; // Verified Civic Grievance (+10 pts)
   static const int pointsGisCoordinateAudit = 5; // Precise GIS Coordinate Audit (+5 pts)
   static const int pointsPhotographicProof = 5;  // Geotagged Photographic Proof (+5 pts)
-  static const int pointsResolutionVerification = 10; // On-Site Resolution Verification (+10 pts)
+  static const int pointsResolutionVerification = 5; // On-Site Resolution Verification (+5 pts)
 
   // Legacy aliases
-  static const int creditsPerReport = pointsVerifiedGrievance;
-  static const int creditsPerResolvedReport = pointsResolutionVerification;
-  static const int creditsPerQualityReport = pointsGisCoordinateAudit + pointsPhotographicProof;
+  static const int creditsPerReport = 10;
+  static const int creditsPerResolvedReport = 5;
+  static const int creditsPerQualityReport = 15;
 
   static const List<Map<String, dynamic>> officialScoringCategories = [
     {
