@@ -1197,6 +1197,147 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
     );
   }
 
+  Future<void> _handleJudgeQuickLogin() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final result = await _authService.loginAsJudgeCitizen();
+
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+      });
+
+      if (result.success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Row(
+              children: [
+                Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text('Logged in as Citizen Contributor (Hon. Hackathon Judge)'),
+                ),
+              ],
+            ),
+            backgroundColor: const Color(0xFF059669),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          ),
+        );
+        _navigateToDashboard(selectedRole: 'citizen', isAdmin: false);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result.message),
+            backgroundColor: const Color(0xFFDC2626),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            action: SnackBarAction(
+              label: 'Retry',
+              textColor: Colors.white,
+              onPressed: _handleJudgeQuickLogin,
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Judge login failed: $e'),
+            backgroundColor: const Color(0xFFDC2626),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
+  Widget _buildJudgeQuickLoginCard() {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(top: 24),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFFFEF3C7), Color(0xFFFFFBEB)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFFDE68A)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFD97706),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: const Icon(Icons.flash_on_rounded, color: Colors.white, size: 16),
+              ),
+              const SizedBox(width: 8),
+              const Text(
+                'EVALUATOR QUICK ACCESS',
+                style: TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.5,
+                  color: Color(0xFF92400E),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'One-tap authenticated Citizen session for hackathon evaluation and live feature testing.',
+            style: TextStyle(
+              fontSize: 12,
+              color: Color(0xFF78350F),
+              height: 1.35,
+            ),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            height: 44,
+            child: ElevatedButton.icon(
+              onPressed: _isLoading ? null : _handleJudgeQuickLogin,
+              icon: const Icon(Icons.bolt_rounded, size: 18, color: Color(0xFF78350F)),
+              label: const Text(
+                '⚡ One-Tap Judge / Demo Login',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF78350F),
+                ),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFFDE68A),
+                foregroundColor: const Color(0xFF78350F),
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  side: const BorderSide(color: Color(0xFFF59E0B)),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -1253,6 +1394,9 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                       
                       // Login Form
                       _isCitizenSelected ? _buildCitizenLogin() : _buildPublicServantLogin(),
+
+                      // Evaluator Quick Access
+                      _buildJudgeQuickLoginCard(),
                     ],
                   ),
                 ),

@@ -493,18 +493,26 @@ class ComprehensiveDatabaseService {
   /// Get comprehensive reports for a user
   Future<List<ComprehensiveReportModel>> getUserReportsComprehensive(String userId) async {
     try {
-      debugPrint('🔍 Fetching reports for user: $userId');
+      final authId = _supabase.auth.currentUser?.id;
+      final effectiveUserId = (authId != null && authId.isNotEmpty) ? authId : userId;
+
+      if (effectiveUserId.isEmpty) {
+        debugPrint('ℹ️ No authenticated user ID provided for fetching user reports');
+        return [];
+      }
+
+      debugPrint('🔍 Fetching reports for user: $effectiveUserId');
       final response = await _supabase
           .from('reports')
           .select()
-          .eq('user_id', userId)
+          .eq('user_id', effectiveUserId)
           .order('created_at', ascending: false);
 
-      debugPrint('✅ Fetched ${response.length} reports for user');
+      debugPrint('✅ Fetched ${response.length} reports for user $effectiveUserId');
       return response.map((json) => ComprehensiveReportModel.fromJson(json)).toList();
     } catch (e) {
       debugPrint('❌ Error fetching user reports: $e');
-      return [];
+      rethrow;
     }
   }
 
@@ -521,7 +529,7 @@ class ComprehensiveDatabaseService {
       return response.map((json) => ComprehensiveReportModel.fromJson(json)).toList();
     } catch (e) {
       debugPrint('❌ Error fetching all reports: $e');
-      return [];
+      rethrow;
     }
   }
 
@@ -757,36 +765,49 @@ class ComprehensiveDatabaseService {
     }
   }
 
-  Stream<List<ComprehensiveReportModel>> getUserReportsStream(String userId) {
+  Stream<List<ComprehensiveReportModel>> getUserReportsStream(String userId) async* {
     // Resolve authenticated UUID if available
     final authId = _supabase.auth.currentUser?.id;
     final effectiveUserId = (authId != null && authId.isNotEmpty) ? authId : userId;
 
     if (effectiveUserId.isEmpty) {
       debugPrint('ℹ️ No authenticated user ID provided for user reports stream, returning empty stream');
-      return Stream.value(<ComprehensiveReportModel>[]);
+      yield <ComprehensiveReportModel>[];
+      return;
     }
 
-    debugPrint('🔄 Setting up real-time stream for user: $effectiveUserId');
-    return _supabase
-        .from('reports')
-        .stream(primaryKey: ['id'])
-        .eq('user_id', effectiveUserId)
-        .order('created_at', ascending: false)
-        .asyncMap((data) async {
-          debugPrint('📡 Real-time stream: ${data.length} reports received for user $effectiveUserId');
-          
-          final reports = data.map((json) {
-            try {
-              return ComprehensiveReportModel.fromJson(json);
-            } catch (e) {
-              debugPrint('❌ Error parsing report: $e');
-              rethrow;
-            }
-          }).toList();
-          
-          return reports;
-        });
+    // 1. First fetch authoritative REST snapshot
+    try {
+      final initialReports = await getUserReportsComprehensive(effectiveUserId);
+      yield initialReports;
+    } catch (e) {
+      debugPrint('⚠️ Initial REST fetch error in user reports stream: $e');
+      rethrow;
+    }
+
+    // 2. Stream real-time database changes
+    try {
+      debugPrint('🔄 Setting up real-time stream for user: $effectiveUserId');
+      final realtimeStream = _supabase
+          .from('reports')
+          .stream(primaryKey: ['id'])
+          .eq('user_id', effectiveUserId)
+          .order('created_at', ascending: false)
+          .map((data) {
+            return data.map((json) {
+              try {
+                return ComprehensiveReportModel.fromJson(json);
+              } catch (e) {
+                debugPrint('❌ Error parsing report: $e');
+                rethrow;
+              }
+            }).toList();
+          });
+
+      yield* realtimeStream;
+    } catch (e) {
+      debugPrint('ℹ️ Realtime channel note for user $effectiveUserId: $e');
+    }
   }
 
   /// Stream assigned reports for officer in real-time
@@ -832,26 +853,38 @@ class ComprehensiveDatabaseService {
   }
 
   /// Stream all reports for admin real-time updates with enhanced responsiveness  
-  Stream<List<ComprehensiveReportModel>> getAllReportsStream() {
-    debugPrint('🔄 Setting up admin real-time stream for all reports');
-    return _supabase
-        .from('reports')
-        .stream(primaryKey: ['id'])
-        .order('created_at', ascending: false)
-        .asyncMap((data) async {
-          debugPrint('📡 Admin real-time stream: ${data.length} total reports received');
-          
-          final reports = data.map((json) {
-            try {
-              return ComprehensiveReportModel.fromJson(json);
-            } catch (e) {
-              debugPrint('❌ Error parsing admin report: $e');
-              rethrow;
-            }
-          }).toList();
-          
-          return reports;
-        });
+  Stream<List<ComprehensiveReportModel>> getAllReportsStream() async* {
+    // 1. Initial REST snapshot
+    try {
+      final initialReports = await getAllReportsComprehensive();
+      yield initialReports;
+    } catch (e) {
+      debugPrint('⚠️ Initial admin REST fetch error in stream: $e');
+      rethrow;
+    }
+
+    // 2. Stream real-time changes
+    try {
+      debugPrint('🔄 Setting up admin real-time stream for all reports');
+      final realtimeStream = _supabase
+          .from('reports')
+          .stream(primaryKey: ['id'])
+          .order('created_at', ascending: false)
+          .map((data) {
+            return data.map((json) {
+              try {
+                return ComprehensiveReportModel.fromJson(json);
+              } catch (e) {
+                debugPrint('❌ Error parsing admin report: $e');
+                rethrow;
+              }
+            }).toList();
+          });
+
+      yield* realtimeStream;
+    } catch (e) {
+      debugPrint('ℹ️ Admin realtime channel note: $e');
+    }
   }
 
   // ========================================
