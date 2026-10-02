@@ -1,533 +1,369 @@
-# 🏛️ CivicResolve
-### *AI-Powered Municipal Grievance Redressal, Geospatial Intelligence & Decision Support Platform*
+# 🏛️ CivicResolve — Smart Municipal Complaint & Resolution Intelligence Platform
 
-[![Live Demo](https://img.shields.io/badge/🌐_Live_Deployment-CivicResolve_Maharashtra-00C7B7?style=for-the-badge&logo=vercel&logoColor=white)](https://civicresolve2.vercel.app/)
-[![Download APK](https://img.shields.io/badge/📱_Download_APK-Google_Drive-4285F4?style=for-the-badge&logo=googleplay&logoColor=white)](https://drive.google.com/drive/folders/1azDqGXinzO9kAdOr8b1ohYQV0zbtmmGa?usp=sharing)
-[![Demo Video](https://img.shields.io/badge/📺_Video_Demonstration-YouTube-FF0000?style=for-the-badge&logo=youtube&logoColor=white)](https://www.youtube.com/watch?v=FCalhhiW2ds)
-[![Survey Feedback](https://img.shields.io/badge/📊_Citizen_Feedback-Google_Sheets-34A853?style=for-the-badge&logo=googlesheets&logoColor=white)](https://docs.google.com/spreadsheets/d/1dCCleNU2lp0RIOz0-KM4JaEw3maJnhjTvF5sVgw2CgE/edit?gid=310055827#gid=310055827)
-
-[![React](https://img.shields.io/badge/React-18.3-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://reactjs.org/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.5-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
-[![Flutter](https://img.shields.io/badge/Flutter-3.x-02569B?style=for-the-badge&logo=flutter&logoColor=white)](https://flutter.dev)
-[![Supabase](https://img.shields.io/badge/Supabase-Auth_%26_PostgreSQL-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white)](https://supabase.com)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-PostGIS_%26_RLS-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
-[![MapLibre GL](https://img.shields.io/badge/MapLibre_GL-4.7-blue?style=for-the-badge&logo=maplibre&logoColor=white)](https://maplibre.org/)
-[![Vite](https://img.shields.io/badge/Vite-6.x-646CFF?style=for-the-badge&logo=vite&logoColor=white)](https://vitejs.dev/)
-[![Tests Passing](https://img.shields.io/badge/Tests-798%2F798_Passing-brightgreen?style=for-the-badge&logo=checkmarx&logoColor=white)](#-testing--verification-scorecard)
-
-> 🚀 **Production-Ready Monorepo Architecture** — State & Municipal Operations Command Center (React 18 Web) + Citizen & Field Officer Client (Flutter Mobile) + PostgreSQL PostGIS Database-Enforced Row Level Security + 5 Deterministic Civic Intelligence Engines + Grounded Municipal AI Copilot.
+[![Live Command Center](https://img.shields.io/badge/🌐_Live_Deployment-CivicResolve_Command_Center-00C7B7?style=for-the-badge&logo=vercel&logoColor=white)](https://civicresolve2.vercel.app/)
+[![Flutter Mobile Tests](https://img.shields.io/badge/Flutter_Tests-132%2F132_Passing-brightgreen?style=for-the-badge&logo=flutter&logoColor=white)](#-testing--verification-scorecard)
+[![Web Suite Tests](https://img.shields.io/badge/Web_Tests-813%2F813_Passing-brightgreen?style=for-the-badge&logo=vitest&logoColor=white)](#-testing--verification-scorecard)
+[![Dart Analyzer](https://img.shields.io/badge/Dart_Analyzer-0_Issues-brightgreen?style=for-the-badge&logo=dart&logoColor=white)](#-testing--verification-scorecard)
+[![PostgreSQL PostGIS](https://img.shields.io/badge/PostgreSQL-PostGIS_%26_RLS-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)](https://supabase.com)
+[![License](https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge)](LICENSE)
 
 ---
 
-## 🔗 Live Access & Project Artifacts
+## 📌 Problem Statement
 
-| Resource | Link | Description |
-|:---|:---|:---|
-| 🌐 **Live Web Command Center** | **[CivicResolve — Maharashtra Municipal Command Center](https://civicresolve2.vercel.app/)** | Executive Command Center & Zone Operations dashboard deployed on Vercel |
-| 📱 **Android Release APK** | **[Download APK (Google Drive)](https://drive.google.com/drive/folders/1azDqGXinzO9kAdOr8b1ohYQV0zbtmmGa?usp=sharing)** | Direct download link for the compiled production-ready Flutter release APK |
-| 📺 **Video Demonstration** | **[Demonstration Video — Civic Resolve](https://www.youtube.com/watch?v=FCalhhiW2ds)** | Complete video walkthrough of citizen mobile reporting, GIS command map, and municipal triage |
-| 📊 **Citizen Feedback & Survey** | **[Civic Issue Reporting System Feedback (Responses)](https://docs.google.com/spreadsheets/d/1dCCleNU2lp0RIOz0-KM4JaEw3maJnhjTvF5sVgw2CgE/edit?gid=310055827#gid=310055827)** | Verified citizen feedback collected during field user testing across municipal wards |
+Municipal grievance redressal across urban local bodies (ULBs) is hindered by high rates of unverified photo evidence, duplicate complaint spikes, subjective priority assignment, opaque resolution cycles, and the absence of citizen verification before closing work orders. Traditional complaint portals log isolated tickets without spatial intelligence, forcing municipal engineers to manually triage thousands of submissions while citizens face silent ticket closures without proof of remediation.
 
 ---
 
-## 📚 Table of Contents & Quick Navigation
+## ⚡ What CivicResolve Actually Does
 
-- [📌 Executive Overview](#-executive-overview)
-- [🏛️ Maharashtra Administrative Hierarchy & Platform Scope](#️-maharashtra-administrative-hierarchy--platform-scope)
-- [📸 Interface & Visual Feature Tour](#-interface--visual-feature-tour)
-- [⚡ Core Platform Capabilities](#-core-platform-capabilities)
-- [🧠 5 Deterministic Civic Intelligence Engines (Phases 3A–3E)](#-5-deterministic-civic-intelligence-engines-phases-3a3e)
-- [🔄 7-Stage Complaint Lifecycle & Resolution Flow](#-7-stage-complaint-lifecycle--resolution-flow)
-- [⏱️ Statutory SLA Management & Smart Alerts](#️-statutory-sla-management--smart-alerts)
-- [🔍 Before/After Resolution Verification Engine](#-beforeafter-resolution-verification-engine)
-- [🏆 Citizen Civic Score & Civic Champions](#-citizen-civic-score--civic-champions)
-- [📢 Multi-Channel Notification Engine](#-multi-channel-notification-engine)
-- [🤖 Grounded Municipal AI Copilot & Decision Support](#-grounded-municipal-ai-copilot--decision-support)
-- [🔐 Security Architecture & PostgreSQL RLS](#-security-architecture--postgresql-rls)
-- [🧰 Technology Stack](#-technology-stack)
-- [📂 Monorepo Project Structure](#-monorepo-project-structure)
-- [⚙️ Setup & Local Execution Guide](#️-setup--local-execution-guide)
-- [🧪 Testing & Verification Scorecard](#-testing--verification-scorecard)
-- [🌟 Why CivicResolve is Different](#-why-civicresolve-is-different)
-- [🎯 Realistic Municipal Use Cases](#-realistic-municipal-use-cases)
-- [📖 Dedicated Technical Documentation](#-dedicated-technical-documentation)
+CivicResolve is a closed-loop municipal intelligence platform uniting **citizens**, **ward engineers**, **contractors**, and **state administrators** into a single verified lifecycle:
+
+1. **Citizen Intake**: Citizens register dynamically, capture geotagged civic grievances with live camera evidence, and receive real-time AI visual evidence validation.
+2. **Server-Proxied Vision Validation**: Google Gemini Vision runs securely inside a Supabase Edge Function to evaluate whether photos visually depict the claimed category, keeping API secrets strictly off client devices.
+3. **Deterministic Civic Intelligence**: Decoupled deterministic engines execute duplicate suppression (200m spatial clustering), calculate statutory SLAs and 3B multi-factor hazard priority scores, detect emerging incident clusters, and identify localized hotspots.
+4. **Municipal Operations**: Field contractors receive prioritized work orders with GIS routing, execute remediation, and submit timestamped "After" photo evidence.
+5. **Citizen-Driven Verification**: Grievances are **never** closed automatically upon officer upload; the reporting citizen reviews before-and-after proof to verify and close or reopen with recorded feedback.
 
 ---
 
-## 📌 Executive Overview
+## 🏗️ Core Architecture
 
-**CivicResolve** transforms municipal public works and grievance management from a reactive, fragmented ticket-logging system into an intelligent, closed-loop urban governance platform. 
-
-Operating across **Maharashtra's 6 Administrative Divisions, 36 Districts, and 29+ Municipal Corporations**, CivicResolve unites state administrators, municipal commissioners, ward officers, field contractors, and urban citizens into a synchronized operational pipeline.
-
-The platform pairs a high-performance **Flutter Mobile Application** for citizens and field officers with an executive **React 18 / TypeScript Municipal Command Center** for municipal and state administrators, backed by **PostgreSQL Row Level Security (RLS)**, **PostGIS**, and **Supabase Auth**.
-
-At its core, **5 decoupled deterministic intelligence engines** manage duplicate suppression, multi-factor hazard priority scoring, localized emerging hotspot detection, root-cause incident clustering, and photographic before/after resolution verification—while a **grounded AI Copilot** provides real-time shift briefings and tactical decision support strictly within authorized database boundaries.
-
----
-
-## 🏛️ Maharashtra Administrative Hierarchy & Platform Scope
-
-CivicResolve models the exact administrative governance hierarchy of the State of Maharashtra:
-
-```mermaid
-flowchart TD
-    State["🏛️ State of Maharashtra (state_admin)"]
-    Divisions["🗺️ 6 Administrative Divisions<br/>(Konkan • Pune • Nashik • Chhatrapati Sambhajinagar • Amravati • Nagpur)"]
-    Districts["📍 36 Districts (District-Wise Data Isolation)"]
-    ULBs["🏢 29+ Municipal Corporations (Brihanmumbai, Pune, Solapur, Nagpur, Thane, Nashik, etc.)"]
-    Wards["🏘️ Ward / Zone Operations & Field Crews"]
-
-    State --> Divisions
-    Divisions --> Districts
-    Districts --> ULBs
-    ULBs --> Wards
-```
-
-### Dedicated Platform Role Boundaries
-
-| Platform Interface | Target Roles | Key Capabilities & Boundary Rules |
-| :--- | :--- | :--- |
-| **Municipal Command Center**<br/>*(React 18 + TypeScript Web)* | `state_admin`<br/>`municipal_admin`<br/>`dept_admin`<br/>`officer` | • Executive KPI dashboards, live GIS command map, and 7-stage triage queue.<br/>• **State Admin**: Cross-district visibility with statewide district switcher.<br/>• **Municipal & Dept Admin**: Strict district and departmental data isolation.<br/>• **SLA Tracking**: Real-time breach alerts, countdown timers, and escalation triggers.<br/>• **Before/After Inspector**: Visual audit tool for contractor remediation proof.<br/>• 🔒 *No citizen portal on the web to maintain strict operational security.* |
-| **Citizen & Field App**<br/>*(Flutter Cross-Platform Mobile)* | `citizen`<br/>`officer` | • **Citizen Intake**: Live GPS auto-capture, camera proof, and category tagging.<br/>• **200m Duplicate Discovery**: Proximity detection and citizen upvoting.<br/>• **Live Tracking**: 7-stage real-time progression stepper & push updates.<br/>• **Civic Recognition**: Civic Score, digital certificates, and nursery sapling vouchers.<br/>• **Field Officer Mode**: GPS navigation to incident, work execution, and "After" photo upload. |
-
----
-
-## 📸 Interface & Visual Feature Tour
-
-### 🏛️ Municipal & State Command Center (React 18 Web)
-
-<div align="center">
-
-| Executive Command Dashboard & GIS Telemetry | 7-Stage Complaints Management & Triage Queue |
-|:---:|:---:|
-| <img src="docs/images/overview.png" width="460" alt="Executive Command Dashboard" /> | <img src="docs/images/complaints.png" width="460" alt="Complaints Management Queue" /> |
-
-| Municipal Authentication & District Selector | Grounded AI Municipal Copilot Drawer |
-|:---:|:---:|
-| <img src="docs/images/login.png" width="460" alt="Municipal Authentication Gateway" /> | <img src="docs/images/5.jpg" width="460" alt="Grounded AI Municipal Copilot" /> |
-
-| GIS Geospatial Intelligence & Incident Clusters | Before / After Resolution Verification Audit |
-|:---:|:---:|
-| <img src="docs/images/1.jpg" width="460" alt="GIS Geospatial Intelligence" /> | <img src="docs/images/4.jpg" width="460" alt="Before After Resolution Inspector" /> |
-
-</div>
-
-### 📱 Citizen & Field Officer Mobile Experience (Flutter)
-
-<div align="center">
-
-| Citizen Grievance Intake & GPS Tagging | 200m Duplicate Discovery & Citizen Upvote | AI Multi-Hazard Detection & Triage |
-|:---:|:---:|:---:|
-| <img src="docs/images/2.jpg" width="240" alt="Citizen Grievance Reporting" /> | <img src="docs/images/upvote%20for%20duplicate.jpeg" width="240" alt="Duplicate Upvoting" /> | <img src="docs/images/multiple%20detection.jpeg" width="240" alt="AI Multi-Hazard Detection" /> |
-
-</div>
-
----
-
-## ⚡ Core Platform Capabilities
-
-| Capability Domain | What CivicResolve Does | Operational Impact |
-| :--- | :--- | :--- |
-| **Intelligent Citizen Intake** | Auto-captures high-accuracy GPS coordinates, camera photo evidence, and structured grievance taxonomy. | Eliminates vague reports; provides exact actionable field locations. |
-| **200m Duplicate Suppression** | Evaluates spatial radius ($\le 200\text{m}$), category, and semantic similarity to surface parent complaints. | Prevents duplicate work orders while aggregating citizen upvotes for community impact. |
-| **Smart Civic Priority (0–100)** | Computes deterministic priority using hazard severity, school/hospital zone vulnerability, and SLA age. | Eliminates subjective triage; surfaces critical public safety emergencies first. |
-| **Emerging Hotspot Detection** | Identifies localized complaint spikes ($\le 500\text{m}$ / $72\text{h}$) exceeding historical baselines. | Provides early warning of systemic infrastructure failures before full escalation. |
-| **Root-Cause Incident Grouping** | Clusters related complaints into unified "Potential Common Incidents" ($\le 1\text{km}$). | Enables crews to repair root causes (e.g., water main burst) instead of symptoms. |
-| **Before/After Resolution Audit** | Evaluates visual delta between initial complaint and contractor remediation photos. | Prevents fraudulent closures; enforces contractor accountability. |
-| **Grounded AI Copilot** | Natural language operational assistant citing real ticket IDs (`#CR-2026-X`) with PII redaction. | Synthesizes shift handovers and answers officer queries safely within RLS boundaries. |
-| **Statutory SLA & Escalation** | 4-tier countdown clocks (Critical 4h, High 12h, Medium 48h, Low 72h) with automatic escalation. | Guarantees compliance with citizen charter timelines and municipal service mandates. |
-| **Multi-Channel Notifications** | Push notifications, SMS/WhatsApp templates, in-app alerts, and officer dispatch broadcasts. | Keeps citizens and field crews synchronized at every lifecycle transition. |
-| **PostgreSQL RLS & RBAC** | Database-enforced Row Level Security across 5 canonical roles (`citizen` to `super_admin`). | Guarantees zero cross-district or unprivileged data leakage at the query level. |
-
----
-
-## 🧠 5 Deterministic Civic Intelligence Engines (Phases 3A–3E)
-
-CivicResolve implements 5 mathematical, deterministic intelligence algorithms that run identically in TypeScript (Web) and Dart (Mobile):
-
-```
-┌─────────────────────────────────────────────────────────────────────────────────────────┐
-│                           DETERMINISTIC CIVIC ENGINES                                   │
-├─────────────────────┬─────────────────────┬─────────────────────┬───────────────────────┤
-│ 3A: Similarity      │ 3B: Smart Priority  │ 3C: Emerging Spikes │ 3D: Root Incidents    │
-│ • 200m Radius       │ • Hazard Severity   │ • 500m Density      │ • Spatial Cohesion    │
-│ • Levenshtein Text  │ • Vulnerable Zones  │ • 72h Velocity      │ • Category Invariance │
-│ • Category Match    │ • Neglect Escalation│ • Baseline Outliers │ • Cluster Size Weight │
-└─────────────────────┴─────────────────────┴─────────────────────┴───────────────────────┘
-                                           │
-                                           ▼
-┌─────────────────────────────────────────────────────────────────────────────────────────┐
-│ 3E: Resolution Verification Engine                                                      │
-│ • Before vs. After Visual Evidence   • Citizen Star Rating & Sentiment                  │
-│ • Remediation Completeness Check     • Fallback Human Audit Flagging                    │
-└─────────────────────────────────────────────────────────────────────────────────────────┘
-```
-
-### Engine Specifications
-
-| Engine | Primary Function | Algorithmic Formulation & Signals | Safety & Governance Rule |
-| :--- | :--- | :--- | :--- |
-| **3A: Similarity & Duplicate** | Identifies existing active complaints nearby. | $\text{Distance} \le 200\text{m}$, $\text{Category Match} = \text{true}$, $\text{Levenshtein Similarity} \ge 0.65$. | **Never auto-deletes tickets.** Preserves distinct citizen records while linking them to the parent issue for upvoting. |
-| **3B: Smart Civic Priority** | Computes objective triage urgency ($0\text{--}100$). | $\text{Score} = \text{Hazard Severity (40)} + \text{Zone Vulnerability (25)} + \text{SLA Age (20)} + \text{Community Upvotes (15)}$. | **Deterministic & reproducible.** AI models cannot arbitrarily override calculated priority. |
-| **3C: Emerging Hotspots** | Detects statistical complaint velocity spikes. | Spatial radius $\le 500\text{m}$, Time window $\le 72\text{h}$, Category homogeneity $\ge 70\%$, Baseline spike factor $> 2.5\times$. | **Requires statistical baseline.** Isolated grievances never trigger false alarms. |
-| **3D: Common Incidents** | Clusters multi-ticket symptoms of root failures. | Geospatial proximity $\le 1\text{km}$, Category consistency, Temporal alignment, Similarity graph connectivity. | **Labeled "Potential Common Incident".** Preserves individual citizen tickets under a single incident umbrella. |
-| **3E: Resolution Audit** | Quantifies repair veracity before ticket closure. | Dual photo presence, Visual repair delta, GPS match ($\le 50\text{m}$), Citizen 5-star rating and satisfaction sentiment. | **Decision support only.** Low confidence triggers mandatory supervisory review instead of auto-rejection. |
-
----
-
-## 🔄 7-Stage Complaint Lifecycle & Resolution Flow
-
-```mermaid
-stateDiagram-v2
-    [*] --> Submitted: Citizen submits grievance (GPS + Photo)
-    Submitted --> Under_Review: Department triage & verification
-    Submitted --> Rejected: Invalid, spam, or out-of-jurisdiction
-    Under_Review --> Assigned: Officer / Contractor assigned
-    Assigned --> In_Progress: Field crew begins work on-site
-    In_Progress --> Resolution_Submitted: Contractor uploads "After" photo proof
-    Resolution_Submitted --> Verified: Engine 3E audit & Citizen approval
-    Resolution_Submitted --> In_Progress: Audit rejected / Citizen disputes (Rework)
-    Verified --> Closed: Final archival & Civic Score awarded
-    Closed --> [*]
-    Rejected --> [*]
+```text
+                       CITIZEN MOBILE APPLICATION (Flutter)
+                                       │
+                                       ▼
+                       Authentication / Citizen Identity
+                     (Dynamic Signup • District/Ward Scoped)
+                                       │
+                                       ▼
+                              Complaint Creation
+                      (Category • Geolocation • Description)
+                                       │
+                                       ▼
+                         Image Validation Pipeline
+               ┌───────────────────────┴───────────────────────┐
+               │ Level 1: Byte & Size Sanity Check             │
+               │ Level 2: Gemini Vision via Secure Edge Proxy  │
+               │ Level 3: Conservative Local Decision Policy   │
+               └───────────────────────┬───────────────────────┘
+                                       │
+                       MATCH (Verified Proof +10 pts)
+                       MISMATCH (Category Mismatch — blocked)
+                       UNCERTAIN / TIMEOUT (Pending Staff Review)
+                                       │
+                                       ▼
+                              Complaint Submission
+                                       │
+                                       ▼
+                    DETERMINISTIC CIVIC INTELLIGENCE ENGINES
+               ┌───────────────────────────────────────────────┐
+               │ 1. Similarity & Duplicate Intelligence (200m) │
+               │ 2. Multi-Factor 3B Priority & Statutory SLA   │
+               │ 3. Spatial Hotspot & Emerging Problem Engine  │
+               │ 4. Root-Cause Incident Grouping Engine        │
+               │ 5. Before/After Resolution Verification       │
+               └───────────────────────┬───────────────────────┘
+                                       │
+                                       ▼
+                       MUNICIPAL COMMAND CENTER (React 18)
+                      (State & Ward Dashboards • GIS Maps)
+                                       │
+                                       ▼
+                           Officer Work Execution
+                       (Field Navigation • After Photo)
+                                       │
+                                       ▼
+                          Citizen Resolution Audit
+                        (Review Remediation Evidence)
+                                       │
+                       ┌───────────────┴───────────────┐
+                       ▼                               ▼
+               Citizen Verified                 Reopen Grievance
+              (Work Order Closed)             (Dispatched for Rework)
 ```
 
 ---
 
-## ⏱️ Statutory SLA Management & Smart Alerts
+## 📱 Mobile Application Overview
 
-CivicResolve implements statutory Service Level Agreement (SLA) timelines based on municipal charter guidelines:
+The mobile application (`apps/mobile/`) is a cross-platform Flutter client engineered for citizens and field officers:
 
-| Priority Tier | Initial SLA Window | Auto-Escalation Threshold | Color Indicator | Target Incidents |
-| :--- | :---: | :---: | :---: | :--- |
-| **CRITICAL** | **4 Hours** | After 2 Hours (50% elapsed) | 🔴 Red Pulsing | Exposed live wires, major water main bursts, road cave-ins |
-| **HIGH** | **12 Hours** | After 6 Hours (50% elapsed) | 🟠 Amber | Deep potholes on arterial roads, sewage overflow near schools |
-| **MEDIUM** | **48 Hours** | After 24 Hours (50% elapsed) | 🟡 Yellow | Non-functioning streetlights, uncollected garbage, park maintenance |
-| **LOW** | **72 Hours** | After 48 Hours (66% elapsed) | 🟢 Green | Tree pruning, minor signage damage, cosmetic repairs |
-
-### Smart Alert Matrix
-- 🚨 **SLA Breach Warning**: Triggered when remaining time drops below 25%.
-- ⚠️ **SLA Overdue Alert**: Triggered immediately upon breach; escalates to Municipal Commissioner / Dept Admin.
-- 🔥 **Hotspot Surge Alert**: Triggered when Engine 3C detects $\ge 5$ complaints in 500m over 24 hours.
-- 🔄 **Citizen Dispute Alert**: Triggered when citizen rejects contractor resolution proof and requests rework.
+- **Dynamic Citizen Registration**: Verified citizen onboarding capturing name, phone, email, password, municipal district, and ward.
+- **Session Persistence**: Automated session rehydration via Supabase Auth and secure SharedPreferences.
+- **Fresh-Account Zero State**: New citizens start in the 🌱 `Civic Starter` tier (Score `0`, Reports `0`, Community Rating `0.0`).
+- **Scoped Grievance Stream**: Authenticated strictly to the citizen's `user.id`; citizens only see their own active and historical reports.
+- **Civic Issue Creation**: 8 standardized civic categories (Potholes, Waste Management, Water Supply, Streetlights, Drainage, Public Safety, Parks & Trees, Encroachment).
+- **3-Level Image Validation**: Multi-stage evidence verification with visual badges (🟢 Verified Proof, 🟡 Pending Review, 🔴 Category Mismatch).
+- **Live Lifecycle Stepper**: 7-stage real-time progress tracking from submission through assignment, remediation, and verification.
+- **Civic Recognition & Nursery Saplings**: Earn verified Green Credits for photo-verified reports and redeem them for local municipal saplings.
+- **Resolution Verification**: Citizens inspect contractor resolution photos directly on their device before closing complaints.
 
 ---
 
-## 🔍 Before/After Resolution Verification Engine
+## 🔐 Dynamic Citizen Authentication & Identity
 
-To eliminate disputed contractor work orders, CivicResolve mandates photographic resolution verification:
+The mobile authentication layer (`AuthService` and `LoginPage`) enforces the following security and governance rules:
 
-1. **Before Photo (Intake)**: Captured by citizen via mobile camera with tamper-resistant GPS coordinates and timestamp.
-2. **Field Execution**: Assigned contractor navigates to GPS pin and completes physical remediation.
-3. **After Photo (Resolution)**: Contractor captures proof photo at the exact site ($\le 50\text{m}$ proximity check).
-4. **Visual Comparison Inspector (`BeforeAfterInspector.tsx`)**: Municipal officers inspect high-resolution side-by-side images with interactive comparison sliders.
-5. **Citizen Verification**: Citizen receives push notification with the "After" proof to approve or request rework.
-
----
-
-## 🏆 Citizen Civic Score & Civic Champions
-
-CivicResolve incentivizes authentic civic participation through a transparent, gamified recognition framework:
-
-| Action | Civic Score Points | Purpose |
-| :--- | :---: | :--- |
-| **Verified Grievance Submission** | `+10 Points` | Awarded upon successful resolution and verification of a valid complaint. |
-| **200m Duplicate Upvote** | `+5 Points` | Incentivizes upvoting existing issues rather than filing redundant tickets. |
-| **Resolution Feedback & Rating** | `+15 Points` | Encourages citizens to review and confirm contractor work quality. |
-| **Spam / Fraudulent Submission** | `-25 Points` | Deters false reports, fabricated photos, and platform abuse. |
-
-### Civic Champion Tiers & Digital Recognition
-- 🥉 **Civic Sentinel** (0–99 pts): Active neighborhood contributor.
-- 🥈 **Community Guardian** (100–249 pts): Verified local civic leader.
-- 🥇 **Urban Champion** (250+ pts): High-veracity citizen eligible for official municipal digital recognition certificates and municipal nursery sapling redemption vouchers on civic occasions (Gandhi Jayanti, Republic Day, Independence Day).
+- **Public Citizen Registration**: Public sign-ups automatically receive `role: 'citizen'`.
+- **Privilege Escalation Immunity**: Self-assignment of administrative roles (`officer`, `dept_admin`, `municipal_admin`, `super_admin`) is strictly rejected.
+- **Administrative Portal Isolation**: Administrative email accounts are barred from logging into the mobile citizen interface and directed to the Web Command Center.
+- **Dynamic Field Capture**: Captures Full Name, 10-digit Phone Number, Email, Password, District (e.g. Solapur), and Ward (e.g. Ward 4).
+- **Development / Judge Quick-Fill**: In debug mode, a single tap generates a unique dynamic citizen (`Judge Demo User {timestamp}`) for instant zero-state demonstration.
+- **Clean Logout Sanitization**: `logout()` completely flushes in-memory credentials, cached roles, and session tokens.
+- **Aadhaar Simulation**: Aadhaar/OTP inputs in UI simulate standard citizen verification with deterministic validation rules and do not make live external UIDAI server calls.
 
 ---
 
-## 📢 Multi-Channel Notification Engine
+## 👁️ 3-Level Image Validation Architecture
 
-CivicResolve keeps all stakeholders synchronized across every stage of the grievance lifecycle:
+CivicResolve implements a conservative, fail-safe 3-level image validation pipeline before complaints are submitted:
 
-| Channel | Recipient | Trigger Events | Content |
-| :--- | :--- | :--- | :--- |
-| **In-App Notification Center** | Citizen / Officer | Status changes, officer assignments, resolution ready | Real-time badge counter, deep link to ticket timeline. |
-| **Web Push (VAPID)** | Municipal Admin / Officer | Emergency SLA breach, new critical intake, hotspot spike | Desktop notification banner with instant action button. |
-| **SMS / WhatsApp Gateway** | Citizen | Grievance filed, assigned, resolved, satisfaction survey | Structured Marathi/Hindi/English templates with tracking URL. |
-| **Officer Escalation Dispatch** | Field Contractor | Work order assigned, SLA warning, dispute reopen | Direct job card details with navigation link. |
-
----
-
-## 🤖 Grounded Municipal AI Copilot & Decision Support
-
-CivicResolve enforces a strict separation between **generative AI capabilities** and **system authorization**:
-
-> 🛡️ **Grounding Principle**: AI models *never* query database tables directly. All queries pass through the authenticated user's PostgreSQL RLS session. Generative synthesis only operates on pre-filtered, authorized datasets and deterministic engine outputs.
-
-```mermaid
-flowchart TD
-    UserQuery[Officer Query] --> SecGuard[Grounding & PII Guard]
-    SecGuard -->|Sanitize Input & Detect Injections| AuthContext[Supabase Auth JWT + District RLS Scope]
-    AuthContext -->|Query Database| AuthData[District-Authorized Complaints ONLY]
-    AuthData --> DetEngines[Deterministic Engines 3A-3E]
-    DetEngines --> AIContext[Structured Grounded Prompt Context]
-    AIContext --> LLM[Gemini 1.5 Synthesis Engine]
-    LLM --> OutGuard[Output Redaction & Ticket Citation Filter]
-    OutGuard --> FinalResponse[Response with Mandatory Citations #CR-2026-X]
+```text
+Photo Captured
+     │
+     ▼
+[Level 1: Byte Sanity Check]
+  ├── Size < 100 bytes / Corrupt → REJECT (Cannot Submit)
+  └── Format Valid (JPEG/PNG, >= 100 bytes) → Proceed to Level 2
+     │
+     ▼
+[Level 2: Secure Server-Side Gemini Vision Evaluation]
+  ├── Transmitted via HTTPS to Supabase Edge Function ('ai-triage')
+  ├── Gemini Vision analyzes evidence against selected category
+  └── Returns JSON: category_match ("yes" | "no" | "uncertain"), confidence, reasoning
+     │
+     ▼
+[Level 3: Conservative Local Decision Policy]
+  ├── MATCH ("yes" + confidence >= 0.70) ──> 🟢 ACCEPT ("Verified Proof" • +10 Score)
+  ├── MISMATCH ("no" + confidence >= 0.70) ─> 🔴 REJECT ("Category Mismatch" • Blocks Submission)
+  ├── UNCERTAIN ("uncertain" / conf < 0.70) > 🟡 REVIEW ("Pending Review" • Allowed to Submit)
+  └── ERROR / TIMEOUT / SERVER OFFLINE ────> 🟡 REVIEW ("Pending Review" • Fails Safely)
 ```
 
-- **Executive AI Insights**: Generates structured shift handovers, unassigned emergency summaries, and contractor quality alerts for department heads.
-- **Interactive Municipal Copilot**: Answers complex queries (e.g., *"Summarize unassigned water contamination reports in Ward 4"*).
-- **Mandatory Ticket Citations**: Every claim must reference active ticket numbers (`#CR-2026-101`).
-- **PII Scrubbing**: Automatically redacts citizen phone numbers, emails, and 12-digit Aadhaar numbers before prompt ingestion.
-- **Prompt Injection Defense**: Thwarts privilege escalation attacks (`"Ignore RLS"`, `"Pretend I am super_admin"`).
+### Critical Architectural Boundary:
+**Google Gemini Vision is strictly an evidence perception advisory layer.** Gemini does **NOT**:
+- Calculate complaint hazard priority.
+- Set or alter statutory SLAs.
+- Route tickets to municipal departments.
+- Group duplicate complaints.
+- Alter the complaint lifecycle state.
 
 ---
 
-## 🔐 Security Architecture & PostgreSQL RLS
+## 🛡️ AI Security Architecture
 
-CivicResolve implements defense-in-depth across database, API, and client tiers:
-
-```
-[Client Request]
-       │
-       ▼
-[Supabase Auth JWT] ──► Validates cryptographic signature & user identity
-       │
-       ▼
-[PostgreSQL RLS]   ──► Enforces database-level row and column access policies
-       │
-       ▼
-[Trigger Guards]   ──► Prevents tampering with status, priority, or post-submission content
-       │
-       ▼
-[Public Map View]  ──► Sanitizes reporter PII; exposes only coordinates, category, and status
+```text
+[Mobile Client] ──(HTTPS + Bearer JWT)──> [Supabase Edge Function: ai-triage] ──(Server Secret)──> [Google Gemini API]
+  (Zero API Keys)                            (PII Masking • Schema Validation)                     (Vision Analysis)
 ```
 
-### Role-Based Access Control (RBAC) Matrix
+1. **Zero Client-Side Secrets**: `GEMINI_API_KEY` is **never** bundled inside Flutter source code, APK assets, or client environment files.
+2. **Authenticated Edge Proxy**: Requests to `supabase/functions/ai-triage/index.ts` require a verified Supabase Auth Bearer JWT.
+3. **Automated PII Masking**: Citizen phone numbers, Aadhaar sequences, and email addresses in complaint text are automatically redacted server-side before reaching Gemini.
+4. **Structured Output Enforcement**: Gemini responses are validated against strict JSON schemas before returning to mobile.
 
-| Role | Scope | Key Permissions & Constraints |
-| :--- | :--- | :--- |
-| **`citizen`** | Personal Data Only | Submits complaints, views own grievance history, provides satisfaction feedback and ratings. **Cannot alter status, priority, officer assignment, or post-submission complaint content.** |
-| **`officer`** | Assigned District & Department | Inspects assigned tickets, updates operational progress, uploads contractor remediation photos. Cannot access complaints outside assigned district/department. |
-| **`dept_admin`** | Department-Wide (District) | Full dispatch and triage control over specific department (e.g., Roads, Water Supply) within assigned district. |
-| **`municipal_admin`** | Municipal Corporation (District) | City-wide triage, cross-departmental dispatch, SLA escalation management, district-wide AI Insights. |
-| **`state_admin`** | Statewide (All 36 Districts) | Complete statewide oversight, inter-district performance analytics, state-level policy dashboards, and district switching. |
+---
+
+## 🧠 Deterministic Civic Intelligence Engines
+
+CivicResolve decouples all governance and municipal decision-making into 5 deterministic engines:
+
+| Engine | Purpose | Inputs | Output | Architecture |
+| :--- | :--- | :--- | :--- | :--- |
+| **1. Similarity & Duplicate Engine** (`similarity_engine.dart`) | Suppresses duplicate submissions within a 200-meter radius | GPS Coordinates, Category ID, Description text | Duplicate cluster ID, distance in meters, similarity score (0.0–1.0) | **100% Deterministic** (Haversine geospatial distance + Jaccard token similarity) |
+| **2. Priority & SLA Engine** (`priority_engine.dart`) | Assigns statutory resolution deadlines (24h to 7 days) and 3B hazard scores | Category severity base, citizen upvotes, repeat reports, weather hazard flags | Priority (`Critical`, `High`, `Medium`, `Low`), Statutory SLA window in hours | **100% Deterministic** (Weighted multi-factor matrix) |
+| **3. Emerging Problem Engine** (`emerging_problem_engine.dart`) | Detects sudden localized grievance spikes across ward zones | Time-series report stream, ward boundaries, category frequencies | Emerging anomaly flag, velocity coefficient, hotspot alert | **100% Deterministic** (Time-decay rolling window analysis) |
+| **4. Incident Grouping Engine** (`incident_grouping_engine.dart`) | Clusters related complaints sharing a single infrastructure root cause | Spatial cluster, timestamp window, common municipal asset | Parent Incident Container ID, child report linkages | **100% Deterministic** (Graph-based spatial-temporal linkage) |
+| **5. Resolution Verification Engine** (`resolution_verification_engine.dart`) | Audits contractor remediation proof before citizen review | "Before" photo, "After" photo, contractor timestamp, GPS fix | Verification verdict, similarity differential score | **Deterministic Rules** + Optional visual feature audit |
+
+---
+
+## 🔄 7-Stage Complaint Lifecycle
+
+CivicResolve enforces a strict 7-stage state machine:
+
+```text
+1. SUBMITTED       ──> Initial citizen filing with validated photo evidence.
+2. UNDER REVIEW    ──> Municipal automated triage & department classification.
+3. ASSIGNED        ──> Allocated to Zonal Junior Engineer & Field Contractor.
+4. IN PROGRESS     ──> Field crew on site; remediation actively underway.
+5. RESOLVED        ──> Contractor uploads remediation "After" photo evidence.
+6. CITIZEN AUDIT   ──> Citizen inspects resolution proof (Accept / Reject).
+7. CLOSED / REOPEN ──> Closed if accepted; automatically Reopened if rejected.
+```
+
+---
+
+## 🔐 Platform Security & Access Control
+
+- **Role-Based Access Control (RBAC)**: Strict separation between `citizen`, `officer`, `dept_admin`, `municipal_admin`, and `state_admin`.
+- **Database Row Level Security (RLS)**: PostgreSQL policies enforce that citizens only query rows matching their authenticated `auth.uid()`.
+- **Statewide & District Isolation**: Municipal admins are isolated to their designated District/Corporation; State Admins have statewide aggregate visibility.
+- **Client Privilege Immunity**: Role assignments are validated server-side; client manipulation cannot elevate permissions.
+- **Server Secret Isolation**: Supabase Service Role and Gemini API keys reside exclusively in secure server environments.
 
 ---
 
 ## 🧰 Technology Stack
 
-| Layer | Technologies | Purpose |
-| :--- | :--- | :--- |
-| **Web Frontend** | React 18.3, TypeScript 5.5, Vite 6.x, TailwindCSS, Lucide Icons | Responsive Municipal Command Center interface |
-| **Mobile Client** | Flutter 3.x, Dart | Cross-platform Citizen and Field Officer mobile application |
-| **GIS & Mapping** | MapLibre GL 4.7, MapLibre Flutter, OpenStreetMap Carto tiles | High-performance geospatial visualization and 200m buffer rings |
-| **Database & Auth** | Supabase, PostgreSQL 15, PostGIS, Supabase Auth | Relational storage, spatial queries, JWT authentication & RLS |
-| **Intelligence** | Custom TypeScript / Dart Deterministic Engines (3A–3E) | Similarity, Priority, Hotspots, Incidents, and Verification |
-| **AI Integration** | Google Gemini 1.5 Flash (via structured REST payloads) | Grounded Copilot chat and multimodal image classification |
-| **Build & Test** | `tsc`, Vite, `tsx`, `flutter_test` | Zero-dependency TypeScript test runner and Flutter test suite |
+### Mobile Client (`apps/mobile/`)
+- **Framework**: Flutter 3.x / Dart 3.x
+- **State & Storage**: SharedPreferences, Supabase Flutter SDK
+- **Camera & Media**: `image_picker`, `image_validation_service`
+- **Mapping**: Leaflet / OpenStreetMap / OpenTopoMap
+- **Testing**: Flutter Test Suite (132 unit & widget tests)
 
----
+### Web Command Center (`apps/web/`)
+- **Framework**: React 18.3, TypeScript 5.5, Vite 6.x
+- **Styling**: Vanilla CSS tokens & TailwindCSS utilities
+- **GIS Mapping**: MapLibre GL, OpenStreetMap, Esri World Imagery, OpenTopoMap
+- **Icons**: Lucide React
+- **Testing**: Vitest / TSX Test Runner (813 unit & component tests)
 
-## 📂 Monorepo Project Structure
-
-```text
-CIVICRESOLVE/
-├── apps/
-│   ├── mobile/                    # Flutter Citizen & Field Officer Mobile Client
-│   │   ├── lib/                   # Screen controllers, services, models & widgets
-│   │   │   ├── models/            # Grievance, CivicScore, User profile models
-│   │   │   ├── screens/           # Reporting, Tracking, DuplicateUpvote, OfficerMode
-│   │   │   └── services/          # Supabase, Location, AI detection, & Storage
-│   │   ├── assets/                # App icons, SVG emblems & sample proofs
-│   │   ├── test/                  # Geospatial & widget test suites
-│   │   └── pubspec.yaml           # Flutter dependencies & metadata
-│   │
-│   └── web/                       # React 18 + TypeScript Municipal Command Center
-│       ├── src/
-│       │   ├── components/        # Triage, GIS Map, Copilot, BeforeAfterInspector
-│       │   ├── context/           # AuthContext & Session management
-│       │   ├── hooks/             # useComplaints, useAuth, useSmartAlerts
-│       │   ├── pages/             # Dashboard, LiveMap, Complaints, Copilot, CivicChampions
-│       │   ├── services/          # Deterministic engines (3A-3E), AI services, & tests
-│       │   └── types/             # Domain TypeScript definitions (Complaint, User, GIS)
-│       ├── public/                # Static assets, emblems, badges & favicons
-│       ├── package.json           # Node.js dependencies & scripts
-│       ├── vercel.json            # Vercel SPA routing configuration
-│       └── vite.config.ts         # Vite bundler configuration
-│
-├── docs/                          # Comprehensive technical reference documentation
-│   ├── ARCHITECTURE.md            # System architecture & component maps
-│   ├── AI-INTELLIGENCE.md         # 3A–3E mathematical specifications & Copilot
-│   ├── DEPLOYMENT.md              # Vercel deployment & Flutter APK release guide
-│   ├── SECURITY.md                # PostgreSQL RLS & anti-injection guardrails
-│   └── images/                    # UI screenshots & workflow captures
-│
-├── supabase/
-│   └── migrations/                # PostgreSQL PostGIS schema, RLS policies, & triggers
-│
-├── .env.example                   # Master environment template
-└── README.md                      # Monorepo architecture & operations guide
-```
-
----
-
-## ⚙️ Setup & Local Execution Guide
-
-### 1. Prerequisites
-- **Node.js**: v18.x or v20.x
-- **npm**: v9.x or higher
-- **Flutter SDK**: v3.19+ and Dart SDK
-- **Supabase Account**: (Or use the project credentials in `.env.example`)
-
----
-
-### 2. Running the Municipal Command Center (Web)
-
-```bash
-# 1. Navigate to the web application directory
-cd apps/web
-
-# 2. Configure environment (reference root .env.example for variable values)
-# Create apps/web/.env with VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY
-
-# 3. Install dependencies
-npm install
-
-# 4. Start local development server
-npm run dev
-```
-👉 Open browser at: **`http://localhost:5173`** (or displayed Vite port).
-
----
-
-### 3. Running the Citizen & Field App (Flutter Mobile)
-
-```bash
-# 1. Navigate to the mobile application directory
-cd apps/mobile
-
-# 2. Configure environment
-# Create apps/mobile/.env with SUPABASE_URL and SUPABASE_ANON_KEY
-
-# 3. Fetch Flutter dependencies
-flutter pub get
-
-# 4. Launch application on connected device, emulator, or Chrome
-flutter run -d chrome     # Quick web preview
-flutter run               # Connected Android/iOS device
-```
+### Backend & Database (`supabase/`)
+- **Database**: PostgreSQL 15 with PostGIS spatial extensions
+- **Authentication**: Supabase Auth (JWT with role claims)
+- **Serverless Compute**: Supabase Edge Functions (Deno / TypeScript)
+- **AI Perception**: Google Gemini 1.5 Vision API
 
 ---
 
 ## 🧪 Testing & Verification Scorecard
 
-CivicResolve includes **798 automated test assertions** across 24 test suites covering all intelligence algorithms, authentication flows, PostgreSQL RLS policies, SLA timers, and integration contracts:
-
-```
-===========================================================
-📊 CIVICRESOLVE TEST VERIFICATION SCORECARD
-===========================================================
-   3A: Similarity & Duplicate Detection Engine  -->  11 / 11 PASSED
-   3B: Smart Civic Priority Engine (0-100)     -->  17 / 17 PASSED
-   3C: Emerging Problem & Hotspot Engine       -->  47 / 47 PASSED
-   3D: Root-Cause Common Incident Grouping     -->  31 / 31 PASSED
-   3E: Resolution Verification & Audit Engine  -->  30 / 30 PASSED
-   8A: Executive AI Insights Service           -->  28 / 28 PASSED
-   8B: Grounded Municipal Copilot Engine       -->  87 / 87 PASSED
-   8C: Grounding & Prompt-Injection Guards     -->  23 / 23 PASSED
-   9B: Supabase Authentication & Sessions      -->  47 / 47 PASSED
-   9C: Profiles & Database User Roles          -->  37 / 37 PASSED
-   9D: PostgreSQL RLS & Authorization Policies -->  30 / 30 PASSED
-   9E/9F: AI Auth Scope & Security Hardening   -->  37 / 37 PASSED
-   11: Lifecycle & Resolution Verification     -->  24 / 24 PASSED
-   13: Live Integration Contracts              -->  16 / 16 PASSED
-   14: Command Center Auth Gate & Queue Tests  -->  25 / 25 PASSED
-   15: Smart Map & GIS Geospatial Intel        -->  25 / 25 PASSED
-   16: Smart Alerts & Statutory SLA Timers     -->  63 / 63 PASSED
-   17: Resolution Photographic Evidence Audit  -->  66 / 66 PASSED
-   18: Multi-Channel Notifications & Comm      -->  36 / 36 PASSED
-   19: Comprehensive Security Hardening        -->  19 / 19 PASSED
-   GIS Spatial Reliability & GeoJSON Tests     -->  12 / 12 PASSED
-   Civic Feed & Community Support Tests        -->  12 / 12 PASSED
-   Resolution Feedback & Fraud Integrity       -->  41 / 41 PASSED
-   Civic Recognition & Digital Certificates    -->  15 / 15 PASSED
-   Unified Civic Intelligence Dashboard        -->  19 / 19 PASSED
------------------------------------------------------------
-   WEB TEST SUITE TOTAL:                       --> 798 / 798 PASSED (0 failed)
-   FLUTTER ANALYZE / TEST SUITE:               -->   0 ISSUES (Clean)
-   VITE PRODUCTION BUILD:                      -->   0 ERRORS (Clean build)
-===========================================================
-✨ ALL 798 TESTS PASSED CLEANLY! ✨
+```text
+======================================================================
+CIVICRESOLVE SYSTEM VERIFICATION RESULTS
+======================================================================
+📱 Mobile Test Suite:        132 / 132 PASSED (100%)
+📱 Dart Analyzer:            0 Issues / 0 Warnings / 0 Lints
+🌐 Web Test Suite:           813 / 813 PASSED (100%)
+🛡️ Dynamic Citizen Auth:     7 Dedicated Unit & Widget Tests PASSED
+🔍 Image Validation:         9 Dedicated Edge & Adapter Tests PASSED
+======================================================================
 ```
 
-### Running the Test Suite
+### To Run Tests Locally:
 
 ```bash
-# Run the 798-test Web Intelligence, Security & Integration Suite
-cd apps/web
-npm test
-
-# Run the Flutter Mobile Analyzer & Tests
+# Run all mobile tests and analysis
 cd apps/mobile
-flutter analyze
 flutter test
+flutter analyze
 
-# Validate Web Production Bundle
+# Run all web tests
 cd ../web
-npm run build
+npm run test:all
 ```
 
 ---
 
-## 🌟 Why CivicResolve is Different
+## 📂 Repository Structure
 
-| Dimension | Legacy Grievance Systems | CivicResolve Platform |
-| :--- | :--- | :--- |
-| **Triage Model** | Chronological / Manual FIFO | Deterministic multi-factor hazard priority scoring (Engine 3B) |
-| **Duplicate Handling** | Redundant work orders created | 200m spatial buffer clustering with citizen upvoting (Engine 3A) |
-| **Systemic Failure Detection**| Ignored until major disaster | Real-time velocity and spatial spike detection (Engine 3C) |
-| **Incident Management** | Treats every complaint as isolated | Groups correlated complaints into root-cause work orders (Engine 3D) |
-| **Resolution Verification**| Contractor self-certification | Before/After photo comparison + Citizen feedback audit (Engine 3E) |
-| **AI Role** | Unconstrained hallucination-prone bot | Grounded decision-support bound by PostgreSQL RLS and ticket citations |
-| **Authorization** | Application-level checks | Database-level PostgreSQL Row Level Security (RLS) policies |
-| **Citizen Incentive** | Zero feedback / citizen apathy | Gamified Civic Score, recognition certificates, and sapling vouchers |
-
----
-
-## 🎯 Realistic Municipal Use Cases
-
-- 🕳️ **Road & Infrastructure Hazards**: High-priority detection of deep potholes or road cave-ins near school zones, preventing vehicular accidents.
-- 🚰 **Water & Sewage Emergencies**: Fast clustering of multiple contaminated water complaints across a 400m radius, isolating water main ruptures within hours.
-- 💡 **Streetlight & Grid Failures**: Grouping 12 individual dark street complaints into a single electrical substation circuit work order.
-- 🗑️ **Sanitation & Waste Management**: Detecting recurring garbage accumulation hotspots and tracking contractor remediation veracity.
-- 🚨 **Monsoon & Public Safety Hazards**: Automated escalation of fallen trees, exposed live electrical wires, or flooded underpasses during severe weather events.
-
----
-
-## 📖 Dedicated Technical Documentation
-
-For in-depth architectural and operational guides, visit the documentation directory:
-
-| Document | Description |
-|:---------|:------------|
-| 🏗️ **[System Architecture](docs/ARCHITECTURE.md)** | Monorepo layout, high-level data flow, role-based interfaces, and schema highlights. |
-| 🧠 **[AI & Intelligence Engine](docs/AI-INTELLIGENCE.md)** | Mathematical formulations for 3A–3E deterministic engines, duplicate suppression, and Copilot guardrails. |
-| 🚀 **[Deployment Guide](docs/DEPLOYMENT.md)** | Step-by-step instructions for Vercel Web deployment and Flutter standalone Release APK generation. |
-| 🛡️ **[Security & Authorization](docs/SECURITY.md)** | PostgreSQL Row Level Security (RLS) matrix, immutability triggers, and PII masking. |
-
----
-
-## 👥 Contributors & Acknowledgments
-
-Developed as a modern, production-grade civic technology initiative combining deterministic algorithms with responsible, grounded artificial intelligence for transparent municipal governance.
-
-- **Frontend & Command Center Engineering**: React 18, TypeScript, MapLibre GL
-- **Mobile Client Engineering**: Flutter & Dart Geospatial Architecture
-- **Backend & Security**: PostgreSQL PostGIS, Supabase Auth & RLS Policies
+```text
+CivicResolve/
+├── apps/
+│   ├── mobile/                          # Flutter Mobile Client (Citizen & Officer)
+│   │   ├── lib/
+│   │   │   ├── auth_service.dart        # Dynamic citizen registration & session management
+│   │   │   ├── login_page.dart          # Sign In & Citizen Registration UI
+│   │   │   ├── profile_page.dart        # Dynamic profile, Green Credits & reports count
+│   │   │   ├── dashboard_screen.dart    # Onboarding banner, quick actions & report list
+│   │   │   ├── confirmation_screen.dart # Step 3 review, image validation card & success view
+│   │   │   ├── image_validation_service.dart # 3-level validation & Gemini Vision adapter
+│   │   │   ├── priority_engine.dart     # Deterministic 3B hazard priority scoring
+│   │   │   ├── similarity_engine.dart   # 200m duplicate discovery & spatial grouping
+│   │   │   ├── emerging_problem_engine.dart # Anomaly velocity & hotspot detection
+│   │   │   ├── incident_grouping_engine.dart # Infrastructure root-cause clustering
+│   │   │   └── resolution_verification_engine.dart # Before/after remediation audit
+│   │   ├── test/
+│   │   │   ├── dynamic_citizen_auth_test.dart # Dynamic auth & fresh account tests
+│   │   │   ├── credit_system_test.dart        # Green credits & nursery vouchers
+│   │   │   ├── app_preferences_test.dart      # Role & session preference storage
+│   │   │   └── widget_test.dart               # 120+ mobile unit and widget tests
+│   │   └── README.md                    # Mobile internal developer guide
+│   └── web/                             # React 18 / TypeScript Web Command Center
+│       ├── src/
+│       │   ├── components/map/CommandMap.tsx # GIS command map & live layers
+│       │   ├── components/copilot/      # Municipal AI Copilot drawer
+│       │   └── services/runAllTests.ts  # Web verification test runner
+│       └── vercel.json                  # Production deployment & CSP headers
+├── supabase/
+│   ├── functions/
+│   │   └── ai-triage/index.ts           # Server-side Gemini Vision & triage Edge Function
+│   └── migrations/                      # PostgreSQL schemas, PostGIS & RLS policies
+├── docs/
+│   ├── IMPLEMENTATION_STATUS.md         # Verified feature inventory (Implemented vs Planned)
+│   └── MOBILE_ARCHITECTURE.md           # Mobile architecture deep-dive
+└── README.md                            # Main project overview (this file)
+```
 
 ---
 
-## 📜 License
+## 🎯 Concise Judge Demonstration Flow
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+Follow this 5-minute live demonstration flow to experience the entire closed-loop architecture:
+
+```text
+1. FRESH CITIZEN REGISTRATION
+   • Open Mobile App → Tap "New Citizen Sign Up" (or use Quick-Fill in debug mode)
+   • Register: Vikram Patil • Ward 4, Solapur
+   • See immediate zero-state: 🌱 Civic Starter • Score 0 • 0 Reports Submitted
+
+2. CIVIC COMPLAINT FILING WITH EVIDENCE VALIDATION
+   • Tap "+ Report a Problem" → Select "Potholes & Road Damage"
+   • Add photo:
+     - If real pothole: 🟢 "Verified Proof" (+10 Civic Score awarded)
+     - If selfie/food:  🔴 "Category Mismatch" (Submission blocked)
+     - If unclear road: 🟡 "Pending Staff Review" (Allowed to submit for manual review)
+
+3. SUBMISSION & DETERMINISTIC INTELLIGENCE
+   • Submit complaint → Instant Complaint Reference `#CR-...` assigned
+   • Deterministic Priority Engine calculates 3B hazard level and statutory SLA
+   • 200m spatial proximity check suppresses duplicates
+
+4. MUNICIPAL TRIAGE & RESOLUTION
+   • Grievance visible on Web GIS Command Map
+   • Field contractor navigates to site, performs repair, and uploads "After" photo
+
+5. CITIZEN RESOLUTION AUDIT
+   • Citizen receives push alert: "Remediation Evidence Uploaded"
+   • Citizen inspects Before vs After photo evidence
+   • Citizen taps "Verify & Close" → Complaint officially closed & credits credited!
+```
+
+---
+
+## ⚖️ Key Architectural Principles
+
+1. **AI is Perception, Not Policy**: Gemini Vision assists visual verification; deterministic code calculates priority, SLA, duplicate grouping, and routing.
+2. **Fail-Safe by Default**: Model timeouts, parse errors, or low confidence always fail safely to `Pending Staff Review`—never false rejections or silent failures.
+3. **No Client Privilege Escalation**: Public registration strictly assigns `role: 'citizen'`.
+4. **Strict Complaint Ownership**: Grievance streams are authenticated to `user.id`.
+5. **No Blind Ticket Closures**: Work orders are not closed solely because an officer uploads a photo; citizen verification is required.
+6. **Decoupled Client Architecture**: `apps/web/` and `apps/mobile/` operate independently on shared Supabase contracts.
+
+---
+
+## 🔮 Implementation Status & Roadmap
+
+| Subsystem | Status | Description |
+| :--- | :---: | :--- |
+| **Dynamic Citizen Auth & Zero-State** | ✅ IMPLEMENTED | Dynamic registration, role protection, fresh account profile (Score 0, Reports 0) |
+| **3-Level Image Validation Pipeline** | ✅ IMPLEMENTED | Level 1 byte sanity, Level 2 server Gemini Vision proxy, Level 3 conservative policy |
+| **Server-Side Edge Function Proxy** | ✅ IMPLEMENTED | Deno edge function (`ai-triage`) with JWT auth, PII scrubbing, zero client secrets |
+| **5 Deterministic Intelligence Engines** | ✅ IMPLEMENTED | Duplicates (200m), 3B Priority & SLA, Hotspots, Incident Grouping, Before/After Audit |
+| **GIS Command Map & Basemaps** | ✅ IMPLEMENTED | High-reliability keyless tiles (OSM, Esri World Street, Esri Satellite, Carto) |
+| **Grounded Municipal Copilot** | ✅ IMPLEMENTED | Shift briefings & tactical triage query support with database grounding |
+| **Citizen Verification Action Box** | ✅ IMPLEMENTED | Before/After remediation review modal with Accept/Reopen controls |
+| **Nursery Sapling Green Credits** | ✅ IMPLEMENTED | Points accumulation for verified reports with digital redemption vouchers |
+| **UIDAI Direct Aadhaar API Integration** | 🔵 PLANNED | Production direct UIDAI gateway integration (currently simulated via deterministic engine) |
+| **Offline Vector Map Tile Packs** | 🔵 PLANNED | Downloadable offline MBTiles for rural areas with zero mobile data connectivity |
+
+*See [`docs/IMPLEMENTATION_STATUS.md`](docs/IMPLEMENTATION_STATUS.md) for the complete verified inventory.*
+
+---
+
+## 📄 License
+
+This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.

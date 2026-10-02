@@ -546,31 +546,64 @@ class _DashboardScreenState extends State<DashboardScreen> {
     if (_recentReports.isEmpty) {
       return Container(
         width: double.infinity,
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(22),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(14),
           border: Border.all(color: const Color(0xFFE4E7EC)),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x06000000),
+              blurRadius: 6,
+              offset: Offset(0, 2),
+            ),
+          ],
         ),
         child: Column(
           children: [
-            const Icon(Icons.inbox_outlined, size: 36, color: Color(0xFF98A2B3)),
-            const SizedBox(height: 8),
-            const Text(
-              'No grievances submitted yet',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF344054),
+            Container(
+              width: 52,
+              height: 52,
+              decoration: BoxDecoration(
+                color: const Color(0xFFEFF8FF),
+                shape: BoxShape.circle,
+                border: Border.all(color: const Color(0xFFB2DDFF)),
+              ),
+              child: const Center(
+                child: Text('🌱', style: TextStyle(fontSize: 24)),
               ),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 12),
             const Text(
-              'Spotted a civic issue in your ward? Use the button above to register.',
+              "You're ready to report your first civic issue!",
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF172B4D),
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'Your verified citizen profile is active (Score 0 • 🌱 Civic Starter). Submit issues with photo proof to earn credits and track real-time resolution.',
               textAlign: TextAlign.center,
               style: TextStyle(
-                fontSize: 12,
+                fontSize: 12.5,
                 color: Color(0xFF667085),
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              onPressed: _navigateToReportIssue,
+              icon: const Icon(Icons.add_a_photo_outlined, size: 16),
+              label: const Text('Report a Problem', style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF155EEF),
+                foregroundColor: Colors.white,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               ),
             ),
           ],

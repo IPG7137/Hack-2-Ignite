@@ -1073,16 +1073,17 @@ class _ConfirmationScreenState extends State<ConfirmationScreen>
 
                     // Complaint ID Box
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
                       decoration: BoxDecoration(
                         color: const Color(0xFFEFF6FF),
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(14),
                         border: Border.all(color: const Color(0xFFBFDBFE)),
                       ),
                       child: Column(
                         children: [
                           const Text(
-                            'COMPLAINT ID',
+                            'COMPLAINT REFERENCE ID',
                             style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w800,
@@ -1094,17 +1095,64 @@ class _ConfirmationScreenState extends State<ConfirmationScreen>
                           Text(
                             '#CR-$reportId',
                             style: const TextStyle(
-                              fontSize: 20,
+                              fontSize: 22,
                               fontWeight: FontWeight.w800,
                               color: Color(0xFF1E3A8A),
                               fontFamily: 'monospace',
                             ),
                           ),
+                          const SizedBox(height: 10),
+                          Wrap(
+                            alignment: WrapAlignment.center,
+                            spacing: 8,
+                            runSpacing: 6,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(color: const Color(0xFFBFDBFE)),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(widget.category.icon, size: 14, color: widget.category.color),
+                                    const SizedBox(width: 5),
+                                    Text(
+                                      widget.category.name,
+                                      style: const TextStyle(
+                                        fontSize: 11.5,
+                                        fontWeight: FontWeight.w700,
+                                        color: Color(0xFF1E293B),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: _getPriorityColor(_finalPriority ?? 'Medium').withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(color: _getPriorityColor(_finalPriority ?? 'Medium').withValues(alpha: 0.3)),
+                                ),
+                                child: Text(
+                                  '${(_finalPriority ?? "Medium").toUpperCase()} PRIORITY',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w800,
+                                    color: _getPriorityColor(_finalPriority ?? 'Medium'),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ],
                       ),
                     ),
 
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 16),
 
                     // Green Credits Award Box
                     Container(
