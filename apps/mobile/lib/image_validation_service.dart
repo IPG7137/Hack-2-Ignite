@@ -1,5 +1,7 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'image_analysis_service.dart';
 
 /// 3-Level Image Validation Decision
@@ -105,7 +107,104 @@ abstract class ImageClassifierAdapter {
     Uint8List imageBytes, {
     String? imagePath,
     String? description,
+    String? selectedCategoryId,
   });
+}
+
+/// Production-grade Gemini Vision Classifier Adapter.
+/// Executes remote server-side image verification via authenticated Supabase Edge Function ('ai-triage').
+/// ZERO Gemini API keys are bundled into or exposed on the mobile client.
+class RemoteGeminiVisionClassifierAdapter implements ImageClassifierAdapter {
+  final String? defaultCategoryId;
+
+  const RemoteGeminiVisionClassifierAdapter({this.defaultCategoryId});
+
+  @override
+  Future<ClassifierPrediction> predictCategory(
+    Uint8List imageBytes, {
+    String? imagePath,
+    String? description,
+    String? selectedCategoryId,
+  }) async {
+    final cat = selectedCategoryId ?? defaultCategoryId ?? '';
+    return await validateWithServer(
+      imageBytes: imageBytes,
+      selectedCategoryId: cat,
+      description: description,
+    );
+  }
+
+  /// Direct server-to-server Gemini Vision classification
+  static Future<ClassifierPrediction> validateWithServer({
+    required Uint8List imageBytes,
+    required String selectedCategoryId,
+    String? description,
+  }) async {
+    try {
+      debugPrint('🔍 Invoking server-side Gemini Vision evidence validation for $selectedCategoryId...');
+      final client = Supabase.instance.client;
+      final session = client.auth.currentSession;
+
+      final response = await client.functions.invoke(
+        'ai-triage',
+        headers: session != null ? {'Authorization': 'Bearer ${session.accessToken}'} : null,
+        body: {
+          'action': 'validate_evidence',
+          'selected_category': selectedCategoryId,
+          'description': description ?? '',
+          'image_base64': base64Encode(imageBytes),
+          'mime_type': 'image/jpeg',
+        },
+      );
+
+      if (response.status == 200 && response.data != null) {
+        final data = response.data;
+        final valPayload = data is Map<String, dynamic> ? (data['data'] ?? data) : null;
+        if (valPayload is Map<String, dynamic>) {
+          final categoryMatch = valPayload['category_match']?.toString().toLowerCase();
+          final detectedSubject = valPayload['detected_subject']?.toString() ?? '';
+          final confidence = (valPayload['confidence'] is num) ? (valPayload['confidence'] as num).toDouble() : null;
+          final reasoning = valPayload['reasoning']?.toString() ?? '';
+
+          if (categoryMatch == 'yes') {
+            return ClassifierPrediction(
+              predictedCategory: selectedCategoryId,
+              confidence: confidence ?? 0.92,
+              isDefinitive: true,
+              details: reasoning,
+              rawOutput: Map<String, dynamic>.from(valPayload),
+            );
+          } else if (categoryMatch == 'no') {
+            return ClassifierPrediction(
+              predictedCategory: detectedSubject.isNotEmpty ? detectedSubject : 'discordant_evidence',
+              confidence: confidence ?? 0.90,
+              isDefinitive: true,
+              details: reasoning,
+              rawOutput: Map<String, dynamic>.from(valPayload),
+            );
+          } else {
+            return ClassifierPrediction(
+              predictedCategory: null,
+              confidence: confidence ?? 0.5,
+              isDefinitive: false,
+              details: reasoning,
+              rawOutput: Map<String, dynamic>.from(valPayload),
+            );
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('ℹ️ Server-side Gemini Vision evaluation unavailable ($e).');
+    }
+
+    // Default fallback when server or Gemini Vision is unreachable: return uncertain/review
+    return const ClassifierPrediction(
+      predictedCategory: null,
+      confidence: null,
+      isDefinitive: false,
+      details: 'Remote vision verification unavailable; falling back to conservative human review.',
+    );
+  }
 }
 
 /// Conservative 3-level image validation pipeline for civic evidence
@@ -163,13 +262,31 @@ class ImageValidationService {
           imageBytes,
           imagePath: imagePath,
           description: description,
+          selectedCategoryId: selectedCategoryId,
         );
       } catch (e) {
         debugPrint('⚠️ Custom classifier error: $e');
       }
     }
 
-    // If no custom classifier or custom prediction failed, use existing server triage if available
+    // If no custom classifier or custom prediction failed, use remote Gemini Vision adapter
+    if (prediction == null || (prediction.predictedCategory == null && prediction.confidence == null && !prediction.isDefinitive)) {
+      try {
+        final serverPrediction = await RemoteGeminiVisionClassifierAdapter.validateWithServer(
+          imageBytes: imageBytes,
+          selectedCategoryId: selectedCategoryId,
+          description: description,
+        );
+
+        if (serverPrediction.predictedCategory != null || serverPrediction.isDefinitive) {
+          prediction = serverPrediction;
+        }
+      } catch (e) {
+        debugPrint('ℹ️ Gemini Vision evaluation fallback: $e');
+      }
+    }
+
+    // If remote Gemini Vision is unavailable, check deterministic fallback
     if (prediction == null) {
       try {
         final triageResult = await ImageAnalysisService.analyzeImageBytes(

@@ -2514,6 +2514,15 @@ void main() {
       expect(parsed.reason, 'Visual match.');
       expect(parsed.isAccept, isTrue);
     });
+
+    test('9. RemoteGeminiVisionClassifierAdapter handles fallback gracefully when server is offline', () async {
+      const adapter = RemoteGeminiVisionClassifierAdapter(defaultCategoryId: 'potholes_roads');
+      final prediction = await adapter.predictCategory(validDummyBytes);
+
+      // Gracefully falls back to uncertain without crashing or throwing
+      expect(prediction.isDefinitive, isFalse);
+      expect(prediction.predictedCategory, isNull);
+    });
   });
 }
 
@@ -2527,6 +2536,7 @@ class _MockTestClassifier implements ImageClassifierAdapter {
     Uint8List imageBytes, {
     String? imagePath,
     String? description,
+    String? selectedCategoryId,
   }) async {
     return prediction;
   }

@@ -16,6 +16,8 @@ interface TriagePayload {
   description?: string;
   image_base64?: string;
   mime_type?: string;
+  selected_category?: string;
+  action?: "triage" | "validate_evidence";
 }
 
 interface TriageResult {
@@ -26,8 +28,15 @@ interface TriageResult {
   is_successful: boolean;
 }
 
+interface EvidenceValidationResult {
+  category_match: "yes" | "no" | "uncertain";
+  detected_subject: string;
+  confidence: number;
+  reasoning: string;
+  is_definitive: boolean;
+}
+
 function maskPII(text: string): string {
-  
   if (!text) return "";
   let sanitized = text;
   // 12-digit Indian Aadhaar number
@@ -102,6 +111,17 @@ function fallbackTriage(description?: string): TriageResult {
   };
 }
 
+function fallbackValidation(selectedCategory?: string, description?: string): EvidenceValidationResult {
+  // Conservative fallback: unverified evidence is queued for staff review (NEVER false rejection or blind acceptance)
+  return {
+    category_match: "uncertain",
+    detected_subject: selectedCategory || "civic_issue",
+    confidence: 0.5,
+    reasoning: "Image queued for municipal staff visual review.",
+    is_definitive: false,
+  };
+}
+
 serve(async (req) => {
   // 1. CORS Preflight
   if (req.method === "OPTIONS") {
@@ -137,14 +157,22 @@ serve(async (req) => {
 
     // 3. Request Validation & Input Sanitization
     const body: TriagePayload = await req.json().catch(() => ({}));
+    const isValidationAction = body.action === "validate_evidence" || (!!body.selected_category && !body.description);
     const sanitizedDescription = maskPII(body.description || "");
+    const selectedCategory = body.selected_category || "";
     const imageBase64 = body.image_base64;
     const mimeType = body.mime_type || "image/jpeg";
 
     // 4. Server-Side Gemini API Key Check
     const geminiApiKey = Deno.env.get("GEMINI_API_KEY");
     if (!geminiApiKey || geminiApiKey.length < 10) {
-      // Safe deterministic fallback when key is not configured on server
+      if (isValidationAction) {
+        const fallback = fallbackValidation(selectedCategory, sanitizedDescription);
+        return new Response(
+          JSON.stringify({ success: true, data: fallback, mode: "deterministic_fallback" }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
       const fallback = fallbackTriage(sanitizedDescription);
       return new Response(
         JSON.stringify({ success: true, data: fallback, mode: "deterministic_fallback" }),
@@ -152,8 +180,30 @@ serve(async (req) => {
       );
     }
 
-    // 5. Construct Structured AI Prompt
-    const structuredPrompt = `
+    // 5. Construct Structured AI Prompt based on Action
+    let structuredPrompt = "";
+
+    if (isValidationAction) {
+      structuredPrompt = `
+You are a precise Civic Photographic Evidence Classifier for CivicResolve.
+Your sole responsibility is to answer:
+"Does this image contain physical visual evidence relevant to the citizen-selected civic category: '${selectedCategory || "Civic Issue"}'?"
+
+CRITICAL CLASSIFICATION RULES:
+1. "yes": The image contains clear visual evidence matching the category '${selectedCategory}' (e.g. pothole/crater for Roads, overflowing dump for Waste, broken luminaire for Streetlights, water leak/sewage for Water, structural/fire hazard for Public Safety).
+2. "no": The image clearly displays unrelated content (e.g. selfie/person face, food/plate, indoor bedroom/furniture, domestic pet, document/receipt, car interior) OR clearly depicts a completely different municipal category (e.g. a streetlight photo when '${selectedCategory}' is Roads/Potholes).
+3. "uncertain": The image is blurry, ambiguous, shows a generic undamaged street with no visible defect, or cannot be confidently verified.
+
+Return ONLY a valid JSON object matching this schema:
+{
+  "category_match": "yes | no | uncertain",
+  "detected_subject": "string",
+  "confidence": number,
+  "reasoning": "string"
+}
+`;
+    } else {
+      structuredPrompt = `
 You are an expert Municipal Infrastructure and Civic Safety Triage AI for CivicResolve.
 Analyze the provided image and description to categorize and prioritize the civic issue accurately.
 
@@ -170,12 +220,14 @@ Instructions:
 
 Return ONLY a valid JSON object matching this schema:
 {
+  "category_match": "yes | no | uncertain",
   "category": "Roads | Waste | Water | Drainage | Streetlights | Public Safety | Other",
   "severity": "Low | Medium | High | Critical",
   "suggested_department": "string",
   "reasoning": "string"
 }
 `;
+    }
 
     const parts: any[] = [{ text: structuredPrompt }];
     if (imageBase64 && imageBase64.length > 50) {
@@ -203,7 +255,14 @@ Return ONLY a valid JSON object matching this schema:
     });
 
     if (!geminiResponse.ok) {
-      console.warn("Gemini upstream returned non-200 status, using fallback triage.");
+      console.warn("Gemini upstream returned non-200 status, using fallback.");
+      if (isValidationAction) {
+        const fallback = fallbackValidation(selectedCategory, sanitizedDescription);
+        return new Response(
+          JSON.stringify({ success: true, data: fallback, mode: "deterministic_fallback" }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
       const fallback = fallbackTriage(sanitizedDescription);
       return new Response(
         JSON.stringify({ success: true, data: fallback, mode: "deterministic_fallback" }),
@@ -214,6 +273,13 @@ Return ONLY a valid JSON object matching this schema:
     const geminiData = await geminiResponse.json();
     const rawText = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!rawText) {
+      if (isValidationAction) {
+        const fallback = fallbackValidation(selectedCategory, sanitizedDescription);
+        return new Response(
+          JSON.stringify({ success: true, data: fallback, mode: "deterministic_fallback" }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
       const fallback = fallbackTriage(sanitizedDescription);
       return new Response(
         JSON.stringify({ success: true, data: fallback, mode: "deterministic_fallback" }),
@@ -229,6 +295,23 @@ Return ONLY a valid JSON object matching this schema:
     cleanJson = cleanJson.trim();
 
     const parsed = JSON.parse(cleanJson);
+
+    if (isValidationAction) {
+      const matchStatus = parsed.category_match === "yes" ? "yes" : (parsed.category_match === "no" ? "no" : "uncertain");
+      const validationData: EvidenceValidationResult = {
+        category_match: matchStatus,
+        detected_subject: parsed.detected_subject || (matchStatus === "yes" ? selectedCategory : "unknown"),
+        confidence: typeof parsed.confidence === "number" ? Math.min(Math.max(parsed.confidence, 0), 1) : (matchStatus === "yes" ? 0.9 : 0.5),
+        reasoning: maskPII(parsed.reasoning || "Evidence classification evaluated by Gemini Vision."),
+        is_definitive: matchStatus !== "uncertain",
+      };
+
+      return new Response(
+        JSON.stringify({ success: true, data: validationData, mode: "gemini_server_verified" }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const validatedResult: TriageResult = {
       category: parsed.category || "Other",
       severity: normalizeSeverity(parsed.severity),
