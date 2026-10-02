@@ -19,6 +19,7 @@ import 'auth_service.dart';
 import 'leaflet_map_service.dart';
 import 'geospatial_geojson_service.dart';
 import 'similarity_engine.dart';
+import 'image_validation_service.dart';
 
 class ReportDetailsScreen extends StatefulWidget {
   final ReportCategory category;
@@ -49,6 +50,10 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> with TickerPr
   bool isAnalyzingImage = false;
   String? aiAnalysisResult;
   late AnimationController _scannerController;
+
+  // 3-Level Image Validation Pipeline State
+  final Map<String, ImageValidationResult> _imageValidationResults = {};
+  ImageValidationResult? _overallValidationResult;
 
   // Proximity & Multi-Signal Duplicate Detection
   bool _hasDuplicate = false;
@@ -791,6 +796,64 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> with TickerPr
                 ),
               ),
             ),
+
+            // Validation Status Pill
+            if (_imageValidationResults.containsKey(selectedImages[index].path))
+              Positioned(
+                bottom: 6,
+                right: 6,
+                child: Builder(
+                  builder: (context) {
+                    final val = _imageValidationResults[selectedImages[index].path]!;
+                    Color badgeColor;
+                    IconData icon;
+                    String label;
+
+                    if (val.isAccept) {
+                      badgeColor = const Color(0xFF16A34A);
+                      icon = Icons.check_circle_rounded;
+                      label = 'Verified';
+                    } else if (val.isReject) {
+                      badgeColor = const Color(0xFFDC2626);
+                      icon = Icons.warning_rounded;
+                      label = 'Mismatch';
+                    } else {
+                      badgeColor = const Color(0xFFD97706);
+                      icon = Icons.hourglass_top_rounded;
+                      label = 'Review';
+                    }
+
+                    return Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: badgeColor,
+                        borderRadius: BorderRadius.circular(6),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.25),
+                            blurRadius: 3,
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(icon, color: Colors.white, size: 10),
+                          const SizedBox(width: 3),
+                          Text(
+                            label,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
           ],
         ),
       ),
@@ -799,7 +862,11 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> with TickerPr
 
   void _removeImage(int index) {
     setState(() {
-      selectedImages.removeAt(index);
+      final removed = selectedImages.removeAt(index);
+      _imageValidationResults.remove(removed.path);
+      if (selectedImages.isEmpty) {
+        _overallValidationResult = null;
+      }
     });
     
     ScaffoldMessenger.of(context).showSnackBar(
@@ -1187,30 +1254,61 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> with TickerPr
     });
 
     try {
-      // Show analysis started message
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Row(
-            children: [
-              SizedBox(
-                width: 16,
-                height: 16,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                ),
-              ),
-              SizedBox(width: 12),
-              Text('🤖 AI analyzing image with dual classification...'),
-            ],
-          ),
-          backgroundColor: Colors.blue[700],
-          duration: const Duration(seconds: 4),
-        ),
+      final currentDescription = _descriptionController.text.trim();
+
+      // Run Level 1-3 Evidence Validation Pipeline
+      final valResult = await ImageValidationService.validateFile(
+        imageFile: imageFile,
+        selectedCategoryId: widget.category.id,
+        description: currentDescription.isNotEmpty ? currentDescription : null,
       );
 
-      // Get current description text for analysis
-      final currentDescription = _descriptionController.text.trim();
+      if (mounted) {
+        setState(() {
+          _imageValidationResults[imageFile.path] = valResult;
+          _overallValidationResult = valResult;
+        });
+
+        if (valResult.isReject) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.warning_amber_rounded, color: Colors.white, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(child: Text(valResult.userFriendlyMessage)),
+                ],
+              ),
+              backgroundColor: const Color(0xFFDC2626),
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
+      }
+
+      // Show analysis started message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Row(
+              children: [
+                SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
+                ),
+                SizedBox(width: 12),
+                Text('🤖 AI analyzing image with dual classification...'),
+              ],
+            ),
+            backgroundColor: Colors.blue[700],
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
 
       String detectedPriority = 'Medium';
       String explanation = 'Analysis in progress...';
@@ -1431,6 +1529,37 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> with TickerPr
         return;
       }
 
+      // If all attached images were evaluated and explicitly rejected due to category mismatch
+      final allImagesRejected = _imageValidationResults.isNotEmpty &&
+          _imageValidationResults.length == selectedImages.length &&
+          _imageValidationResults.values.every((r) => r.isReject);
+
+      if (allImagesRejected) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: Row(
+              children: const [
+                Icon(Icons.warning_amber_rounded, color: Color(0xFFDC2626), size: 24),
+                SizedBox(width: 8),
+                Text('Evidence Mismatch', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+              ],
+            ),
+            content: Text(
+              "The uploaded photo doesn't appear to match the selected category (${widget.category.name}). Please upload relevant photo evidence or update your category selection.",
+              style: const TextStyle(fontSize: 13.5, color: Color(0xFF334155), height: 1.4),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Update Photos', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF155EEF))),
+              ),
+            ],
+          ),
+        );
+        return;
+      }
+
       if (currentLatitude == null || currentLongitude == null) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -1453,7 +1582,7 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> with TickerPr
         finalLocation = currentLocation ?? 'Location coordinates: ${currentLatitude!.toStringAsFixed(6)}, ${currentLongitude!.toStringAsFixed(6)}';
       }
 
-      // Navigate to confirmation screen
+      // Navigate to confirmation screen with validation results
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -1466,6 +1595,7 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> with TickerPr
             longitude: currentLongitude,
             priority: selectedPriority,
             aiAnalysisResult: aiAnalysisResult,
+            imageValidationResult: _overallValidationResult,
           ),
         ),
       );

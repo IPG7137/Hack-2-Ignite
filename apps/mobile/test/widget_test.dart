@@ -10,6 +10,8 @@ import 'package:civic_resolve/emerging_problem_engine.dart';
 import 'package:civic_resolve/incident_grouping_engine.dart';
 import 'package:civic_resolve/resolution_verification_engine.dart';
 import 'package:civic_resolve/geospatial_geojson_service.dart';
+import 'dart:typed_data';
+import 'package:civic_resolve/image_validation_service.dart';
 
 void main() {
   group('Complaint Submission Flow Tests (Phase 2A)', () {
@@ -2355,4 +2357,177 @@ void main() {
       expect(publicVerification['certificate_number'], 'CR-GJ-2026-SOLAPUR-8901');
     });
   });
+
+  group('3-Level Image Validation Pipeline Tests (Mobile Hardening)', () {
+    final validDummyBytes = Uint8List.fromList(List.generate(1024, (i) => (i % 256)));
+
+    tearDown(() {
+      ImageValidationService.resetClassifier();
+    });
+
+    test('1. Image existence alone does not produce automatic acceptance (defaults to REVIEW)', () async {
+      // No classifier registered; image exists but cannot be verified automatically
+      ImageValidationService.resetClassifier();
+
+      final result = await ImageValidationService.validateEvidence(
+        imageBytes: validDummyBytes,
+        selectedCategoryId: 'potholes_roads',
+      );
+
+      // CRITICAL REQUIREMENT: Must NOT accept blindly
+      expect(result.decision, ImageValidationDecision.review);
+      expect(result.isAccept, isFalse);
+      expect(result.isReview, isTrue);
+      expect(result.canProceedToSubmission, isTrue);
+      expect(result.userFriendlyMessage, contains('review'));
+    });
+
+    test('2. Matching category with definitive prediction produces ACCEPT decision', () async {
+      ImageValidationService.setClassifier(_MockTestClassifier(
+        prediction: const ClassifierPrediction(
+          predictedCategory: 'potholes_roads',
+          confidence: 0.94,
+          isDefinitive: true,
+          details: 'Pothole asphalt crater detected.',
+        ),
+      ));
+
+      final result = await ImageValidationService.validateEvidence(
+        imageBytes: validDummyBytes,
+        selectedCategoryId: 'potholes_roads',
+      );
+
+      expect(result.decision, ImageValidationDecision.accept);
+      expect(result.isAccept, isTrue);
+      expect(result.isReject, isFalse);
+      expect(result.predictedCategory, 'potholes_roads');
+      expect(result.userFriendlyMessage, contains('Evidence appears relevant'));
+    });
+
+    test('3. Discordant category with definitive prediction produces REJECT decision', () async {
+      // User selected 'potholes_roads', but uploaded photo of food/dining
+      ImageValidationService.setClassifier(_MockTestClassifier(
+        prediction: const ClassifierPrediction(
+          predictedCategory: 'food_irrelevant',
+          confidence: 0.96,
+          isDefinitive: true,
+          details: 'Meal dining plate detected.',
+        ),
+      ));
+
+      final result = await ImageValidationService.validateEvidence(
+        imageBytes: validDummyBytes,
+        selectedCategoryId: 'potholes_roads',
+      );
+
+      expect(result.decision, ImageValidationDecision.reject);
+      expect(result.isReject, isTrue);
+      expect(result.isAccept, isFalse);
+      expect(result.canProceedToSubmission, isFalse);
+      expect(result.userFriendlyMessage, contains("doesn't appear to match"));
+    });
+
+    test('4. Discordant civic category with definitive prediction produces REJECT decision', () async {
+      // User selected 'potholes_roads', but uploaded streetlight electrical pole
+      ImageValidationService.setClassifier(_MockTestClassifier(
+        prediction: const ClassifierPrediction(
+          predictedCategory: 'electricity_streetlights',
+          confidence: 0.91,
+          isDefinitive: true,
+          details: 'High-voltage lamp post.',
+        ),
+      ));
+
+      final result = await ImageValidationService.validateEvidence(
+        imageBytes: validDummyBytes,
+        selectedCategoryId: 'potholes_roads',
+      );
+
+      expect(result.decision, ImageValidationDecision.reject);
+      expect(result.isReject, isTrue);
+    });
+
+    test('5. Unknown or uncertain prediction produces REVIEW decision (never false rejection)', () async {
+      ImageValidationService.setClassifier(_MockTestClassifier(
+        prediction: const ClassifierPrediction(
+          predictedCategory: null,
+          confidence: null,
+          isDefinitive: false,
+        ),
+      ));
+
+      final result = await ImageValidationService.validateEvidence(
+        imageBytes: validDummyBytes,
+        selectedCategoryId: 'waste_management',
+      );
+
+      expect(result.decision, ImageValidationDecision.review);
+      expect(result.isReview, isTrue);
+      expect(result.canProceedToSubmission, isTrue);
+    });
+
+    test('6. Empty or corrupt image bytes (<100 bytes) are rejected at Level 1 sanity check', () async {
+      final corruptBytes = Uint8List.fromList([1, 2, 3, 4, 5]);
+
+      final result = await ImageValidationService.validateEvidence(
+        imageBytes: corruptBytes,
+        selectedCategoryId: 'potholes_roads',
+      );
+
+      expect(result.decision, ImageValidationDecision.reject);
+      expect(result.reason, contains('empty or corrupted'));
+    });
+
+    test('7. Normalized category alias matching correctly aligns related terms', () async {
+      // Selected 'water_drainage', predicted 'drainage_sewage'
+      ImageValidationService.setClassifier(_MockTestClassifier(
+        prediction: const ClassifierPrediction(
+          predictedCategory: 'drainage',
+          confidence: 0.88,
+          isDefinitive: true,
+        ),
+      ));
+
+      final result = await ImageValidationService.validateEvidence(
+        imageBytes: validDummyBytes,
+        selectedCategoryId: 'water_drainage',
+      );
+
+      expect(result.decision, ImageValidationDecision.accept);
+    });
+
+    test('8. ImageValidationResult serialization round-trips cleanly', () {
+      const original = ImageValidationResult(
+        decision: ImageValidationDecision.accept,
+        predictedCategory: 'potholes_roads',
+        confidence: 0.89,
+        reason: 'Visual match.',
+        userFriendlyMessage: 'Evidence verified.',
+      );
+
+      final json = original.toJson();
+      final parsed = ImageValidationResult.fromJson(json);
+
+      expect(parsed.decision, ImageValidationDecision.accept);
+      expect(parsed.predictedCategory, 'potholes_roads');
+      expect(parsed.confidence, 0.89);
+      expect(parsed.reason, 'Visual match.');
+      expect(parsed.isAccept, isTrue);
+    });
+  });
+}
+
+class _MockTestClassifier implements ImageClassifierAdapter {
+  final ClassifierPrediction prediction;
+
+  _MockTestClassifier({required this.prediction});
+
+  @override
+  Future<ClassifierPrediction> predictCategory(
+    Uint8List imageBytes, {
+    String? imagePath,
+    String? description,
+  }) async {
+    return prediction;
+  }
 }

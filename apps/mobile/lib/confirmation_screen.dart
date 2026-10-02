@@ -12,6 +12,7 @@ import 'comprehensive_database_service.dart';
 import 'auth_service.dart';
 import 'notification_service.dart';
 import 'credit_service.dart';
+import 'image_validation_service.dart';
 
 class ConfirmationScreen extends StatefulWidget {
   final ReportCategory category;
@@ -23,6 +24,7 @@ class ConfirmationScreen extends StatefulWidget {
   final double? longitude;
   final String? priority;
   final String? aiAnalysisResult;
+  final ImageValidationResult? imageValidationResult;
 
   const ConfirmationScreen({
     super.key,
@@ -35,6 +37,7 @@ class ConfirmationScreen extends StatefulWidget {
     this.longitude,
     this.priority,
     this.aiAnalysisResult,
+    this.imageValidationResult,
   });
 
   @override
@@ -853,6 +856,38 @@ class _ConfirmationScreenState extends State<ConfirmationScreen>
   Widget _buildAiAssistedSummaryCard() {
     final priority = _finalPriority ?? 'Medium';
     final priorityColor = _getPriorityColor(priority);
+    final valResult = widget.imageValidationResult;
+
+    Color valBadgeBg;
+    Color valBadgeBorder;
+    Color valBadgeText;
+    IconData valIcon;
+    String valLabel;
+    String valMessage;
+
+    if (valResult == null || valResult.isReview) {
+      valBadgeBg = const Color(0xFFFEF3C7);
+      valBadgeBorder = const Color(0xFFFDE68A);
+      valBadgeText = const Color(0xFF92400E);
+      valIcon = Icons.pending_actions_rounded;
+      valLabel = 'QUEUED FOR STAFF REVIEW';
+      valMessage = valResult?.userFriendlyMessage ??
+          "We couldn't confidently verify this image automatically. Your report will be reviewed by municipal staff.";
+    } else if (valResult.isAccept) {
+      valBadgeBg = const Color(0xFFDCFCE7);
+      valBadgeBorder = const Color(0xFFBBF7D0);
+      valBadgeText = const Color(0xFF166534);
+      valIcon = Icons.check_circle_rounded;
+      valLabel = 'EVIDENCE VERIFIED';
+      valMessage = valResult.userFriendlyMessage;
+    } else {
+      valBadgeBg = const Color(0xFFFEE2E2);
+      valBadgeBorder = const Color(0xFFFECACA);
+      valBadgeText = const Color(0xFF991B1B);
+      valIcon = Icons.warning_amber_rounded;
+      valLabel = 'CATEGORY MISMATCH';
+      valMessage = valResult.userFriendlyMessage;
+    }
 
     return Container(
       width: double.infinity,
@@ -917,6 +952,47 @@ class _ConfirmationScreenState extends State<ConfirmationScreen>
               fontSize: 12.5,
               color: Color(0xFF475569),
               height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 12),
+          const Divider(height: 1, color: Color(0xFFE2E8F0)),
+          const SizedBox(height: 10),
+          // 3-Level Image Validation Assessment Status
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: valBadgeBg,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: valBadgeBorder),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(valIcon, size: 12, color: valBadgeText),
+                    const SizedBox(width: 4),
+                    Text(
+                      valLabel,
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        color: valBadgeText,
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            valMessage,
+            style: const TextStyle(
+              fontSize: 12,
+              color: Color(0xFF64748B),
+              height: 1.35,
             ),
           ),
         ],
