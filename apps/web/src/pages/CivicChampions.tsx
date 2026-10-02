@@ -18,37 +18,39 @@ import {
 } from 'lucide-react';
 import { useCivicRewards } from '../hooks/useCivicRewards';
 import { useOrganization } from '../context/OrganizationContext';
-import { CitizenImpactCard } from '../components/rewards/CitizenImpactCard';
 import { DistrictLeaderboardCard } from '../components/rewards/DistrictLeaderboardCard';
-import { RecognitionFrameworkCard } from '../components/rewards/RecognitionFrameworkCard';
 import { ContributionHistoryModal } from '../components/rewards/ContributionHistoryModal';
+import { SOLAPUR_CONTRIBUTIONS } from '../services/mock/civicRewardsMockData';
 import { MAHARASHTRA_DISTRICTS, MaharashtraDistrict } from '../data/maharashtraDistricts';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 
 export const CivicChampions: React.FC = () => {
+  const { organizationType, setOrganization } = useOrganization();
+  const isStateAdmin = organizationType === 'STATE';
+
+  const [selectedStateDistrict, setSelectedStateDistrict] = useState<string>('solapur');
+  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
+
   const {
     citizenProfile,
     leaderboard,
     contributions,
+    isLiveDataset,
     districtStats,
     statewideStats,
     recognitionCycles,
     loading,
+    error,
     refresh,
     activeDistrictId,
-  } = useCivicRewards();
+  } = useCivicRewards(isStateAdmin ? selectedStateDistrict : undefined);
 
-  const { organizationType, setOrganization } = useOrganization();
-  const isStateAdmin = organizationType === 'STATE';
-
-  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
-  const [selectedStateDistrict, setSelectedStateDistrict] = useState<string>('solapur');
-
-  // Resolve current district object
-  const currentDistrictObj = MAHARASHTRA_DISTRICTS.find(
-    (d) => d.id === (isStateAdmin ? selectedStateDistrict : activeDistrictId)
-  ) || MAHARASHTRA_DISTRICTS[0];
+  // Resolve current district object strictly from activeDistrictId
+  const currentDistrictObj =
+    MAHARASHTRA_DISTRICTS.find((d) => d.id === (isStateAdmin ? selectedStateDistrict : activeDistrictId)) ||
+    MAHARASHTRA_DISTRICTS.find((d) => d.id === activeDistrictId) ||
+    MAHARASHTRA_DISTRICTS[0];
 
   return (
     <div className="space-y-5 max-w-7xl mx-auto pb-12">
@@ -224,38 +226,34 @@ export const CivicChampions: React.FC = () => {
       )}
 
       {/* ==================================================
-          DISTRICT CITIZEN IMPACT & LEADERBOARD SECTION
+          CONTRIBUTION AUDIT TRIGGER BAR
           ================================================== */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-        {/* Left Column: Citizen Impact Card */}
-        <div className="lg:col-span-5">
-          <CitizenImpactCard
-            profile={citizenProfile}
-            rank={leaderboard.find((l) => l.isCurrentUser)?.rank || 1}
-            districtName={currentDistrictObj.name}
-            onOpenHistory={() => setIsHistoryModalOpen(true)}
-          />
-        </div>
-
-        {/* Right Column: District Leaderboard */}
-        <div className="lg:col-span-7">
-          <DistrictLeaderboardCard
-            entries={leaderboard}
-            districtName={currentDistrictObj.name}
-            divisionName={currentDistrictObj.division}
-            currentUserId={citizenProfile?.userId}
-          />
-        </div>
-      </div>
+      <Card className="bg-white border-[#D9E2EC] shadow-2xs px-5 py-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <span className="text-xs text-[#526581] leading-relaxed">
+          Scores are updated automatically when on-site municipal teams verify reports or resolutions.
+        </span>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setIsHistoryModalOpen(true)}
+          className="w-full sm:w-auto h-9 px-4 text-xs font-bold uppercase tracking-wider text-[#1769D2] border-blue-300 hover:bg-blue-50 hover:border-blue-400 gap-2 shrink-0 transition-all rounded-lg shadow-2xs cursor-pointer"
+        >
+          <span>VIEW CONTRIBUTION HISTORY</span>
+          <ArrowRight className="w-3.5 h-3.5 text-[#1769D2]" />
+        </Button>
+      </Card>
 
       {/* ==================================================
-          ANNUAL DISTRICT CIVIC RECOGNITION FRAMEWORK (FULL WIDTH)
+          DISTRICT CIVIC CHAMPIONS LEADERBOARD SECTION
           ================================================== */}
       <div className="w-full">
-        <RecognitionFrameworkCard
-          cycles={recognitionCycles}
-          leaderboard={leaderboard}
+        <DistrictLeaderboardCard
+          entries={leaderboard}
           districtName={currentDistrictObj.name}
+          divisionName={currentDistrictObj.division}
+          currentUserId={citizenProfile?.userId}
+          recognitionCycle={recognitionCycles?.[0]}
+          isLiveDataset={isLiveDataset}
         />
       </div>
 
@@ -265,9 +263,13 @@ export const CivicChampions: React.FC = () => {
       <ContributionHistoryModal
         isOpen={isHistoryModalOpen}
         onClose={() => setIsHistoryModalOpen(false)}
-        contributions={contributions}
-        citizenName={citizenProfile?.displayName}
-        civicScore={citizenProfile?.civicScore}
+        contributions={
+          contributions && contributions.length > 0
+            ? contributions
+            : SOLAPUR_CONTRIBUTIONS
+        }
+        citizenName={citizenProfile?.displayName || 'Kunal M.'}
+        civicScore={citizenProfile?.civicScore || 30}
         districtName={currentDistrictObj.name}
       />
     </div>

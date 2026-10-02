@@ -1,4 +1,4 @@
-import { supabase } from './supabaseClient';
+import { supabase, isLiveSupabaseAvailable } from './supabaseClient';
 import {
   CitizenCivicProfile,
   CivicContribution,
@@ -34,63 +34,190 @@ export interface RecordContributionParams {
   customNotes?: string;
 }
 
+const withTimeout = <T>(promise: PromiseLike<T>, ms: number = 800): Promise<T> => {
+  return Promise.race([
+    Promise.resolve(promise),
+    new Promise<T>((_, reject) => setTimeout(() => reject(new Error('Network timeout protection')), ms)),
+  ]);
+};
+
 export class CivicRewardsService {
   private config: CivicRewardsConfig = DEFAULT_CIVIC_REWARDS_CONFIG;
   private static processedContributionKeys: Set<string> = new Set();
+  private static isNetworkFailed: boolean = false;
+  private static lastFailureTime: number = 0;
+
+  public static canQuerySupabase(): boolean {
+    if (!isLiveSupabaseAvailable) return false;
+    if (CivicRewardsService.isNetworkFailed) {
+      if (Date.now() - CivicRewardsService.lastFailureTime > 30000) {
+        CivicRewardsService.isNetworkFailed = false;
+        return true;
+      }
+      return false;
+    }
+    return true;
+  }
+
+  public static recordNetworkFailure(): void {
+    CivicRewardsService.isNetworkFailed = true;
+    CivicRewardsService.lastFailureTime = Date.now();
+  }
 
   /**
    * Clears the contribution deduplication cache (useful for test resets)
    */
   public static resetDeduplicationCache(): void {
     CivicRewardsService.processedContributionKeys.clear();
+    CivicRewardsService.isNetworkFailed = false;
+    CivicRewardsService.lastFailureTime = 0;
   }
 
   /**
    * Retrieves the authenticated citizen's profile within their specific district.
+   * Connects to actual application records in citizen_civic_profiles, civic_contributions,
+   * or user reports, computing verified metrics from existing data sources.
    */
-  async getCitizenProfile(userId: string, districtId: string): Promise<CitizenCivicProfile | null> {
+  async getCitizenProfile(
+    userId: string,
+    districtId: string,
+    userMeta?: { fullName?: string; email?: string; role?: string }
+  ): Promise<CitizenCivicProfile | null> {
     const cleanDist = (districtId || '').toLowerCase().trim();
     if (!userId || !cleanDist) return null;
 
-    try {
-      const { data, error } = await supabase
-        .from('citizen_civic_profiles')
-        .select('*')
-        .eq('user_id', userId)
-        .eq('district_id', cleanDist)
-        .maybeSingle();
+    // 1. Check live remote Supabase if available
+    if (CivicRewardsService.canQuerySupabase()) {
+      try {
+        const { data, error } = await withTimeout(
+          supabase
+            .from('citizen_civic_profiles')
+            .select('*')
+            .eq('user_id', userId)
+            .eq('district_id', cleanDist)
+            .maybeSingle(),
+          800
+        );
 
-      if (!error && data) {
-        return {
-          id: data.id,
-          userId: data.user_id,
-          districtId: data.district_id,
-          municipalCorporationId: data.municipal_corporation_id,
-          displayName: data.display_name,
-          civicScore: data.civic_score,
-          verifiedReportsCount: data.verified_reports_count,
-          verifiedResolutionsCount: data.verified_resolutions_count,
-          helpfulEvidenceCount: data.helpful_evidence_count,
-          badgeLevel: data.badge_level,
-          isFlagged: data.is_flagged,
-          flagReason: data.flag_reason,
-          createdAt: data.created_at,
-          updatedAt: data.updated_at,
-        };
+        if (!error && data) {
+          return {
+            id: data.id,
+            userId: data.user_id,
+            districtId: data.district_id,
+            municipalCorporationId: data.municipal_corporation_id,
+            displayName: data.display_name || (userMeta?.fullName ? formatCitizenDisplayName(userMeta.fullName) : 'Verified Citizen'),
+            civicScore: data.civic_score ?? 0,
+            verifiedReportsCount: data.verified_reports_count ?? 0,
+            verifiedResolutionsCount: data.verified_resolutions_count ?? 0,
+            helpfulEvidenceCount: data.helpful_evidence_count ?? 0,
+            badgeLevel: data.badge_level || getBadgeLevelForScore(data.civic_score || 0, this.config),
+            isFlagged: data.is_flagged ?? false,
+            flagReason: data.flag_reason,
+            createdAt: data.created_at,
+            updatedAt: data.updated_at,
+          };
+        }
+      } catch (err) {
+        CivicRewardsService.recordNetworkFailure();
+      }
+
+      // Query user's contributions in civic_contributions table
+      if (CivicRewardsService.canQuerySupabase()) {
+        try {
+          const { data: contribs, error: contribError } = await withTimeout(
+            supabase
+              .from('civic_contributions')
+              .select('*')
+              .eq('user_id', userId)
+              .eq('district_id', cleanDist),
+            800
+          );
+
+          if (!contribError && contribs && contribs.length > 0) {
+            const verifiedContribs = contribs.filter((c) => c.verification_status === 'verified');
+            const verifiedReports = verifiedContribs.filter((c) => c.contribution_type === 'verified_report').length;
+            const verifiedResolutions = verifiedContribs.filter((c) => c.contribution_type === 'resolution_verification').length;
+            const helpfulEvidence = verifiedContribs.filter((c) => c.contribution_type === 'useful_evidence').length;
+            const civicScore = verifiedContribs.reduce((sum, c) => sum + (c.points || 0), 0);
+            const badgeLevel = getBadgeLevelForScore(civicScore, this.config);
+
+            return {
+              id: `PROF-${cleanDist.toUpperCase()}-${userId}`,
+              userId,
+              districtId: cleanDist,
+              displayName: userMeta?.fullName ? formatCitizenDisplayName(userMeta.fullName) : 'Verified Citizen',
+              civicScore,
+              verifiedReportsCount: verifiedReports,
+              verifiedResolutionsCount: verifiedResolutions,
+              helpfulEvidenceCount: helpfulEvidence,
+              badgeLevel,
+              isFlagged: false,
+              createdAt: contribs[0]?.created_at || new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            };
+          }
+        } catch (_) {
+          CivicRewardsService.recordNetworkFailure();
+        }
+      }
+    }
+
+    // 2. Check local client-side contributions stored in localStorage
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        const stored = window.localStorage.getItem(`civicresolve_contribs_${cleanDist}_${userId}`);
+        if (stored) {
+          const contribs: CivicContribution[] = JSON.parse(stored);
+          if (Array.isArray(contribs) && contribs.length > 0) {
+            const verifiedContribs = contribs.filter((c) => c.verificationStatus === 'verified');
+            const verifiedReports = verifiedContribs.filter((c) => c.contributionType === 'verified_report').length;
+            const verifiedResolutions = verifiedContribs.filter((c) => c.contributionType === 'resolution_verification').length;
+            const helpfulEvidence = verifiedContribs.filter((c) => c.contributionType === 'useful_evidence').length;
+            const civicScore = verifiedContribs.reduce((sum, c) => sum + (c.points || 0), 0);
+            const badgeLevel = getBadgeLevelForScore(civicScore, this.config);
+
+            return {
+              id: `PROF-${cleanDist.toUpperCase()}-${userId}`,
+              userId,
+              districtId: cleanDist,
+              displayName: userMeta?.fullName ? formatCitizenDisplayName(userMeta.fullName) : 'Verified Citizen',
+              civicScore,
+              verifiedReportsCount: verifiedReports,
+              verifiedResolutionsCount: verifiedResolutions,
+              helpfulEvidenceCount: helpfulEvidence,
+              badgeLevel,
+              isFlagged: false,
+              createdAt: contribs[0]?.createdAt || new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            };
+          }
+        }
       }
     } catch (_) {}
 
-    // Isolated Mock Dataset Fallback (only if exact userId match)
+    // 4. District Mock Dataset Match (for offline or local demo accounts)
     const districtProfiles = getMockCivicProfilesForDistrict(cleanDist);
-    const mockUser = districtProfiles.find((p) => p.userId === userId);
-    if (mockUser) return { ...mockUser };
+    let mockUser = districtProfiles.find((p) => p.userId === userId);
 
-    // Fresh Citizen Profile (starts with 0 points, 0 reports, starter badge)
+    if (!mockUser && userMeta?.fullName) {
+      const cleanName = userMeta.fullName.replace(/\s*\(.*?\)/g, '').trim().toLowerCase();
+      mockUser = districtProfiles.find((p) => {
+        const pName = p.displayName.trim().toLowerCase();
+        return pName === cleanName || cleanName.startsWith(pName.split(' ')[0]);
+      });
+    }
+
+    if (mockUser) {
+      return { ...mockUser };
+    }
+
+    // 5. Genuine Fresh / Zero-Contribution Citizen Profile
+    // (starts with 0 points, 0 reports, starter badge)
     return {
       id: `PROF-${cleanDist.toUpperCase()}-${userId}`,
       userId,
       districtId: cleanDist,
-      displayName: 'Verified Citizen',
+      displayName: userMeta?.fullName ? formatCitizenDisplayName(userMeta.fullName) : 'Citizen Contributor',
       civicScore: 0,
       verifiedReportsCount: 0,
       verifiedResolutionsCount: 0,
@@ -146,42 +273,73 @@ export class CivicRewardsService {
   /**
    * Retrieves the strictly isolated District Leaderboard.
    * Only citizens from this specific district are returned.
+   * If real database profiles exist in Supabase, they are returned;
+   * otherwise the isolated district baseline demonstration dataset is used.
+   * The authenticated citizen's verified contributions are dynamically merged in.
    */
-  async getDistrictLeaderboard(districtId: string, currentUserId?: string): Promise<DistrictLeaderboardEntry[]> {
+  async getDistrictLeaderboard(
+    districtId: string,
+    currentUserId?: string,
+    currentUserProfile?: CitizenCivicProfile | null
+  ): Promise<DistrictLeaderboardEntry[]> {
     const cleanDist = (districtId || '').toLowerCase().trim();
     if (!cleanDist) return [];
 
     let profiles: CitizenCivicProfile[] = [];
+    let isLive = false;
 
-    try {
-      const { data, error } = await supabase
-        .from('citizen_civic_profiles')
-        .select('*')
-        .eq('district_id', cleanDist)
-        .eq('is_flagged', false);
+    if (CivicRewardsService.canQuerySupabase()) {
+      try {
+        const { data, error } = await withTimeout(
+          supabase
+            .from('citizen_civic_profiles')
+            .select('*')
+            .eq('district_id', cleanDist)
+            .eq('is_flagged', false),
+          800
+        );
 
-      if (!error && data && data.length > 0) {
-        profiles = data.map((d) => ({
-          id: d.id,
-          userId: d.user_id,
-          districtId: d.district_id,
-          municipalCorporationId: d.municipal_corporation_id,
-          displayName: d.display_name,
-          civicScore: d.civic_score,
-          verifiedReportsCount: d.verified_reports_count,
-          verifiedResolutionsCount: d.verified_resolutions_count,
-          helpfulEvidenceCount: d.helpful_evidence_count,
-          badgeLevel: d.badge_level,
-          isFlagged: d.is_flagged,
-          flagReason: d.flag_reason,
-          createdAt: d.created_at,
-          updatedAt: d.updated_at,
-        }));
+        if (!error && data && data.length > 0) {
+          profiles = data.map((d) => ({
+            id: d.id,
+            userId: d.user_id,
+            districtId: d.district_id,
+            municipalCorporationId: d.municipal_corporation_id,
+            displayName: d.display_name,
+            civicScore: d.civic_score,
+            verifiedReportsCount: d.verified_reports_count,
+            verifiedResolutionsCount: d.verified_resolutions_count,
+            helpfulEvidenceCount: d.helpful_evidence_count,
+            badgeLevel: d.badge_level,
+            isFlagged: d.is_flagged,
+            flagReason: d.flag_reason,
+            createdAt: d.created_at,
+            updatedAt: d.updated_at,
+          }));
+          isLive = true;
+        }
+      } catch (_) {
+        CivicRewardsService.recordNetworkFailure();
       }
-    } catch (_) {}
+    }
 
     if (profiles.length === 0) {
-      profiles = getMockCivicProfilesForDistrict(cleanDist);
+      profiles = getMockCivicProfilesForDistrict(cleanDist).map((p) => ({ ...p }));
+      isLive = false;
+    }
+
+    // Merge authenticated citizen if they have verified contributions in this district
+    if (currentUserProfile && currentUserProfile.civicScore > 0 && currentUserProfile.districtId === cleanDist) {
+      const existingIdx = profiles.findIndex(
+        (p) =>
+          p.userId === currentUserProfile.userId ||
+          (p.displayName && p.displayName.trim().toLowerCase() === currentUserProfile.displayName.trim().toLowerCase())
+      );
+      if (existingIdx >= 0) {
+        profiles[existingIdx] = { ...currentUserProfile };
+      } else {
+        profiles.push({ ...currentUserProfile });
+      }
     }
 
     // Deterministic Sorting:
@@ -191,7 +349,7 @@ export class CivicRewardsService {
     // 4. createdAt ASC
     profiles.sort(compareLeaderboardEntries);
 
-    return profiles.map((p, index) => {
+    const entries: DistrictLeaderboardEntry[] = profiles.map((p, index) => {
       const badgeLevel = p.badgeLevel || getBadgeLevelForScore(p.civicScore, this.config);
       return {
         rank: index + 1,
@@ -209,6 +367,9 @@ export class CivicRewardsService {
         isCurrentUser: currentUserId ? p.userId === currentUserId : false,
       };
     });
+
+    (entries as any).isLiveDatabase = isLive;
+    return entries;
   }
 
   /**
@@ -217,26 +378,48 @@ export class CivicRewardsService {
   async getContributionHistory(citizenProfileId: string): Promise<CivicContribution[]> {
     if (!citizenProfileId) return [];
 
-    try {
-      const { data, error } = await supabase
-        .from('civic_contributions')
-        .select('*')
-        .eq('citizen_profile_id', citizenProfileId)
-        .order('created_at', { ascending: false });
+    if (CivicRewardsService.canQuerySupabase()) {
+      try {
+        const { data, error } = await withTimeout(
+          supabase
+            .from('civic_contributions')
+            .select('*')
+            .eq('citizen_profile_id', citizenProfileId)
+            .order('created_at', { ascending: false }),
+          800
+        );
 
-      if (!error && data && data.length > 0) {
-        return data.map((d) => ({
-          id: d.id,
-          citizenProfileId: d.citizen_profile_id,
-          userId: d.user_id,
-          districtId: d.district_id,
-          complaintId: d.complaint_id,
-          contributionType: d.contribution_type,
-          points: d.points,
-          description: d.description,
-          verificationStatus: d.verification_status,
-          createdAt: d.created_at,
-        }));
+        if (!error && data && data.length > 0) {
+          return data.map((d) => ({
+            id: d.id,
+            citizenProfileId: d.citizen_profile_id,
+            userId: d.user_id,
+            districtId: d.district_id,
+            complaintId: d.complaint_id,
+            contributionType: d.contribution_type,
+            points: d.points,
+            description: d.description,
+            verificationStatus: d.verification_status,
+            createdAt: d.created_at,
+          }));
+        }
+      } catch (_) {
+        CivicRewardsService.recordNetworkFailure();
+      }
+    }
+
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        for (let i = 0; i < window.localStorage.length; i++) {
+          const key = window.localStorage.key(i);
+          if (key && key.startsWith('civicresolve_contribs_')) {
+            const items = JSON.parse(window.localStorage.getItem(key) || '[]');
+            const matching = items.filter((c: CivicContribution) => c.citizenProfileId === citizenProfileId);
+            if (matching.length > 0) {
+              return matching;
+            }
+          }
+        }
       }
     } catch (_) {}
 
@@ -246,13 +429,16 @@ export class CivicRewardsService {
   /**
    * Aggregates District Engagement & Champion metrics for Municipal Command Center.
    */
-  async getDistrictEngagementStats(districtId: string): Promise<DistrictEngagementStats> {
+  async getDistrictEngagementStats(
+    districtId: string,
+    existingLeaderboard?: DistrictLeaderboardEntry[]
+  ): Promise<DistrictEngagementStats> {
     const cleanDist = (districtId || '').toLowerCase().trim();
     const distObj = MAHARASHTRA_DISTRICTS.find((d) => d.id === cleanDist);
     const districtName = distObj?.name || cleanDist.toUpperCase();
     const division = distObj?.division || 'Maharashtra';
 
-    const leaderboard = await this.getDistrictLeaderboard(cleanDist);
+    const leaderboard = existingLeaderboard || (await this.getDistrictLeaderboard(cleanDist));
     const activeCitizensCount = leaderboard.length > 0 ? leaderboard.length * 48 + 120 : 0;
     const verifiedContributorsCount = leaderboard.length;
     const totalCivicScore = leaderboard.reduce((acc, p) => acc + p.civicScore, 0);
@@ -315,29 +501,33 @@ export class CivicRewardsService {
   async getRecognitionCycles(districtId?: string): Promise<DistrictRecognitionCycle[]> {
     const cleanDist = (districtId || '').toLowerCase().trim();
 
-    try {
-      let query = supabase.from('district_recognition_cycles').select('*');
-      if (cleanDist && cleanDist !== 'all') {
-        query = query.eq('district_id', cleanDist);
+    if (CivicRewardsService.canQuerySupabase()) {
+      try {
+        let query = supabase.from('district_recognition_cycles').select('*');
+        if (cleanDist && cleanDist !== 'all') {
+          query = query.eq('district_id', cleanDist);
+        }
+        const { data, error } = await withTimeout(query, 800);
+        if (!error && data && data.length > 0) {
+          return data.map((d) => {
+            const distObj = MAHARASHTRA_DISTRICTS.find((m) => m.id === d.district_id);
+            return {
+              id: d.id,
+              districtId: d.district_id,
+              districtName: distObj?.name || d.district_id,
+              eventName: d.event_name,
+              eventDate: d.event_date,
+              eligibleRankLimit: d.eligible_rank_limit,
+              rewardType: d.reward_type,
+              status: d.status,
+              announcedAt: d.announced_at,
+            };
+          });
+        }
+      } catch (_) {
+        CivicRewardsService.recordNetworkFailure();
       }
-      const { data, error } = await query;
-      if (!error && data && data.length > 0) {
-        return data.map((d) => {
-          const distObj = MAHARASHTRA_DISTRICTS.find((m) => m.id === d.district_id);
-          return {
-            id: d.id,
-            districtId: d.district_id,
-            districtName: distObj?.name || d.district_id,
-            eventName: d.event_name,
-            eventDate: d.event_date,
-            eligibleRankLimit: d.eligible_rank_limit,
-            rewardType: d.reward_type,
-            status: d.status,
-            announcedAt: d.announced_at,
-          };
-        });
-      }
-    } catch (_) {}
+    }
 
     if (cleanDist && cleanDist !== 'all') {
       return DISTRICT_RECOGNITION_CYCLES.filter((c) => c.districtId === cleanDist);
@@ -435,38 +625,52 @@ export class CivicRewardsService {
       createdAt: new Date().toISOString(),
     };
 
+    // Local client-side storage persistence for instant offline access
     try {
-      await supabase.from('civic_contributions').insert({
-        id: contribution.id,
-        user_id: userId,
-        district_id: cleanDist,
-        complaint_id: complaintId,
-        contribution_type: contributionType,
-        points: pointsAwarded,
-        description,
-        verification_status: verificationStatus,
-      });
-
-      // Update or create citizen profile in Supabase
-      const existing = await this.getCitizenProfile(userId, cleanDist);
-      const newScore = Math.max(0, (existing?.civicScore || 0) + pointsAwarded);
-      const newVerified = (existing?.verifiedReportsCount || 0) + (contributionType === 'verified_report' && !isDuplicate && !isFakeOrSpam && !isProvisional ? 1 : 0);
-      const newResolutions = (existing?.verifiedResolutionsCount || 0) + (contributionType === 'resolution_verification' ? 1 : 0);
-      const newEvidence = (existing?.helpfulEvidenceCount || 0) + (contributionType === 'useful_evidence' ? 1 : 0);
-      const newBadge = getBadgeLevelForScore(newScore, this.config);
-
-      await supabase.from('citizen_civic_profiles').upsert({
-        user_id: userId,
-        district_id: cleanDist,
-        display_name: displayName,
-        civic_score: newScore,
-        verified_reports_count: newVerified,
-        verified_resolutions_count: newResolutions,
-        helpful_evidence_count: newEvidence,
-        badge_level: newBadge,
-        updated_at: new Date().toISOString(),
-      });
+      if (typeof window !== 'undefined' && window.localStorage) {
+        const key = `civicresolve_contribs_${cleanDist}_${userId}`;
+        const existing: CivicContribution[] = JSON.parse(window.localStorage.getItem(key) || '[]');
+        existing.unshift(contribution);
+        window.localStorage.setItem(key, JSON.stringify(existing));
+      }
     } catch (_) {}
+
+    if (CivicRewardsService.canQuerySupabase()) {
+      try {
+        await supabase.from('civic_contributions').insert({
+          id: contribution.id,
+          user_id: userId,
+          district_id: cleanDist,
+          complaint_id: complaintId,
+          contribution_type: contributionType,
+          points: pointsAwarded,
+          description,
+          verification_status: verificationStatus,
+        });
+
+        // Update or create citizen profile in Supabase
+        const existing = await this.getCitizenProfile(userId, cleanDist);
+        const newScore = Math.max(0, (existing?.civicScore || 0) + pointsAwarded);
+        const newVerified = (existing?.verifiedReportsCount || 0) + (contributionType === 'verified_report' && !isDuplicate && !isFakeOrSpam && !isProvisional ? 1 : 0);
+        const newResolutions = (existing?.verifiedResolutionsCount || 0) + (contributionType === 'resolution_verification' ? 1 : 0);
+        const newEvidence = (existing?.helpfulEvidenceCount || 0) + (contributionType === 'useful_evidence' ? 1 : 0);
+        const newBadge = getBadgeLevelForScore(newScore, this.config);
+
+        await supabase.from('citizen_civic_profiles').upsert({
+          user_id: userId,
+          district_id: cleanDist,
+          display_name: displayName,
+          civic_score: newScore,
+          verified_reports_count: newVerified,
+          verified_resolutions_count: newResolutions,
+          helpful_evidence_count: newEvidence,
+          badge_level: newBadge,
+          updated_at: new Date().toISOString(),
+        });
+      } catch (_) {
+        CivicRewardsService.recordNetworkFailure();
+      }
+    }
 
     return contribution;
   }

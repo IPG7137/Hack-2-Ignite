@@ -361,6 +361,7 @@ export function mapSupabaseRowToComplaint(
     phone: row.contact_number || '+91 98765 43210',
     aadharMasked: 'XXXX-XXXX-4892',
     verifiedCitizen: true,
+    userId: row.user_id ? String(row.user_id) : undefined,
   };
 
   // 7. Assignment info
@@ -479,6 +480,7 @@ export function mapSupabaseRowToComplaint(
   return {
     id: formattedId,
     dbId,
+    userId: row.user_id ? String(row.user_id) : undefined,
     title: row.title || catConfig.label,
     description: row.description || '',
     category: catConfig.key,

@@ -105,10 +105,51 @@ class CouponModel {
 class CreditService {
   static final SupabaseClient _supabase = Supabase.instance.client;
 
-  // Credit earning constants
-  static const int creditsPerReport = 10;
-  static const int creditsPerResolvedReport = 5;
-  static const int creditsPerQualityReport = 15; // For high-quality reports
+  // Official Civic Point Scoring Categories (exact 4 categories)
+  static const int pointsVerifiedGrievance = 10; // Verified Civic Grievance (+10 pts)
+  static const int pointsGisCoordinateAudit = 5; // Precise GIS Coordinate Audit (+5 pts)
+  static const int pointsPhotographicProof = 5;  // Geotagged Photographic Proof (+5 pts)
+  static const int pointsResolutionVerification = 10; // On-Site Resolution Verification (+10 pts)
+
+  // Legacy aliases
+  static const int creditsPerReport = pointsVerifiedGrievance;
+  static const int creditsPerResolvedReport = pointsResolutionVerification;
+  static const int creditsPerQualityReport = pointsGisCoordinateAudit + pointsPhotographicProof;
+
+  static const List<Map<String, dynamic>> officialScoringCategories = [
+    {
+      'title': 'Verified Civic Grievance',
+      'code': 'CR-SOL-103',
+      'status': 'VERIFIED',
+      'points': 10,
+      'description': 'Verified genuine report on commercial waste encroachment, potholes, or civic issues',
+      'icon': 'check_circle',
+    },
+    {
+      'title': 'Precise GIS Coordinate Audit',
+      'code': 'CR-SOL-103',
+      'status': 'VERIFIED',
+      'points': 5,
+      'description': 'High accuracy GPS coordinate verification (within 10m)',
+      'icon': 'location_on',
+    },
+    {
+      'title': 'Geotagged Photographic Proof',
+      'code': 'CR-SOL-103',
+      'status': 'VERIFIED',
+      'points': 5,
+      'description': 'Clear photographic evidence with verified location metadata',
+      'icon': 'photo_camera',
+    },
+    {
+      'title': 'On-Site Resolution Verification',
+      'code': 'CR-SOL-105',
+      'status': 'VERIFIED',
+      'points': 10,
+      'description': 'Verified successful on-site resolution audit & confirmation of completed work',
+      'icon': 'verified_user',
+    },
+  ];
 
   /// Add credits for current authenticated user
   static Future<bool> addCredits(int credits, {String earnedFor = 'citizen_action', String? reportId}) async {

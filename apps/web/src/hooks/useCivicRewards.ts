@@ -9,17 +9,28 @@ import {
 import { civicRewardsService, RecordContributionParams } from '../services/civicRewardsService';
 import { useAuthContext } from '../context/AuthContext';
 import { useOrganization } from '../context/OrganizationContext';
-import { supabase } from '../services/supabaseClient';
+import { supabase, isLiveSupabaseAvailable } from '../services/supabaseClient';
 
-export function useCivicRewards() {
+export function useCivicRewards(overrideDistrictId?: string) {
   const { user } = useAuthContext();
   const { organizationType, districtId } = useOrganization();
 
-  // Resolved active district: user district, or organization district (strictly no silent Solapur fallback)
-  const activeDistrictId = districtId || (user as any)?.districtId || '';
+  // Strict Active District Resolution:
+  // 1. If explicit override is provided in STATE mode (e.g. State Admin inspecting a specific district)
+  // 2. For district-bound users (citizen, district_admin, zone_admin), strictly lock to user.districtId.
+  // 3. For state administrators, use the selected organization district.
+  // 4. Fallback to organization district or user district.
+  const activeDistrictId = (
+    overrideDistrictId && organizationType === 'STATE'
+      ? overrideDistrictId
+      : user?.role !== 'state_admin' && user?.districtId
+      ? user.districtId
+      : districtId || user?.districtId || 'solapur'
+  ).toLowerCase().trim();
 
   const [citizenProfile, setCitizenProfile] = useState<CitizenCivicProfile | null>(null);
   const [leaderboard, setLeaderboard] = useState<DistrictLeaderboardEntry[]>([]);
+  const [isLiveDataset, setIsLiveDataset] = useState<boolean>(false);
   const [contributions, setContributions] = useState<CivicContribution[]>([]);
   const [districtStats, setDistrictStats] = useState<DistrictEngagementStats | null>(null);
   const [statewideStats, setStatewideStats] = useState<{
@@ -47,15 +58,22 @@ export function useCivicRewards() {
       }
 
       const userId = user?.id || 'USER-CITIZEN-CURRENT';
+      const userMeta = {
+        fullName: user?.fullName,
+        email: user?.email,
+        role: user?.role,
+      };
 
       if (organizationType === 'STATE') {
         // State Admin view: Load statewide metrics across all 9 districts
-        const [stateStats, cycles, distLeaderboard, profile] = await Promise.all([
+        const [stateStats, cycles, profile] = await Promise.all([
           civicRewardsService.getStatewideEngagementStats(),
           civicRewardsService.getRecognitionCycles(),
-          civicRewardsService.getDistrictLeaderboard(activeDistrictId, userId),
-          civicRewardsService.getCitizenProfile(userId, activeDistrictId),
+          civicRewardsService.getCitizenProfile(userId, activeDistrictId, userMeta),
         ]);
+
+        const distLeaderboard = await civicRewardsService.getDistrictLeaderboard(activeDistrictId, userId, profile);
+        setIsLiveDataset(Boolean((distLeaderboard as any).isLiveDatabase));
 
         setStatewideStats(stateStats);
         setRecognitionCycles(cycles);
@@ -67,14 +85,31 @@ export function useCivicRewards() {
           setContributions(contribs);
         }
       } else {
-        // District / Citizen view: Load strictly isolated district data
-        const [profile, distLeaderboard, distStats, cycles] = await Promise.all([
-          civicRewardsService.getCitizenProfile(userId, activeDistrictId),
+        // District / Citizen view: Load strictly isolated district data in parallel
+        const [profile, distLeaderboard, cycles] = await Promise.all([
+          civicRewardsService.getCitizenProfile(userId, activeDistrictId, userMeta),
           civicRewardsService.getDistrictLeaderboard(activeDistrictId, userId),
-          civicRewardsService.getDistrictEngagementStats(activeDistrictId),
           civicRewardsService.getRecognitionCycles(activeDistrictId),
         ]);
 
+        // Merge profile into distLeaderboard if the citizen has positive verified civic score
+        if (profile && profile.civicScore > 0 && profile.districtId === activeDistrictId) {
+          const existingIdx = distLeaderboard.findIndex((l) => l.userId === profile.userId);
+          if (existingIdx >= 0) {
+            distLeaderboard[existingIdx] = {
+              ...distLeaderboard[existingIdx],
+              civicScore: profile.civicScore,
+              verifiedReportsCount: profile.verifiedReportsCount,
+              verifiedResolutionsCount: profile.verifiedResolutionsCount,
+              helpfulEvidenceCount: profile.helpfulEvidenceCount,
+              badgeLevel: profile.badgeLevel,
+            };
+          }
+        }
+
+        const distStats = await civicRewardsService.getDistrictEngagementStats(activeDistrictId, distLeaderboard);
+
+        setIsLiveDataset(Boolean((distLeaderboard as any).isLiveDatabase));
         setCitizenProfile(profile);
         setLeaderboard(distLeaderboard);
         setDistrictStats(distStats);
@@ -87,11 +122,11 @@ export function useCivicRewards() {
       }
     } catch (err: any) {
       console.error('❌ Error in useCivicRewards:', err);
-      setError(err.message || 'Failed to load civic rewards data');
+      setError(err.message || 'Unable to load contribution data');
     } finally {
       setLoading(false);
     }
-  }, [user?.id, activeDistrictId, organizationType]);
+  }, [user?.id, user?.fullName, user?.email, user?.role, activeDistrictId, organizationType]);
 
   // Re-fetch on district or organization changes
   useEffect(() => {
@@ -106,12 +141,10 @@ export function useCivicRewards() {
     }
   }, [organizationType, activeDistrictId, fetchRewardsData]);
 
+  // Supabase Realtime subscription for instant score updates (only when live backend is connected)
   useEffect(() => {
-    fetchRewardsData();
-  }, [fetchRewardsData]);
+    if (!isLiveSupabaseAvailable) return;
 
-  // Supabase Realtime subscription for instant score updates
-  useEffect(() => {
     const channel = supabase
       .channel('civic-rewards-realtime')
       .on(
@@ -124,6 +157,13 @@ export function useCivicRewards() {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'civic_contributions' },
+        () => {
+          fetchRewardsData();
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'reports' },
         () => {
           fetchRewardsData();
         }
@@ -144,6 +184,7 @@ export function useCivicRewards() {
   return {
     citizenProfile,
     leaderboard,
+    isLiveDataset,
     contributions,
     districtStats,
     statewideStats,

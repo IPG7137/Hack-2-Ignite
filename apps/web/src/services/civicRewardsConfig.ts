@@ -1,12 +1,70 @@
 import { CivicRewardsConfig, CivicBadgeLevel } from '../types/civicRewards';
 
+export interface CivicPointCategoryRule {
+  id: string;
+  contributionType: string;
+  title: string;
+  points: number;
+  sampleCode: string;
+  status: string;
+  description: string;
+  iconName: 'check' | 'map-pin' | 'camera' | 'shield-check';
+}
+
+/**
+ * Official Civic Point Categories:
+ * Restricted strictly to the 4 verified categories established in the system framework.
+ */
+export const OFFICIAL_CIVIC_POINT_CATEGORIES: CivicPointCategoryRule[] = [
+  {
+    id: 'verified_civic_grievance',
+    contributionType: 'verified_report',
+    title: 'Verified Civic Grievance',
+    points: 10,
+    sampleCode: 'CR-SOL-103',
+    status: 'VERIFIED',
+    description: 'Verified genuine report on commercial waste encroachment, potholes, or civic issues',
+    iconName: 'check',
+  },
+  {
+    id: 'precise_gis_audit',
+    contributionType: 'accurate_location',
+    title: 'Precise GIS Coordinate Audit',
+    points: 5,
+    sampleCode: 'CR-SOL-103',
+    status: 'VERIFIED',
+    description: 'High accuracy GPS coordinate verification (within 10m)',
+    iconName: 'map-pin',
+  },
+  {
+    id: 'geotagged_photographic_proof',
+    contributionType: 'useful_evidence',
+    title: 'Geotagged Photographic Proof',
+    points: 5,
+    sampleCode: 'CR-SOL-103',
+    status: 'VERIFIED',
+    description: 'Clear photographic evidence of blocked pedestrian path or verified grievance',
+    iconName: 'camera',
+  },
+  {
+    id: 'onsite_resolution_verification',
+    contributionType: 'resolution_verification',
+    title: 'On-Site Resolution Verification',
+    points: 10,
+    sampleCode: 'CR-SOL-105',
+    status: 'VERIFIED',
+    description: 'Verified successful on-site slab replacement, repair, & safety fencing confirmation',
+    iconName: 'shield-check',
+  },
+];
+
 export const DEFAULT_CIVIC_REWARDS_CONFIG: CivicRewardsConfig = {
   pointsValidReport: 10,
   pointsAccurateGps: 5,
   pointsUsefulEvidence: 5,
-  pointsCriticalBonus: 10,
+  pointsCriticalBonus: 0,
   pointsResolutionVerification: 10,
-  pointsResolutionUpvote: 2,
+  pointsResolutionUpvote: 0,
   thresholdStarter: 50,
   thresholdContributor: 200,
   thresholdChampion: 500,
@@ -72,6 +130,7 @@ export function getNextLevelProgress(score: number, config: CivicRewardsConfig =
 
   if (currentLevel === 'starter') {
     if (score < config.thresholdStarter) {
+      nextLevel = 'starter';
       targetScore = config.thresholdStarter;
       prevThreshold = 0;
     } else {

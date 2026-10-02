@@ -131,6 +131,17 @@ export const OrganizationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       };
     }
 
+    if (storedUser?.role === 'citizen' && storedUser?.districtId) {
+      const dist = storedUser.districtId;
+      const corp = MAHARASHTRA_DISTRICTS.find((d) => d.id === dist)?.corporations[0]?.id || null;
+      return {
+        organizationType: 'MUNICIPAL_CORPORATION' as OrganizationType,
+        districtId: dist,
+        corporationId: corp,
+        zone: storedUser.zone || null,
+      };
+    }
+
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
@@ -181,6 +192,17 @@ export const OrganizationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       setOrganizationType('STATE');
       setDistrictId(null);
       setZone(null);
+      return;
+    }
+
+    // STRICT LOCK: Citizen is locked to their home municipality
+    if (storedUser?.role === 'citizen' && storedUser?.districtId) {
+      const dist = storedUser.districtId;
+      const corp = MAHARASHTRA_DISTRICTS.find((d) => d.id === dist)?.corporations[0]?.id || null;
+      setOrganizationType('MUNICIPAL_CORPORATION');
+      setDistrictId(dist);
+      setCorporationId(corp);
+      setZone(storedUser.zone || null);
       return;
     }
 
@@ -241,6 +263,27 @@ export const OrganizationProvider: React.FC<{ children: React.ReactNode }> = ({ 
           districtId: lockedDist,
           corporationId: finalCorpId,
           zone: finalZone,
+        })
+      );
+      return;
+    }
+
+    // STRICT SECURITY BOUNDARY:
+    // An Authenticated Citizen is strictly bound to their home municipality
+    if (storedUser?.role === 'citizen' && storedUser?.districtId) {
+      const lockedDist = storedUser.districtId;
+      const corp = MAHARASHTRA_DISTRICTS.find((d) => d.id === lockedDist)?.corporations[0]?.id || null;
+      setOrganizationType('MUNICIPAL_CORPORATION');
+      setDistrictId(lockedDist);
+      setCorporationId(corp);
+      setZone(storedUser.zone || null);
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({
+          organizationType: 'MUNICIPAL_CORPORATION',
+          districtId: lockedDist,
+          corporationId: corp,
+          zone: storedUser.zone || null,
         })
       );
       return;

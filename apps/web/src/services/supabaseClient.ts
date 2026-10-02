@@ -29,6 +29,13 @@ export const supabase: SupabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON
 
 export const isSupabaseConfigured: boolean = Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);
 
+export const isLiveSupabaseAvailable: boolean = Boolean(
+  SUPABASE_URL &&
+  SUPABASE_ANON_KEY &&
+  !SUPABASE_URL.includes('placeholder') &&
+  !SUPABASE_URL.includes('example.com')
+);
+
 /**
  * Health check helper for database connection
  */

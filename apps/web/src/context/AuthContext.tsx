@@ -205,8 +205,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     if (districtCred) {
       const assignedRole: UserRole = districtCred.role === 'citizen' ? 'citizen' : 'district_admin';
+      const citizenUserIdMap: Record<string, string> = {
+        solapur_citizen: 'USER-SOL-01',
+        pune_citizen: 'USER-PUN-01',
+        nashik_citizen: 'USER-NSK-01',
+        csn_citizen: 'USER-CSN-01',
+        mumbai_citizen: 'USER-MUM-01',
+        nagpur_citizen: 'USER-NGP-01',
+        thane_citizen: 'USER-THN-01',
+        kolhapur_citizen: 'USER-KLP-01',
+        amravati_citizen: 'USER-AMR-01',
+      };
+      const resolvedUserId = districtCred.role === 'citizen'
+        ? (citizenUserIdMap[districtCred.loginId.toLowerCase()] || `cit-${districtCred.districtId}-001`)
+        : `district-admin-${districtCred.districtId}-001`;
+
       const districtAdminUser: AuthUser = {
-        id: `district-admin-${districtCred.districtId}-001`,
+        id: resolvedUserId,
         email: emailToTry,
         role: assignedRole,
         fullName: districtCred.fullName,

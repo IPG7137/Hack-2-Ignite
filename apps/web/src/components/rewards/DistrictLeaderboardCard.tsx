@@ -9,7 +9,7 @@ import {
   Info,
   Sparkles,
 } from 'lucide-react';
-import { DistrictLeaderboardEntry } from '../../types/civicRewards';
+import { DistrictLeaderboardEntry, DistrictRecognitionCycle } from '../../types/civicRewards';
 import { CIVIC_BADGE_DETAILS } from '../../services/civicRewardsConfig';
 import { Card } from '../ui/Card';
 
@@ -18,6 +18,8 @@ interface DistrictLeaderboardCardProps {
   districtName: string;
   divisionName?: string;
   currentUserId?: string;
+  recognitionCycle?: DistrictRecognitionCycle;
+  isLiveDataset?: boolean;
 }
 
 export const DistrictLeaderboardCard: React.FC<DistrictLeaderboardCardProps> = ({
@@ -25,7 +27,11 @@ export const DistrictLeaderboardCard: React.FC<DistrictLeaderboardCardProps> = (
   districtName = 'Solapur',
   divisionName = 'Pune',
   currentUserId,
+  recognitionCycle,
+  isLiveDataset = false,
 }) => {
+  const eligibleLimit = recognitionCycle?.eligibleRankLimit ?? 10;
+
   return (
     <Card className="bg-white border-[#D9E2EC] shadow-xs overflow-hidden">
       {/* Header */}
@@ -40,12 +46,20 @@ export const DistrictLeaderboardCard: React.FC<DistrictLeaderboardCardProps> = (
               <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-blue-50 text-[#1769D2] border border-blue-200">
                 District Scoped
               </span>
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200 font-semibold">
-                Demonstration Baseline Dataset
-              </span>
+              {isLiveDataset ? (
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold">
+                  Live Municipal Database
+                </span>
+              ) : (
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200 font-semibold">
+                  Demo Leaderboard — Sample Data
+                </span>
+              )}
             </h2>
             <p className="text-[11px] text-[#526581] mt-0.5">
-              Verified civic contributors across {districtName} District ({divisionName} Division). Dynamically updates upon verified citizen submissions.
+              {isLiveDataset
+                ? `Live verified civic contributors across ${districtName} District (${divisionName} Division). Ranked strictly by verified resolution impact.`
+                : `Sample baseline dataset for ${districtName} District (${divisionName} Division). Authenticated citizen verified contributions are dynamically merged and ranked in real time.`}
             </p>
           </div>
         </div>
@@ -57,6 +71,21 @@ export const DistrictLeaderboardCard: React.FC<DistrictLeaderboardCardProps> = (
           </span>
         </div>
       </div>
+
+      {/* Annual Recognition Framework Context Bar */}
+      {recognitionCycle && (
+        <div className="px-4 py-2.5 bg-gradient-to-r from-blue-50/90 to-amber-50/70 border-b border-blue-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+          <div className="flex items-center gap-2 text-[#123B6D]">
+            <Award className="w-4 h-4 text-amber-600 shrink-0" />
+            <span>
+              <strong>Annual Civic Recognition Framework:</strong> {recognitionCycle.eventName} ({recognitionCycle.eventDate}) · Top {eligibleLimit} contributors are shortlisted for official digital honor certificates.
+            </span>
+          </div>
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-100 text-amber-800 border border-amber-300 shrink-0 self-start sm:self-auto">
+            Shortlist Open (Ranks 1–{eligibleLimit})
+          </span>
+        </div>
+      )}
 
       {/* District Isolation Notice */}
       <div className="px-4 py-2 bg-blue-50/60 border-b border-blue-100 text-[11px] text-[#123B6D] flex items-center gap-2">
@@ -83,9 +112,9 @@ export const DistrictLeaderboardCard: React.FC<DistrictLeaderboardCardProps> = (
             {entries.length === 0 ? (
               <tr>
                 <td colSpan={6} className="py-8 text-center text-slate-400">
-                  <div className="text-xs font-semibold text-slate-600">No verified contributions yet in {districtName} District.</div>
+                  <div className="text-xs font-semibold text-slate-600">No verified civic champions yet in {districtName} District.</div>
                   <div className="text-[11px] text-slate-400 mt-1">
-                    Submit genuine civic reports and verify resolutions to appear on this leaderboard.
+                    Submit verified reports and confirm resolutions to be recognized on this municipal leaderboard.
                   </div>
                 </td>
               </tr>
@@ -133,8 +162,16 @@ export const DistrictLeaderboardCard: React.FC<DistrictLeaderboardCardProps> = (
                               </span>
                             )}
                           </div>
-                          <div className="text-[10px] text-[#718096] font-mono">
-                            {districtName} Civic Contributor
+                          <div className="text-[10px] text-[#718096] font-mono flex items-center gap-1.5 flex-wrap">
+                            <span>{districtName} Civic Contributor</span>
+                            {entry.rank <= eligibleLimit && (
+                              <span
+                                className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-amber-50 text-amber-800 border border-amber-200 font-semibold"
+                                title={`Shortlisted for ${recognitionCycle?.eventName || 'Annual Recognition'}`}
+                              >
+                                🎖️ Shortlisted
+                              </span>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -175,7 +212,7 @@ export const DistrictLeaderboardCard: React.FC<DistrictLeaderboardCardProps> = (
         </table>
       </div>
 
-      {/* Footer / Scoring Criteria info */}
+      {/* Footer / Scoring Criteria info & Recognition Award */}
       <div className="p-3.5 bg-slate-50 border-t border-[#E8EEF5] text-[11px] text-[#718096] flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div className="flex items-center gap-1.5">
           <Info className="w-3.5 h-3.5 text-[#1769D2] shrink-0" />
@@ -183,7 +220,15 @@ export const DistrictLeaderboardCard: React.FC<DistrictLeaderboardCardProps> = (
             <strong>Deterministic Tie-Breaking:</strong> 1. Civic Score · 2. Verified Reports · 3. Verified Resolutions · 4. Earlier Achievement.
           </span>
         </div>
-        <span className="text-[10px] font-mono text-[#526581]">Anti-Spam Triage Active</span>
+        {recognitionCycle ? (
+          <div className="text-[10px] font-mono text-[#526581] flex items-center gap-2">
+            <span>Award: {recognitionCycle.rewardType}</span>
+            <span>·</span>
+            <span className="font-semibold text-emerald-700">Status: {recognitionCycle.status.toUpperCase()}</span>
+          </div>
+        ) : (
+          <span className="text-[10px] font-mono text-[#526581]">Anti-Spam Triage Active</span>
+        )}
       </div>
     </Card>
   );
