@@ -309,7 +309,7 @@ export const MunicipalAuthScreen: React.FC = () => {
                         >
                           {MAHARASHTRA_DISTRICTS.map((d) => (
                             <option key={d.id} value={d.id}>
-                              {d.name} District ({d.division} Division)
+                              {d.name} District
                             </option>
                           ))}
                         </select>
@@ -352,7 +352,7 @@ export const MunicipalAuthScreen: React.FC = () => {
                         >
                           {MAHARASHTRA_DISTRICTS.map((d) => (
                             <option key={d.id} value={d.id}>
-                              {d.name} District ({d.division} Division)
+                              {d.name} District
                             </option>
                           ))}
                         </select>
