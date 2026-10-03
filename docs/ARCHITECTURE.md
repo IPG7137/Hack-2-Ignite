@@ -77,10 +77,10 @@ flowchart TD
         OfficerUI -->|Sign In / Demo Officer| SupaAuth
         SupaAuth --> RoleResolver
         
-        RoleResolver -->|role == 'citizen'| CitizenDash["Citizen Dashboard\n(DashboardScreen)"]
-        RoleResolver -->|role in ['officer','field_worker','contractor']| OfficerDash["Contractor Dashboard\n(ContractorDashboardScreen)"]
-        RoleResolver -->|role in ['municipal_admin','super_admin']| AdminPortalNotice["Web Command Center\n(Administrative Notice)"]
-        RoleResolver -->|role == 'unresolved'| AuthError["Explicit Role Error\n(Zero Fallback)"]
+        RoleResolver -->|"role: citizen"| CitizenDash["Citizen Dashboard\n(DashboardScreen)"]
+        RoleResolver -->|"role: officer / field_worker / contractor"| OfficerDash["Contractor Dashboard\n(ContractorDashboardScreen)"]
+        RoleResolver -->|"role: municipal_admin / super_admin"| AdminPortalNotice["Web Command Center\n(Administrative Notice)"]
+        RoleResolver -->|"role: unresolved"| AuthError["Explicit Role Error\n(Zero Fallback)"]
     end
 
     subgraph AI["🧠 AI Perception Layer (Zero Client Secret Exposure)"]
@@ -139,13 +139,13 @@ flowchart TD
     
     QueryProfiles --> RoleCheck{"Authoritative Backend Role"}
     
-    RoleCheck -->|'citizen'| IsOfficerTab{"Submitted via Officer Tab?"}
-    IsOfficerTab -->|YES| RejectCitizen["⛔ Access Denied\nImmediate Logout\nPrevent Citizen Escalation"]
-    IsOfficerTab -->|NO| RouteCitizen["✅ Citizen Dashboard (DashboardScreen)"]
+    RoleCheck -->|"role: citizen"| IsOfficerTab{"Submitted via Officer Tab?"}
+    IsOfficerTab -->|"YES"| RejectCitizen["⛔ Access Denied\nImmediate Logout\nPrevent Citizen Escalation"]
+    IsOfficerTab -->|"NO"| RouteCitizen["✅ Citizen Dashboard (DashboardScreen)"]
     
-    RoleCheck -->|'officer' / 'field_worker' / 'contractor'| RouteOfficer["🛠️ Contractor Dashboard (ContractorDashboardScreen)"]
-    RoleCheck -->|'state_admin' / 'municipal_admin' / 'super_admin'| RouteAdmin["💻 Web Command Center Redirection"]
-    RoleCheck -->|'unresolved'| UnresolvedError["🛑 Role Resolution Error\nRefuse Silent Fallback"]
+    RoleCheck -->|"role: officer / field_worker / contractor"| RouteOfficer["🛠️ Contractor Dashboard (ContractorDashboardScreen)"]
+    RoleCheck -->|"role: state_admin / municipal_admin / super_admin"| RouteAdmin["💻 Web Command Center Redirection"]
+    RoleCheck -->|"role: unresolved"| UnresolvedError["🛑 Role Resolution Error\nRefuse Silent Fallback"]
 ```
 
 ### Key Security Guarantees
