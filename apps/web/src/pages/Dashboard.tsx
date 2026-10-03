@@ -21,15 +21,10 @@ import {
   Sparkles,
   MapPin,
   RefreshCw,
-  Layers,
   ShieldAlert,
-  ShieldCheck,
   LogIn,
-  Activity,
   CheckCircle2,
-  AlertTriangle,
   Clock,
-  Radio,
 } from 'lucide-react';
 import { SmartAlertEngine } from '../services/smartAlertEngine';
 
@@ -92,30 +87,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
     };
   }, [complaints]);
 
-  // 2. Lifecycle Status Distribution
-  const statusCounts = useMemo(() => {
-    return {
-      submitted: complaints.filter((c) => c.status === 'submitted').length,
-      under_review: complaints.filter((c) => c.status === 'under_review').length,
-      assigned: complaints.filter((c) => c.status === 'assigned').length,
-      in_progress: complaints.filter((c) => c.status === 'in_progress').length,
-      resolution_submitted: complaints.filter((c) => c.status === 'resolution_submitted').length,
-      verified: complaints.filter((c) => c.status === 'verified').length,
-      closed: complaints.filter((c) => c.status === 'closed').length,
-    };
-  }, [complaints]);
-
-  // 3. Priority Distribution
-  const priorityCounts = useMemo(() => {
-    return {
-      urgent: complaints.filter((c) => c.priority === 'urgent').length,
-      high: complaints.filter((c) => c.priority === 'high').length,
-      medium: complaints.filter((c) => c.priority === 'medium').length,
-      low: complaints.filter((c) => c.priority === 'low').length,
-    };
-  }, [complaints]);
-
-  // 4. SLA Health Breakdown
+  // 2. SLA Health Breakdown (unique 3-way view: overdue / at-risk / on-track)
   const slaHealth = useMemo(() => {
     const active = complaints.filter((c) => c.status !== 'closed' && c.status !== 'verified');
     return {
@@ -124,10 +96,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
       onTrack: active.filter((c) => !c.sla.isOverdue && c.sla.slaStatus === 'on_track').length,
     };
   }, [complaints]);
-
-  const urgentActiveCount = complaints.filter(
-    (c) => c.priority === 'urgent' && c.status !== 'closed' && c.status !== 'verified'
-  ).length;
 
   if (loading && complaints.length === 0) {
     return (
@@ -147,8 +115,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
       />
     );
   }
-
-  const totalReportsCount = complaints.length;
 
   return (
     <div className="space-y-4">
@@ -197,161 +163,71 @@ export const Dashboard: React.FC<DashboardProps> = ({
       />
 
       {/* ==================================================
-          OPERATIONAL PULSE: LIFECYCLE & PRIORITY DISTRIBUTION
+          SLA COMPLIANCE HEALTH: 3-WAY STATUTORY STATUS OVERVIEW
+          (Unique value: overdue / at-risk / on-track breakdown → links to SLA primary page)
           ================================================== */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5">
-        {/* Operational Pulse: 5 Key Stages (7 cols) */}
-        <div className="lg:col-span-7 p-4 rounded-xl border border-slate-200 bg-white shadow-2xs flex flex-col justify-between">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-md bg-blue-100 text-[#1769D2] flex items-center justify-center">
-                <Activity className="w-3.5 h-3.5 stroke-[2.25]" />
-              </div>
-              <div>
-                <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-                  City Operational Pulse
-                </h3>
-                <p className="text-[10px] text-slate-500">Live grievance stage distribution</p>
-              </div>
+      <div className="p-4 rounded-xl border border-slate-200 bg-white shadow-2xs">
+        <div className="flex items-center justify-between mb-3">
+          <div
+            onClick={() => onNavigatePage('sla')}
+            className="flex items-center gap-2 cursor-pointer group"
+            title="Open SLA Escalation Matrix"
+          >
+            <div className="w-6 h-6 rounded-md bg-amber-100 text-amber-800 flex items-center justify-center">
+              <Clock className="w-3.5 h-3.5 stroke-[2.25]" />
             </div>
-            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-bold border border-slate-200">
-              {totalReportsCount} TOTAL COMPLAINTS
-            </span>
-          </div>
-
-          {/* 5 Operational Pulse Buckets */}
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 pt-1">
-            {/* Critical */}
-            <div
-              onClick={() => onNavigatePage('complaints', { priority: 'urgent' })}
-              className="p-2.5 rounded-lg bg-red-50/70 border border-red-200 text-center hover:bg-red-100/70 transition-all cursor-pointer group shadow-2xs"
-              title="Click to view all critical priority grievances"
-            >
-              <div className="text-[10px] font-mono uppercase text-red-800 font-bold group-hover:underline">Critical →</div>
-              <div className="text-xl font-extrabold font-mono text-red-900 mt-0.5">
-                {priorityCounts.urgent}
-              </div>
-              <div className="text-[9px] text-red-700 font-mono mt-0.5">12h SLA Limit</div>
-            </div>
-
-            {/* High */}
-            <div
-              onClick={() => onNavigatePage('complaints', { priority: 'high' })}
-              className="p-2.5 rounded-lg bg-orange-50/70 border border-orange-200 text-center hover:bg-orange-100/70 transition-all cursor-pointer group shadow-2xs"
-              title="Click to view all high priority grievances"
-            >
-              <div className="text-[10px] font-mono uppercase text-orange-800 font-bold group-hover:underline">High →</div>
-              <div className="text-xl font-extrabold font-mono text-orange-900 mt-0.5">
-                {priorityCounts.high}
-              </div>
-              <div className="text-[9px] text-orange-700 font-mono mt-0.5">24h SLA Limit</div>
-            </div>
-
-            {/* Under Review */}
-            <div
-              onClick={() => onNavigatePage('complaints', { status: 'under_review' })}
-              className="p-2.5 rounded-lg bg-purple-50/70 border border-purple-200 text-center hover:bg-purple-100/70 transition-all cursor-pointer group shadow-2xs"
-              title="Click to view grievances under review"
-            >
-              <div className="text-[10px] font-mono uppercase text-purple-800 font-bold group-hover:underline">Under Review →</div>
-              <div className="text-xl font-extrabold font-mono text-purple-900 mt-0.5">
-                {statusCounts.under_review + statusCounts.submitted}
-              </div>
-              <div className="text-[9px] text-purple-700 font-mono mt-0.5">Triage Stage</div>
-            </div>
-
-            {/* In Progress */}
-            <div
-              onClick={() => onNavigatePage('complaints', { status: 'in_progress' })}
-              className="p-2.5 rounded-lg bg-amber-50/70 border border-amber-200 text-center hover:bg-amber-100/70 transition-all cursor-pointer group shadow-2xs"
-              title="Click to view active in-progress work orders"
-            >
-              <div className="text-[10px] font-mono uppercase text-amber-800 font-bold group-hover:underline">In Progress →</div>
-              <div className="text-xl font-extrabold font-mono text-amber-900 mt-0.5">
-                {statusCounts.in_progress + statusCounts.assigned}
-              </div>
-              <div className="text-[9px] text-amber-700 font-mono mt-0.5">Field Remediation</div>
-            </div>
-
-            {/* Resolved */}
-            <div
-              onClick={() => onNavigatePage('complaints', { status: 'verified' })}
-              className="p-2.5 rounded-lg bg-emerald-50/70 border border-emerald-200 text-center col-span-2 sm:col-span-1 hover:bg-emerald-100/70 transition-all cursor-pointer group shadow-2xs"
-              title="Click to view resolved and verified cases"
-            >
-              <div className="text-[10px] font-mono uppercase text-emerald-800 font-bold group-hover:underline">Resolved →</div>
-              <div className="text-xl font-extrabold font-mono text-emerald-900 mt-0.5">
-                {statusCounts.resolution_submitted + statusCounts.verified + statusCounts.closed}
-              </div>
-              <div className="text-[9px] text-emerald-700 font-mono mt-0.5">Proof Verified</div>
+            <div>
+              <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider group-hover:text-[#1769D2] transition-colors">
+                SLA Compliance Health →
+              </h3>
+              <p className="text-[10px] text-slate-500">Statutory resolution timeline status — click to view full SLA escalation matrix</p>
             </div>
           </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onNavigatePage('sla')}
+            className="h-6 text-[10px] font-mono text-emerald-700 font-bold hover:bg-emerald-50 px-2"
+          >
+            {liveKPIs.slaComplianceRate}% COMPLIANT
+          </Button>
         </div>
 
-        {/* SLA Health Breakdown (5 cols) */}
-        <div className="lg:col-span-5 p-4 rounded-xl border border-slate-200 bg-white shadow-2xs flex flex-col justify-between">
-          <div className="flex items-center justify-between mb-3">
-            <div
-              onClick={() => onNavigatePage('sla')}
-              className="flex items-center gap-2 cursor-pointer group"
-              title="Open SLA Escalation Matrix"
-            >
-              <div className="w-6 h-6 rounded-md bg-amber-100 text-amber-800 flex items-center justify-center">
-                <Clock className="w-3.5 h-3.5 stroke-[2.25]" />
-              </div>
-              <div>
-                <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider group-hover:text-[#1769D2] transition-colors">
-                  SLA Compliance Health →
-                </h3>
-                <p className="text-[10px] text-slate-500">Statutory resolution timeline status</p>
-              </div>
+        <div className="grid grid-cols-3 gap-3 text-center">
+          <div
+            onClick={() => onNavigatePage('sla')}
+            className="p-3 rounded-lg bg-red-50/80 border border-red-200 hover:bg-red-100 transition-all cursor-pointer group"
+            title="View overdue breaches in SLA Matrix"
+          >
+            <div className="text-[10px] font-mono uppercase text-red-800 font-semibold group-hover:underline">Overdue →</div>
+            <div className="text-2xl font-extrabold font-mono text-red-900 mt-0.5">
+              {slaHealth.overdue}
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => onNavigatePage('sla')}
-              className="h-6 text-[10px] font-mono text-emerald-700 font-bold hover:bg-emerald-50 px-2"
-            >
-              {liveKPIs.slaComplianceRate}% COMPLIANT
-            </Button>
+            <div className="text-[9px] text-red-700 font-mono mt-0.5">SLA Breached</div>
           </div>
 
-          <div className="grid grid-cols-3 gap-2 text-center pt-1">
-            <div
-              onClick={() => onNavigatePage('sla')}
-              className="p-2.5 rounded-lg bg-red-50/80 border border-red-200 hover:bg-red-100 transition-all cursor-pointer group"
-              title="View overdue breaches in SLA Matrix"
-            >
-              <div className="text-[10px] font-mono uppercase text-red-800 font-semibold group-hover:underline">Overdue →</div>
-              <div className="text-xl font-extrabold font-mono text-red-900 mt-0.5">
-                {slaHealth.overdue}
-              </div>
-              <div className="text-[9px] text-red-700 font-mono mt-0.5">Breached</div>
+          <div
+            onClick={() => onNavigatePage('sla')}
+            className="p-3 rounded-lg bg-amber-50/80 border border-amber-200 hover:bg-amber-100 transition-all cursor-pointer group"
+            title="View cases at risk in SLA Matrix"
+          >
+            <div className="text-[10px] font-mono uppercase text-amber-800 font-semibold group-hover:underline">At Risk (&lt;6h) →</div>
+            <div className="text-2xl font-extrabold font-mono text-amber-900 mt-0.5">
+              {slaHealth.warning}
             </div>
+            <div className="text-[9px] text-amber-700 font-mono mt-0.5">Urgent Attention</div>
+          </div>
 
-            <div
-              onClick={() => onNavigatePage('sla')}
-              className="p-2.5 rounded-lg bg-amber-50/80 border border-amber-200 hover:bg-amber-100 transition-all cursor-pointer group"
-              title="View cases at risk in SLA Matrix"
-            >
-              <div className="text-[10px] font-mono uppercase text-amber-800 font-semibold group-hover:underline">At Risk (&lt;6h) →</div>
-              <div className="text-xl font-extrabold font-mono text-amber-900 mt-0.5">
-                {slaHealth.warning}
-              </div>
-              <div className="text-[9px] text-amber-700 font-mono mt-0.5">Urgent Attention</div>
+          <div
+            onClick={() => onNavigatePage('sla')}
+            className="p-3 rounded-lg bg-emerald-50/80 border border-emerald-200 hover:bg-emerald-100 transition-all cursor-pointer group"
+            title="View on-track cases in SLA Matrix"
+          >
+            <div className="text-[10px] font-mono uppercase text-emerald-800 font-semibold group-hover:underline">On Track →</div>
+            <div className="text-2xl font-extrabold font-mono text-emerald-900 mt-0.5">
+              {slaHealth.onTrack}
             </div>
-
-            <div
-              onClick={() => onNavigatePage('sla')}
-              className="p-2.5 rounded-lg bg-emerald-50/80 border border-emerald-200 hover:bg-emerald-100 transition-all cursor-pointer group"
-              title="View on-track cases in SLA Matrix"
-            >
-              <div className="text-[10px] font-mono uppercase text-emerald-800 font-semibold group-hover:underline">On Track →</div>
-              <div className="text-xl font-extrabold font-mono text-emerald-900 mt-0.5">
-                {slaHealth.onTrack}
-              </div>
-              <div className="text-[9px] text-emerald-700 font-mono mt-0.5">Within Target</div>
-            </div>
+            <div className="text-[9px] text-emerald-700 font-mono mt-0.5">Within Target</div>
           </div>
         </div>
       </div>
@@ -374,6 +250,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
                   LIVE
                 </span>
+                <span className="text-[9px] font-mono font-bold text-slate-500 bg-slate-100 border border-slate-200 px-1.5 py-0.2 rounded-full uppercase tracking-wider">
+                  MAP PREVIEW
+                </span>
               </div>
               <Button
                 variant="ghost"
@@ -385,7 +264,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 <ArrowUpRight className="w-3 h-3" />
               </Button>
             </div>
-            <div className="h-[340px] w-full">
+            <div className="h-[280px] w-full">
               <CommandMap
                 complaints={complaints}
                 onSelectComplaint={onSelectComplaint}

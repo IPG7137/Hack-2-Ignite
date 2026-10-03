@@ -16,7 +16,6 @@ import {
   Trophy,
   Award,
   Layers,
-  Bell,
   X,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
@@ -94,14 +93,7 @@ export const CommandSidebar: React.FC<CommandSidebarProps> = ({
     {
       title: 'ZONE OPERATIONS',
       items: [
-        {
-          id: 'alerts',
-          label: 'Zone Alert Center',
-          icon: ShieldAlert,
-          badge: alertCount,
-          badgeColor: 'bg-red-50 text-red-700 border-red-200',
-        },
-        { id: 'notifications', label: 'Notifications', icon: Bell },
+        { id: 'alerts', label: 'Zone Alert Center', icon: ShieldAlert, badge: alertCount, badgeColor: 'bg-red-50 text-red-700 border-red-200' },
         { id: 'complaints', label: 'Zone Complaints Queue', icon: FileText, badge: openCount },
         {
           id: 'sla',
@@ -191,14 +183,7 @@ export const CommandSidebar: React.FC<CommandSidebarProps> = ({
     {
       title: 'OPERATIONS',
       items: [
-        {
-          id: 'alerts',
-          label: 'Smart Alert Center',
-          icon: ShieldAlert,
-          badge: alertCount,
-          badgeColor: 'bg-red-50 text-red-700 border-red-200',
-        },
-        { id: 'notifications', label: 'Notification Center', icon: Bell },
+        { id: 'alerts', label: 'Smart Alert Center', icon: ShieldAlert, badge: alertCount, badgeColor: 'bg-red-50 text-red-700 border-red-200' },
         { id: 'complaints', label: 'Complaints Queue', icon: FileText, badge: openCount },
         {
           id: 'sla',
@@ -250,14 +235,7 @@ export const CommandSidebar: React.FC<CommandSidebarProps> = ({
     {
       title: 'COMMUNITY & NOTIFICATIONS',
       items: [
-        { id: 'notifications', label: 'Status Updates & Alerts', icon: Bell },
-        {
-          id: 'alerts',
-          label: 'Public Safety Alerts',
-          icon: ShieldAlert,
-          badge: alertCount,
-          badgeColor: 'bg-red-50 text-red-700 border-red-200',
-        },
+        { id: 'alerts', label: 'Public Safety Alerts', icon: ShieldAlert, badge: alertCount, badgeColor: 'bg-red-50 text-red-700 border-red-200' },
       ],
     },
   ];

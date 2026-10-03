@@ -35,13 +35,7 @@ import {
 } from 'lucide-react';
 
 export type MapViewMode = 'hybrid' | 'markers' | 'heatmap' | 'hotspots';
-export type BaseMapStyle = 'osm' | 'esriStreet' | 'satellite' | 'google' | 'voyager' | 'positron' | 'dark';
-
-// Support optional authenticated CARTO key if configured via VITE_CARTO_API_KEY
-const cartoKeyParam =
-  typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_CARTO_API_KEY
-    ? `?api_key=${(import.meta as any).env.VITE_CARTO_API_KEY}`
-    : '';
+export type BaseMapStyle = 'osm' | 'esriStreet' | 'satellite' | 'google';
 
 export const BASEMAPS: Record<
   BaseMapStyle,
@@ -89,42 +83,6 @@ export const BASEMAPS: Record<
     ],
     maxZoom: 22,
     attribution: '&copy; Google Maps',
-  },
-  voyager: {
-    name: 'Civic Voyager',
-    icon: '🗺️',
-    tiles: [
-      `https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png${cartoKeyParam}`,
-      `https://b.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png${cartoKeyParam}`,
-      `https://c.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png${cartoKeyParam}`,
-      `https://d.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png${cartoKeyParam}`,
-    ],
-    maxZoom: 20,
-    attribution: '&copy; CARTO &copy; OpenStreetMap contributors',
-  },
-  positron: {
-    name: 'Command Light',
-    icon: '🏛️',
-    tiles: [
-      `https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png${cartoKeyParam}`,
-      `https://b.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png${cartoKeyParam}`,
-      `https://c.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png${cartoKeyParam}`,
-      `https://d.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png${cartoKeyParam}`,
-    ],
-    maxZoom: 20,
-    attribution: '&copy; CARTO &copy; OpenStreetMap contributors',
-  },
-  dark: {
-    name: 'Night Ops',
-    icon: '🌙',
-    tiles: [
-      `https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png${cartoKeyParam}`,
-      `https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png${cartoKeyParam}`,
-      `https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png${cartoKeyParam}`,
-      `https://d.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png${cartoKeyParam}`,
-    ],
-    maxZoom: 20,
-    attribution: '&copy; CARTO &copy; OpenStreetMap contributors',
   },
 };
 
@@ -275,25 +233,6 @@ export const CommandMap: React.FC<CommandMapProps> = ({
           type: 'raster',
           tiles: BASEMAPS.google.tiles,
           tileSize: 256,
-          attribution: BASEMAPS.google.attribution,
-        },
-        'basemap-source-voyager': {
-          type: 'raster',
-          tiles: BASEMAPS.voyager.tiles,
-          tileSize: 256,
-          attribution: BASEMAPS.voyager.attribution,
-        },
-        'basemap-source-positron': {
-          type: 'raster',
-          tiles: BASEMAPS.positron.tiles,
-          tileSize: 256,
-          attribution: BASEMAPS.positron.attribution,
-        },
-        'basemap-source-dark': {
-          type: 'raster',
-          tiles: BASEMAPS.dark.tiles,
-          tileSize: 256,
-          attribution: BASEMAPS.dark.attribution,
         },
       },
       layers: [

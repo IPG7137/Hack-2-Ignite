@@ -3,23 +3,33 @@ import { Settings as SettingsIcon, Server, Database, Key, Shield, CheckCircle2, 
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
+import { useOrganization } from '../context/OrganizationContext';
 
 export const Settings: React.FC = () => {
+  const { organizationType, stateName, municipalCorporationName } = useOrganization();
   const [supabaseUrl, setSupabaseUrl] = useState(
     import.meta.env.VITE_SUPABASE_URL || ''
   );
   const [geminiStatus, setGeminiStatus] = useState<'connected' | 'untested'>('connected');
   const [dbStatus, setDbStatus] = useState<'connected' | 'testing'>('connected');
 
+  const isState = organizationType === 'STATE';
+
   return (
     <div className="space-y-4 max-w-4xl mx-auto">
       <div className="pb-2 border-b border-[#D9E2EC]">
         <h2 className="text-sm font-bold uppercase tracking-wider text-[#172B4D] flex items-center gap-2">
           <SettingsIcon className="w-4 h-4 text-[#1769D2]" />
-          <span>Municipal Operations Command Center Configuration</span>
+          <span>
+            {isState
+              ? `${stateName} State Policy & System Configuration`
+              : `${municipalCorporationName || 'Municipal'} Operations Command Center Configuration`}
+          </span>
         </h2>
         <p className="text-xs text-[#526581]">
-          Backend connection parameters, telemetry diagnostic tests, and system operational parameters.
+          {isState
+            ? 'Statewide policy parameters, backend connections, telemetry diagnostics, and platform operational rules.'
+            : 'Backend connection parameters, telemetry diagnostic tests, and system operational parameters.'}
         </p>
       </div>
 

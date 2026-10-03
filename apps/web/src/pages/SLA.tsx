@@ -27,7 +27,26 @@ export const SLA: React.FC<SLAPageProps> = ({ complaints, onSelectComplaint }) =
         </p>
       </div>
 
-      {/* Top Breached Alerts */}
+      {/* Summary Stats Row — Primary page at-a-glance view */}
+      <div className="grid grid-cols-3 gap-3">
+        <div className="p-3.5 rounded-xl border border-red-200 bg-red-50/60 text-center shadow-2xs">
+          <div className="text-2xl font-extrabold font-mono text-red-900">{breached.length}</div>
+          <div className="text-[10px] font-mono uppercase text-red-700 font-bold mt-1">SLA Breached</div>
+          <div className="text-[9px] text-red-600 mt-0.5">Tier 3 Escalation Active</div>
+        </div>
+        <div className="p-3.5 rounded-xl border border-amber-200 bg-amber-50/60 text-center shadow-2xs">
+          <div className="text-2xl font-extrabold font-mono text-amber-900">{warning.length}</div>
+          <div className="text-[10px] font-mono uppercase text-amber-700 font-bold mt-1">At Risk (≤6h)</div>
+          <div className="text-[9px] text-amber-600 mt-0.5">Tier 2 Warning Zone</div>
+        </div>
+        <div className="p-3.5 rounded-xl border border-emerald-200 bg-emerald-50/60 text-center shadow-2xs">
+          <div className="text-2xl font-extrabold font-mono text-emerald-900">{onTrack.length}</div>
+          <div className="text-[10px] font-mono uppercase text-emerald-700 font-bold mt-1">On Track</div>
+          <div className="text-[9px] text-emerald-600 mt-0.5">Within Statutory Limits</div>
+        </div>
+      </div>
+
+
       {breached.length > 0 && (
         <div className="space-y-2">
           <div className="text-xs font-mono font-bold uppercase tracking-wider text-[#D92D20] flex items-center gap-2">

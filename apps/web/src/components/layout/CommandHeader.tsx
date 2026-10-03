@@ -4,7 +4,6 @@ import { Button } from '../ui/Button';
 import { useAuth } from '../../hooks/useAuth';
 import { useOrganization } from '../../context/OrganizationContext';
 import { LoginModal } from '../auth/LoginModal';
-import { NotificationBell } from '../notifications/NotificationBell';
 import { JurisdictionSelector } from './JurisdictionSelector';
 import { STATE_OF_MAHARASHTRA_SEAL } from '../../data/maharashtraDistricts';
 
@@ -14,7 +13,6 @@ interface CommandHeaderProps {
   onRefresh: () => void;
   isRefreshing?: boolean;
   onToggleMobileMenu?: () => void;
-  onNavigateToNotifications?: () => void;
 }
 
 export const CommandHeader: React.FC<CommandHeaderProps> = ({
@@ -23,7 +21,6 @@ export const CommandHeader: React.FC<CommandHeaderProps> = ({
   onRefresh,
   isRefreshing = false,
   onToggleMobileMenu,
-  onNavigateToNotifications,
 }) => {
   const [timeString, setTimeString] = useState<string>('');
   const [isLoginOpen, setIsLoginOpen] = useState(false);
@@ -240,11 +237,6 @@ export const CommandHeader: React.FC<CommandHeaderProps> = ({
               <RefreshCw className="w-3.5 h-3.5 sm:mr-1 text-[#718096] shrink-0" />
               <span className="hidden xl:inline font-medium whitespace-nowrap">Live Sync</span>
             </Button>
-          </div>
-
-          {/* Notification Bell */}
-          <div className="flex items-center shrink-0">
-            <NotificationBell onNavigateToNotifications={onNavigateToNotifications} />
           </div>
 
           {/* Divider */}

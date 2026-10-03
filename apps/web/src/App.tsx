@@ -25,6 +25,7 @@ import { Department } from './types/department';
 import { ComplaintStatus } from './types/complaint';
 import { Button } from './components/ui/Button';
 import { StateDashboard } from './pages/StateDashboard';
+import { MunicipalCorporations } from './pages/MunicipalCorporations';
 import { CivicChampions } from './pages/CivicChampions';
 import { PrivacyPolicy } from './pages/PrivacyPolicy';
 import { TermsOfService } from './pages/TermsOfService';
@@ -357,7 +358,13 @@ export function App() {
         />
       )}
 
-      {activePage === 'departments' && isMunicipalAdmin && <Departments complaints={visibleComplaints} />}
+      {activePage === 'departments' && (
+        organizationType === 'STATE' ? (
+          <MunicipalCorporations onNavigatePage={(page) => handleNavigatePage(page as any)} />
+        ) : (
+          <Departments complaints={visibleComplaints} />
+        )
+      )}
 
       {activePage === 'field_teams' && (
         <FieldTeams complaints={visibleComplaints} onSelectComplaint={handleSelectComplaint} />
@@ -372,12 +379,6 @@ export function App() {
         />
       )}
 
-      {activePage === 'notifications' && (
-        <NotificationsPage
-          onNavigateToComplaint={handleSelectComplaint}
-          onNavigateToAlerts={() => setActivePage('alerts')}
-        />
-      )}
 
       {activePage === 'sla' && (
         <SLA
@@ -395,7 +396,7 @@ export function App() {
 
       {activePage === 'civic_champions' && <CivicChampions />}
 
-      {activePage === 'settings' && isMunicipalAdmin && <Settings />}
+      {activePage === 'settings' && <Settings />}
 
       {activePage === 'privacy' && <PrivacyPolicy onBack={() => setActivePage('dashboard')} />}
 

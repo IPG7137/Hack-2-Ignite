@@ -54,6 +54,32 @@ export const FieldTeams: React.FC<FieldTeamsProps> = ({ complaints = [], onSelec
         </div>
       </div>
 
+      {/* Summary Stats Row — Crew status at a glance */}
+      {teams.length > 0 && (() => {
+        const activeCount = teams.filter((t) => t.status === 'remediation_active' || t.status === 'on_site').length;
+        const enRouteCount = teams.filter((t) => t.status === 'en_route').length;
+        const idleCount = teams.filter((t) => t.status === 'idle').length;
+        return (
+          <div className="grid grid-cols-3 gap-3">
+            <div className="p-3.5 rounded-xl border border-orange-200 bg-orange-50/60 text-center shadow-2xs">
+              <div className="text-2xl font-extrabold font-mono text-orange-900">{activeCount}</div>
+              <div className="text-[10px] font-mono uppercase text-orange-700 font-bold mt-1">Active On-Site</div>
+              <div className="text-[9px] text-orange-600 mt-0.5">Remediation Active</div>
+            </div>
+            <div className="p-3.5 rounded-xl border border-blue-200 bg-blue-50/60 text-center shadow-2xs">
+              <div className="text-2xl font-extrabold font-mono text-blue-900">{enRouteCount}</div>
+              <div className="text-[10px] font-mono uppercase text-blue-700 font-bold mt-1">En Route</div>
+              <div className="text-[9px] text-blue-600 mt-0.5">Dispatch in Transit</div>
+            </div>
+            <div className="p-3.5 rounded-xl border border-emerald-200 bg-emerald-50/60 text-center shadow-2xs">
+              <div className="text-2xl font-extrabold font-mono text-emerald-900">{idleCount}</div>
+              <div className="text-[10px] font-mono uppercase text-emerald-700 font-bold mt-1">Idle Standby</div>
+              <div className="text-[9px] text-emerald-600 mt-0.5">Available for Dispatch</div>
+            </div>
+          </div>
+        );
+      })()}
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {teams.map((team) => (
           <Card key={team.id} className="p-4 space-y-3 border-[#D9E2EC] bg-white shadow-sm flex flex-col justify-between">

@@ -55,10 +55,10 @@ export const OperationsSummaryCard: React.FC<OperationsSummaryCardProps> = ({
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => onNavigatePage('notifications')}
+          onClick={() => onNavigatePage('alerts')}
           className="h-6.5 text-[11px] text-[#1769D2] hover:text-[#123B6D] hover:bg-blue-50 font-bold gap-1 px-2"
         >
-          <span>Notification Center</span>
+          <span>Alert Center</span>
           <ArrowUpRight className="w-3 h-3" />
         </Button>
       </div>
@@ -158,10 +158,10 @@ export const OperationsSummaryCard: React.FC<OperationsSummaryCardProps> = ({
         <Button
           variant="outline"
           size="sm"
-          onClick={() => onNavigatePage('notifications')}
+          onClick={() => onNavigatePage('alerts')}
           className="h-7 text-xs text-[#1769D2] hover:bg-blue-50 border-blue-200 font-semibold gap-1"
         >
-          <span>All Notifications</span>
+          <span>View All Alerts</span>
           <ArrowRight className="w-3 h-3" />
         </Button>
       </div>
