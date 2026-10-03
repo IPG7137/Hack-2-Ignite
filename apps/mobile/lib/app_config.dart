@@ -144,8 +144,5 @@ class AppConfig {
         'layer': 'F',
       };
     }
-=======
-    return 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.placeholder';
->>>>>>> 484c740 (fix(web): audit frontend navigation, clean duplicate UI, and fix state admin routes)
   }
 }

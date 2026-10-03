@@ -25,6 +25,11 @@ class AuthService {
   bool get isLoggedIn => _isLoggedIn;
   bool get isAdmin => _isAdmin;
   String get userRole => _userRole;
+  bool get isFieldWorker => _userRole == 'officer' ||
+      _userRole == 'field_worker' ||
+      _userRole == 'contractor' ||
+      _userRole == 'dept_admin' ||
+      _isAdmin;
   String? get userEmail => _userEmail;
   String? get userId => _userId;
   String? get userPhone => _userPhone;
@@ -63,7 +68,7 @@ class AuthService {
 
   void _initSupabaseListener() {
     try {
-      Supabase.instance.client.auth.onAuthStateChange.listen((data) {
+      Supabase.instance.client.auth.onAuthStateChange.listen((data) async {
         final session = data.session;
         if (session != null) {
           _isLoggedIn = true;
@@ -75,9 +80,7 @@ class AuthService {
           _userWard = session.user.userMetadata?['ward']?.toString() ?? _userWard ?? 'Local Ward';
           // Security Model: Privileged roles must NEVER be inferred from client metadata.
           // Role authorization strictly relies on database verification via _syncDatabaseProfileAndRole.
-          _userRole = 'citizen';
-          _isAdmin = false;
-          _syncDatabaseProfileAndRole(session.user.id);
+          await _syncDatabaseProfileAndRole(session.user.id);
         }
       });
     } catch (_) {
@@ -87,24 +90,37 @@ class AuthService {
 
   Future<void> _syncDatabaseProfileAndRole(String userId) async {
     try {
+      // 1. Authoritative check: public.user_roles
       final roleRes = await Supabase.instance.client
           .from('user_roles')
           .select('role')
           .eq('user_id', userId)
           .maybeSingle();
       if (roleRes != null && roleRes['role'] != null) {
-        _userRole = roleRes['role'].toString();
-        _isAdmin = _userRole == 'officer' ||
-            _userRole == 'dept_admin' ||
-            _userRole == 'municipal_admin' ||
-            _userRole == 'super_admin';
+        final dbRole = roleRes['role'].toString().toLowerCase().trim();
+        _userRole = dbRole;
+        _isAdmin = dbRole == 'officer' ||
+            dbRole == 'field_worker' ||
+            dbRole == 'contractor' ||
+            dbRole == 'dept_admin' ||
+            dbRole == 'municipal_admin' ||
+            dbRole == 'super_admin';
       }
+
+      // 2. Profile check: public.profiles
       final profileRes = await Supabase.instance.client
           .from('profiles')
-          .select('full_name, phone, district, ward')
+          .select('full_name, phone, district, ward, role')
           .eq('id', userId)
           .maybeSingle();
       if (profileRes != null) {
+        if (profileRes['role'] != null && (_userRole == 'citizen' || _userRole.isEmpty)) {
+          final pRole = profileRes['role'].toString().toLowerCase().trim();
+          if (pRole == 'officer' || pRole == 'field_worker' || pRole == 'contractor') {
+            _userRole = pRole;
+            _isAdmin = true;
+          }
+        }
         if (profileRes['full_name'] != null) {
           _userFullName = profileRes['full_name'].toString();
         }
@@ -248,6 +264,10 @@ class AuthService {
         await AppPreferences.setUserRole(_userRole);
         await _saveLoginState();
 
+        debugPrint('[Auth] User authenticated');
+        debugPrint('[Auth] Role resolved: $_userRole');
+        debugPrint('[Auth] Destination: ${isFieldWorker ? 'Field Worker Dashboard' : 'Citizen Dashboard'}');
+
         return AuthResult.success(
           user: {
             'id': _userId,
@@ -259,7 +279,7 @@ class AuthService {
             'district': _userDistrict,
             'ward': _userWard,
           },
-          message: '${isOfficerRequest ? 'Officer' : 'Citizen'} login successful',
+          message: '${isFieldWorker ? 'Officer' : 'Citizen'} login successful',
         );
       }
 

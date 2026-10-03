@@ -108,8 +108,8 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
     try {
       final hasValidSession = await _authService.loadSavedSession();
       if (hasValidSession && mounted) {
-        final userRole = await AppPreferences.getUserRole() ?? (_authService.isAdmin ? 'contractor' : 'citizen');
-        _navigateToDashboard(selectedRole: userRole);
+        final resolvedRole = _authService.userRole;
+        _navigateToDashboard(selectedRole: resolvedRole, isAdmin: _authService.isFieldWorker);
       }
     } catch (e) {
       // Handle error silently
@@ -117,8 +117,18 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
   }
 
   void _navigateToDashboard({String? selectedRole, bool isAdmin = false}) {
-    final role = selectedRole ?? (_isCitizenSelected ? 'citizen' : 'contractor');
-    if (role == 'contractor' || isAdmin || _authService.userRole == 'contractor') {
+    final effectiveRole = (selectedRole ?? _authService.userRole).toLowerCase().trim();
+    final isFieldWorker = effectiveRole == 'contractor' ||
+        effectiveRole == 'officer' ||
+        effectiveRole == 'field_worker' ||
+        effectiveRole == 'dept_admin' ||
+        isAdmin ||
+        _authService.isFieldWorker ||
+        _authService.userRole == 'contractor' ||
+        _authService.userRole == 'officer' ||
+        _authService.userRole == 'field_worker';
+
+    if (isFieldWorker) {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => const ContractorDashboardScreen()),
@@ -258,17 +268,19 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
         });
 
         if (result.success) {
-          await AppPreferences.setUserRole('citizen');
+          final resolvedRole = _authService.userRole;
+          await AppPreferences.setUserRole(resolvedRole);
           if (mounted) {
+            final isOfficer = _authService.isFieldWorker;
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: const Text('Login successful! Welcome Citizen'),
+                content: Text('Login successful! Welcome ${isOfficer ? 'Field Officer' : 'Citizen'}'),
                 backgroundColor: Colors.green,
                 behavior: SnackBarBehavior.floating,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               ),
             );
-            _navigateToDashboard(selectedRole: 'citizen', isAdmin: false);
+            _navigateToDashboard(selectedRole: resolvedRole, isAdmin: _authService.isAdmin);
           }
         } else {
           if (mounted) {
@@ -320,7 +332,8 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
       });
 
       if (result.success) {
-        await AppPreferences.setUserRole('contractor');
+        final resolvedRole = _authService.userRole;
+        await AppPreferences.setUserRole(resolvedRole);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -329,7 +342,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
               behavior: SnackBarBehavior.floating,
             ),
           );
-          _navigateToDashboard(selectedRole: 'contractor', isAdmin: true);
+          _navigateToDashboard(selectedRole: resolvedRole, isAdmin: _authService.isFieldWorker);
         }
       } else {
         if (mounted) {

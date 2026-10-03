@@ -95,9 +95,15 @@ class ComprehensiveReportModel {
   final DateTime updatedAt;
   final DateTime lastStatusChange;
   
-  // Admin Management
+  // Admin & Field Worker Management
   final String? assignedOfficerId;
   final String? assignedOfficerName;
+  final String? assignedDepartment;
+  final String? officerLocation;
+  final double? officerLatitude;
+  final double? officerLongitude;
+  final DateTime? officerLocationTimestamp;
+  final String? officerStatus;
   final String? adminNotes;
   
   // Additional Fields
@@ -154,6 +160,12 @@ class ComprehensiveReportModel {
     required this.lastStatusChange,
     this.assignedOfficerId,
     this.assignedOfficerName,
+    this.assignedDepartment,
+    this.officerLocation,
+    this.officerLatitude,
+    this.officerLongitude,
+    this.officerLocationTimestamp,
+    this.officerStatus,
     this.adminNotes,
     this.estimatedCompletionDate,
     this.completionDate,
@@ -251,8 +263,14 @@ class ComprehensiveReportModel {
           : (json['updated_at'] != null
               ? DateTime.parse(json['updated_at'].toString())
               : (json['created_at'] != null ? DateTime.parse(json['created_at'].toString()) : DateTime.now())),
-      assignedOfficerId: json['assigned_officer_id']?.toString(),
-      assignedOfficerName: json['assigned_officer_name'],
+      assignedOfficerId: json['assigned_officer_id']?.toString() ?? json['officer_id']?.toString(),
+      assignedOfficerName: json['assigned_officer_name'] ?? json['assigned_officer'] ?? json['officer_name'] ?? json['assigned_to'],
+      assignedDepartment: json['assigned_department'] ?? json['department'] ?? json['dept_name'],
+      officerLocation: json['officer_location'] ?? json['assigned_officer_location'] ?? json['duty_location'],
+      officerLatitude: json['officer_latitude'] != null ? double.tryParse(json['officer_latitude'].toString()) : null,
+      officerLongitude: json['officer_longitude'] != null ? double.tryParse(json['officer_longitude'].toString()) : null,
+      officerLocationTimestamp: json['officer_location_timestamp'] != null ? DateTime.tryParse(json['officer_location_timestamp'].toString()) : null,
+      officerStatus: json['officer_status']?.toString(),
       adminNotes: json['admin_notes'],
       estimatedCompletionDate: json['estimated_completion_date'] != null 
           ? DateTime.parse(json['estimated_completion_date']) : null,
@@ -318,6 +336,12 @@ class ComprehensiveReportModel {
       lastStatusChange: lastStatusChange,
       assignedOfficerId: assignedOfficerId,
       assignedOfficerName: assignedOfficerName,
+      assignedDepartment: assignedDepartment,
+      officerLocation: officerLocation,
+      officerLatitude: officerLatitude,
+      officerLongitude: officerLongitude,
+      officerLocationTimestamp: officerLocationTimestamp,
+      officerStatus: officerStatus,
       adminNotes: adminNotes,
       estimatedCompletionDate: estimatedCompletionDate,
       completionDate: completionDate,

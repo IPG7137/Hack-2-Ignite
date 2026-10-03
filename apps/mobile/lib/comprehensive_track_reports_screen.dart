@@ -1708,7 +1708,11 @@ class _ReportDetailsBottomSheetState extends State<_ReportDetailsBottomSheet> {
                       _buildSummaryCard(report),
                       const SizedBox(height: 16),
 
-                      // 2. Complaint Submitted Location Map (Live Location Tracking)
+                      // 2. Assigned Field Officer & Responsibility Card
+                      _buildAssignedFieldOfficerCard(report),
+                      const SizedBox(height: 16),
+
+                      // 3. Complaint Submitted Location Map (Live Location Tracking)
                       if (report.latitude != null && report.longitude != null) ...[
                         _buildComplaintLocationMap(report),
                         const SizedBox(height: 16),
@@ -1843,6 +1847,185 @@ class _ReportDetailsBottomSheetState extends State<_ReportDetailsBottomSheet> {
                 ),
               ],
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAssignedFieldOfficerCard(ComprehensiveReportModel report) {
+    final hasOfficer = report.assignedOfficerName != null &&
+        report.assignedOfficerName!.trim().isNotEmpty &&
+        report.assignedOfficerName!.toLowerCase() != 'unassigned';
+
+    final officerName = hasOfficer ? report.assignedOfficerName! : 'Awaiting field assignment';
+    final departmentName = report.assignedDepartment ??
+        (report.categoryDisplayName != null
+            ? '${report.categoryDisplayName} Maintenance Division'
+            : 'Municipal Public Works Division');
+
+    // Determine location string
+    String locationText;
+    IconData locationIcon = Icons.location_off_outlined;
+    Color locationColor = const Color(0xFF64748B);
+
+    if (report.officerLocation != null && report.officerLocation!.trim().isNotEmpty) {
+      locationText = report.officerLocation!;
+      locationIcon = Icons.location_on;
+      locationColor = const Color(0xFF2563EB);
+    } else if (report.officerLatitude != null && report.officerLongitude != null) {
+      locationText = 'Last known: ${report.officerLatitude!.toStringAsFixed(4)}, ${report.officerLongitude!.toStringAsFixed(4)}';
+      locationIcon = Icons.location_on;
+      locationColor = const Color(0xFF2563EB);
+    } else if (hasOfficer) {
+      locationText = 'Officer location unavailable';
+    } else {
+      locationText = 'Jurisdictional municipal cell assessing';
+    }
+
+    // Determine officer status
+    String statusText;
+    Color statusBg;
+    Color statusColor;
+
+    if (!hasOfficer) {
+      statusText = 'Unassigned';
+      statusBg = const Color(0xFFF1F5F9);
+      statusColor = const Color(0xFF64748B);
+    } else if (report.status == ReportStatus.progress ||
+        report.status == ReportStatus.inProgress) {
+      statusText = report.officerStatus ?? 'On Site / Active';
+      statusBg = const Color(0xFFDCFCE7);
+      statusColor = const Color(0xFF16A34A);
+    } else if (report.status == ReportStatus.resolutionSubmitted ||
+        report.status == ReportStatus.resolved ||
+        report.status == ReportStatus.verified ||
+        report.status == ReportStatus.closed) {
+      statusText = 'Remediation Submitted';
+      statusBg = const Color(0xFFDBEAFE);
+      statusColor = const Color(0xFF1E40AF);
+    } else {
+      statusText = report.officerStatus ?? 'Assigned / Dispatched';
+      statusBg = const Color(0xFFFEF3C7);
+      statusColor = const Color(0xFFD97706);
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: hasOfficer ? const Color(0xFF93C5FD) : Colors.grey.shade200,
+          width: hasOfficer ? 1.5 : 1.0,
+        ),
+        boxShadow: hasOfficer
+            ? [
+                BoxShadow(
+                  color: const Color(0xFF3B82F6).withValues(alpha: 0.06),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ]
+            : null,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: hasOfficer ? const Color(0xFFEFF6FF) : const Color(0xFFF1F5F9),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  hasOfficer ? Icons.engineering : Icons.person_outline,
+                  color: hasOfficer ? const Color(0xFF1E40AF) : const Color(0xFF64748B),
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Assigned Field Officer',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF64748B),
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      officerName,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF0F172A),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: statusBg,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  statusText,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: statusColor,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          const Divider(height: 1, color: Color(0xFFF1F5F9)),
+          const SizedBox(height: 12),
+          // Department
+          Row(
+            children: [
+              const Icon(Icons.apartment, size: 15, color: Color(0xFF64748B)),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  departmentName,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: Color(0xFF334155),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          // Location
+          Row(
+            children: [
+              Icon(locationIcon, size: 15, color: locationColor),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  locationText,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: hasOfficer ? const Color(0xFF334155) : const Color(0xFF94A3B8),
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -2052,9 +2235,9 @@ class _ReportDetailsBottomSheetState extends State<_ReportDetailsBottomSheet> {
 
           // Stage 3: Assigned
           _buildTimelineStep(
-            title: '3. Assigned to Department',
+            title: '3. Assigned to Department & Field Officer',
             description: report.assignedOfficerName != null
-                ? 'Assigned to: ${report.assignedOfficerName}'
+                ? 'Assigned to: ${report.assignedOfficerName}${report.assignedDepartment != null ? ' (${report.assignedDepartment})' : ''}'
                 : 'Assigned to jurisdictional municipal maintenance division.',
             timestamp: historyMap['assigned'] != null
                 ? _formatDateTime(historyMap['assigned']!.createdAt)
@@ -2067,7 +2250,9 @@ class _ReportDetailsBottomSheetState extends State<_ReportDetailsBottomSheet> {
           // Stage 4: In Progress
           _buildTimelineStep(
             title: '4. Field Work In Progress',
-            description: 'Field inspection and maintenance crew active on-site.',
+            description: report.officerLocation != null
+                ? 'Field inspection crew active on-site (${report.officerLocation}).'
+                : 'Field inspection and maintenance crew active on-site.',
             timestamp: historyMap['progress'] != null || historyMap['in_progress'] != null
                 ? _formatDateTime((historyMap['progress'] ?? historyMap['in_progress'])!.createdAt)
                 : (currentStageIndex >= 3 ? report.lastUpdatedTime : null),
@@ -2908,6 +3093,10 @@ class _ReportDetailsBottomSheetState extends State<_ReportDetailsBottomSheet> {
           _buildInfoRow('Category', report.categoryDisplayName ?? report.category),
           if (report.assignedOfficerName != null)
             _buildInfoRow('Assigned Officer', report.assignedOfficerName!),
+          if (report.assignedDepartment != null)
+            _buildInfoRow('Department', report.assignedDepartment!),
+          if (report.officerLocation != null)
+            _buildInfoRow('Officer Location', report.officerLocation!),
         ],
       ),
     );
