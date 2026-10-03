@@ -314,7 +314,9 @@ class _ConfirmationScreenState extends State<ConfirmationScreen>
                 onPressed: () => Navigator.pop(context),
               ),
         title: Text(
-          _isSubmitted ? 'Confirmation' : 'Step 3 of 3: Review & Submit',
+          _isSubmitted
+              ? _languageService.getTranslation('complaint_submitted')
+              : _languageService.getTranslation('review_submit_step'),
           style: const TextStyle(
             color: Color(0xFF0F172A),
             fontSize: 18,
@@ -675,9 +677,9 @@ class _ConfirmationScreenState extends State<ConfirmationScreen>
                                 letterSpacing: 0.5,
                               ),
                             )
-                          : const Text(
-                              'SUBMIT COMPLAINT',
-                              style: TextStyle(
+                          : Text(
+                              _languageService.getTranslation('submit_complaint'),
+                              style: const TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w700,
                                 letterSpacing: 0.5,

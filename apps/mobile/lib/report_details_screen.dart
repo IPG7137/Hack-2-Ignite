@@ -1796,9 +1796,9 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> with TickerPr
           icon: const Icon(Icons.arrow_back_rounded, color: Color(0xFF172B4D)),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
-          'Step 2 of 3: Provide Details',
-          style: TextStyle(
+        title: Text(
+          _languageService.getTranslation('provide_details_step'),
+          style: const TextStyle(
             color: Color(0xFF172B4D),
             fontSize: 18,
             fontWeight: FontWeight.w700,
@@ -1879,9 +1879,9 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> with TickerPr
                     const SizedBox(height: 16),
                     
                     // Description Field
-                    const Text(
-                      'Complaint Description *',
-                      style: TextStyle(
+                    Text(
+                      _languageService.getTranslation('complaint_description'),
+                      style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
                         color: Color(0xFF172B4D),
@@ -1898,11 +1898,11 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> with TickerPr
                         controller: _descriptionController,
                         maxLines: 4,
                         style: const TextStyle(fontSize: 14, color: Color(0xFF172B4D)),
-                        decoration: const InputDecoration(
-                          hintText: 'Describe the civic problem clearly with details like severity, location landmarks, and duration...',
-                          hintStyle: TextStyle(color: Color(0xFF98A2B3), fontSize: 13),
+                        decoration: InputDecoration(
+                          hintText: _languageService.getTranslation('complaint_desc_hint'),
+                          hintStyle: const TextStyle(color: Color(0xFF98A2B3), fontSize: 13),
                           border: InputBorder.none,
-                          contentPadding: EdgeInsets.all(14),
+                          contentPadding: const EdgeInsets.all(14),
                         ),
                         validator: (value) {
                           if (value == null || value.trim().isEmpty) {
@@ -1925,9 +1925,9 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> with TickerPr
                     const SizedBox(height: 16),
                     
                     // Image Upload Section
-                    const Text(
-                      'Photo Evidence *',
-                      style: TextStyle(
+                    Text(
+                      _languageService.getTranslation('photo_evidence'),
+                      style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
                         color: Color(0xFF172B4D),
@@ -2153,9 +2153,9 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> with TickerPr
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text(
-                          'Problem Location *',
-                          style: TextStyle(
+                        Text(
+                          _languageService.getTranslation('problem_location'),
+                          style: const TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
                             color: Color(0xFF172B4D),
@@ -2164,9 +2164,9 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> with TickerPr
                         TextButton.icon(
                           onPressed: _handleLocationRequest,
                           icon: const Icon(Icons.my_location_rounded, size: 14, color: Color(0xFF155EEF)),
-                          label: const Text(
-                            'Use Current Location',
-                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF155EEF)),
+                          label: Text(
+                            _languageService.getTranslation('use_current_location'),
+                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF155EEF)),
                           ),
                           style: TextButton.styleFrom(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -2336,9 +2336,9 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> with TickerPr
                       borderRadius: BorderRadius.circular(10),
                     ),
                   ),
-                  child: const Text(
-                    'Continue to Review',
-                    style: TextStyle(
+                  child: Text(
+                    _languageService.getTranslation('continue_to_review'),
+                    style: const TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
                     ),

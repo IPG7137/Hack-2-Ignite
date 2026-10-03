@@ -170,20 +170,20 @@ class _CategorySelectionScreenState extends State<CategorySelectionScreen> {
           icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Column(
+        title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Register Grievance',
-              style: TextStyle(
+              _languageService.getTranslation('app_name'),
+              style: const TextStyle(
                 fontSize: 17,
                 fontWeight: FontWeight.w700,
                 color: Colors.white,
               ),
             ),
             Text(
-              'Step 1 of 3: Select Category',
-              style: TextStyle(
+              _languageService.getTranslation('select_category_step'),
+              style: const TextStyle(
                 fontSize: 11,
                 color: Color(0xFFCBD5E1),
               ),
@@ -223,19 +223,19 @@ class _CategorySelectionScreenState extends State<CategorySelectionScreen> {
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      children: const [
+                      children: [
                         Text(
-                          'Select the issue category',
-                          style: TextStyle(
+                          _languageService.getTranslation('select_issue_category'),
+                          style: const TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w700,
                             color: Color(0xFF172B4D),
                           ),
                         ),
-                        SizedBox(height: 4),
+                        const SizedBox(height: 4),
                         Text(
-                          'Choose the municipal service division that best matches the problem in your area.',
-                          style: TextStyle(
+                          _languageService.getTranslation('category_guide'),
+                          style: const TextStyle(
                             fontSize: 12.5,
                             color: Color(0xFF667085),
                             height: 1.35,
@@ -247,9 +247,9 @@ class _CategorySelectionScreenState extends State<CategorySelectionScreen> {
 
                   const SizedBox(height: 16),
 
-                  const Text(
-                    'Municipal Departments',
-                    style: TextStyle(
+                  Text(
+                    _languageService.getTranslation('municipal_departments'),
+                    style: const TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
                       color: Color(0xFF344054),
@@ -265,6 +265,8 @@ class _CategorySelectionScreenState extends State<CategorySelectionScreen> {
                     itemBuilder: (context, index) {
                       final category = categories[index];
                       final isSelected = selectedCategory == category.id;
+                      final localizedName = _languageService.getTranslation('cat_${category.id}');
+                      final localizedDesc = _languageService.getTranslation('cat_${category.id}_desc');
 
                       return Container(
                         margin: const EdgeInsets.only(bottom: 10),
@@ -305,7 +307,9 @@ class _CategorySelectionScreenState extends State<CategorySelectionScreen> {
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        category.name,
+                                        localizedName.isNotEmpty && localizedName != 'cat_${category.id}'
+                                            ? localizedName
+                                            : category.name,
                                         style: TextStyle(
                                           fontSize: 14.5,
                                           fontWeight: FontWeight.w700,
@@ -314,7 +318,9 @@ class _CategorySelectionScreenState extends State<CategorySelectionScreen> {
                                       ),
                                       const SizedBox(height: 2),
                                       Text(
-                                        category.description,
+                                        localizedDesc.isNotEmpty && localizedDesc != 'cat_${category.id}_desc'
+                                            ? localizedDesc
+                                            : category.description,
                                         style: const TextStyle(
                                           fontSize: 12,
                                           color: Color(0xFF667085),

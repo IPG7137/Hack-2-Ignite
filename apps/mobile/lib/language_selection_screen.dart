@@ -266,8 +266,12 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen> with 
               ),
               child: Center(
                 child: Text(
-                  _getLanguageFlag(language.code),
-                  style: const TextStyle(fontSize: 24),
+                  _getLanguageGlyph(language.code),
+                  style: TextStyle(
+                    fontSize: language.code == 'en' ? 15 : 18,
+                    fontWeight: FontWeight.w800,
+                    color: isSelected ? Colors.white : const Color(0xFF1E40AF),
+                  ),
                 ),
               ),
             ),
@@ -411,22 +415,22 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen> with 
     );
   }
 
-  String _getLanguageFlag(String languageCode) {
+  String _getLanguageGlyph(String languageCode) {
     switch (languageCode) {
       case 'en':
-        return '🇺🇸';
+        return 'EN';
       case 'hi':
-        return '🇮🇳';
+        return 'अ';
       case 'mr':
-        return '🇮🇳';
+        return 'म';
       case 'te':
-        return '🇮🇳';
+        return 'తె';
       case 'ta':
-        return '🇮🇳';
+        return 'த';
       case 'ml':
-        return '🇮🇳';
+        return 'മ';
       default:
-        return '🌐';
+        return 'Aa';
     }
   }
 }
