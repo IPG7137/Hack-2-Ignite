@@ -435,16 +435,16 @@ class _MapViewScreenState extends State<MapViewScreen> with TickerProviderStateM
 
   PreferredSizeWidget _buildAppBar() {
     return AppBar(
-      title: const Column(
+      title: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Live Nearby Civic Issues',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+            _languageService.getTranslation('map_view_title'),
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
           ),
           Text(
-            'Real-time municipal GIS reports near you',
-            style: TextStyle(fontSize: 11, color: Color(0xFFCBD5E1)),
+            _languageService.getTranslation('map_view_subtitle'),
+            style: const TextStyle(fontSize: 11, color: Color(0xFFCBD5E1)),
           ),
         ],
       ),
@@ -455,7 +455,9 @@ class _MapViewScreenState extends State<MapViewScreen> with TickerProviderStateM
         // View Toggle (Map vs List)
         IconButton(
           icon: Icon(_selectedView == 'Map' ? Icons.format_list_bulleted : Icons.map_outlined),
-          tooltip: _selectedView == 'Map' ? 'Switch to List view' : 'Switch to Map view',
+          tooltip: _selectedView == 'Map'
+              ? _languageService.getTranslation('view_as_list')
+              : _languageService.getTranslation('view_as_map'),
           onPressed: () {
             setState(() {
               _selectedView = _selectedView == 'Map' ? 'List' : 'Map';
@@ -465,7 +467,7 @@ class _MapViewScreenState extends State<MapViewScreen> with TickerProviderStateM
         // Refresh
         IconButton(
           icon: const Icon(Icons.refresh),
-          tooltip: 'Refresh nearby reports',
+          tooltip: _languageService.getTranslation('retry'),
           onPressed: () {
             _fetchNearbyReports().then((_) {
               if (mounted) _initializeMapController();
@@ -476,6 +478,27 @@ class _MapViewScreenState extends State<MapViewScreen> with TickerProviderStateM
     );
   }
 
+  String _mapCategoryLabel(String cat) {
+    switch (cat.toLowerCase()) {
+      case 'all': return _languageService.getTranslation('category_all');
+      case 'roads': return _languageService.getTranslation('category_roads');
+      case 'water': return _languageService.getTranslation('category_water');
+      case 'electricity': return _languageService.getTranslation('category_electricity');
+      case 'sanitation': return _languageService.getTranslation('category_sanitation');
+      case 'safety': return _languageService.getTranslation('category_safety');
+      default: return cat;
+    }
+  }
+
+  String _mapStatusLabel(String status) {
+    switch (status.toLowerCase()) {
+      case 'active': return _languageService.getTranslation('status_active');
+      case 'all': return _languageService.getTranslation('status_all');
+      case 'resolved': return _languageService.getTranslation('status_resolved');
+      default: return status;
+    }
+  }
+
   Widget _buildLocationNotice() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
@@ -484,10 +507,10 @@ class _MapViewScreenState extends State<MapViewScreen> with TickerProviderStateM
         children: [
           const Icon(Icons.location_off_outlined, color: Color(0xFFD97706), size: 18),
           const SizedBox(width: 8),
-          const Expanded(
+          Expanded(
             child: Text(
-              'Showing municipal center. Tap "Near Me" to enable GPS.',
-              style: TextStyle(fontSize: 12, color: Color(0xFF92400E), fontWeight: FontWeight.w500),
+              _languageService.getTranslation('gps_unavailable_center'),
+              style: const TextStyle(fontSize: 12, color: Color(0xFF92400E), fontWeight: FontWeight.w500),
             ),
           ),
           TextButton(
@@ -496,7 +519,10 @@ class _MapViewScreenState extends State<MapViewScreen> with TickerProviderStateM
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
               visualDensity: VisualDensity.compact,
             ),
-            child: const Text('Enable', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFFB45309))),
+            child: Text(
+              _languageService.getTranslation('enable_gps'),
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFFB45309)),
+            ),
           ),
         ],
       ),
@@ -523,7 +549,7 @@ class _MapViewScreenState extends State<MapViewScreen> with TickerProviderStateM
                   padding: const EdgeInsets.only(right: 6),
                   child: FilterChip(
                     label: Text(
-                      cat,
+                      _mapCategoryLabel(cat),
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
@@ -568,7 +594,7 @@ class _MapViewScreenState extends State<MapViewScreen> with TickerProviderStateM
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
-                          s,
+                          _mapStatusLabel(s),
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
@@ -597,7 +623,7 @@ class _MapViewScreenState extends State<MapViewScreen> with TickerProviderStateM
                         const Icon(Icons.radar, size: 12, color: Color(0xFF1E3A8A)),
                         const SizedBox(width: 4),
                         Text(
-                          '${_searchRadiusKm.toInt()} km',
+                          '${_searchRadiusKm.toInt()} ${_languageService.getTranslation('km_radius')}',
                           style: const TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.bold,

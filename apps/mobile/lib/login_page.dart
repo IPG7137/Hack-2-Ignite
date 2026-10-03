@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'language_service.dart';
+import 'language_selection_screen.dart';
 import 'dashboard_screen.dart';
 import 'contractor_dashboard_screen.dart';
 import 'auth_service.dart';
@@ -436,7 +437,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      'Citizen',
+                      _languageService.getTranslation('citizen_tab'),
                       style: TextStyle(
                         color: _isCitizenSelected ? Colors.white : const Color(0xFF6B7280),
                         fontWeight: FontWeight.w600,
@@ -473,7 +474,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      'Field Officer',
+                      _languageService.getTranslation('field_officer_tab'),
                       style: TextStyle(
                         color: !_isCitizenSelected ? Colors.white : const Color(0xFF6B7280),
                         fontWeight: FontWeight.w600,
@@ -674,18 +675,18 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Create Citizen Account',
-            style: TextStyle(
+          Text(
+            _languageService.getTranslation('create_account_header'),
+            style: const TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
               color: Color(0xFF1E293B),
             ),
           ),
           const SizedBox(height: 6),
-          const Text(
-            'Join your municipal zone as a verified citizen contributor (Score 0 • 🌱 Civic Starter)',
-            style: TextStyle(
+          Text(
+            _languageService.getTranslation('join_municipal_desc'),
+            style: const TextStyle(
               fontSize: 13,
               color: Color(0xFF64748B),
             ),
@@ -695,16 +696,16 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
           // Full Name
           _buildInputField(
             controller: _signupNameController,
-            placeholder: 'Full Legal Name (e.g. Vikram Patil)',
+            placeholder: _languageService.getTranslation('full_legal_name_hint'),
             prefixIcon: Icons.badge_outlined,
-            validator: (val) => (val == null || val.trim().isEmpty) ? 'Full name is required' : null,
+            validator: (val) => (val == null || val.trim().isEmpty) ? _languageService.getTranslation('fill_required_fields') : null,
           ),
           const SizedBox(height: 12),
 
           // Mobile Number
           _buildInputField(
             controller: _signupPhoneController,
-            placeholder: '10-digit Mobile Number',
+            placeholder: _languageService.getTranslation('mobile_number_hint'),
             prefixIcon: Icons.phone_android_outlined,
             keyboardType: TextInputType.phone,
             inputFormatters: [
@@ -713,7 +714,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
             ],
             validator: (val) {
               if (val == null || val.trim().length != 10) {
-                return 'Please enter a valid 10-digit mobile number';
+                return _languageService.getTranslation('phone_hint');
               }
               return null;
             },
@@ -723,12 +724,12 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
           // Email Address
           _buildInputField(
             controller: _signupEmailController,
-            placeholder: 'Email Address (e.g. name@example.com)',
+            placeholder: _languageService.getTranslation('email_address_hint'),
             prefixIcon: Icons.email_outlined,
             keyboardType: TextInputType.emailAddress,
             validator: (val) {
-              if (val == null || val.trim().isEmpty) return 'Email is required';
-              if (!val.contains('@') || !val.contains('.')) return 'Please enter a valid email';
+              if (val == null || val.trim().isEmpty) return _languageService.getTranslation('fill_required_fields');
+              if (!val.contains('@') || !val.contains('.')) return _languageService.getTranslation('invalid_credentials');
               return null;
             },
           ),
@@ -737,7 +738,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
           // Password
           _buildInputField(
             controller: _signupPasswordController,
-            placeholder: 'Password (min 6 characters)',
+            placeholder: _languageService.getTranslation('password_char_hint'),
             prefixIcon: Icons.lock_outline,
             isPassword: true,
             obscureText: !_isSignupPasswordVisible,
@@ -747,7 +748,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
               });
             },
             validator: (val) {
-              if (val == null || val.length < 6) return 'Password must be at least 6 characters';
+              if (val == null || val.length < 6) return _languageService.getTranslation('password_char_hint');
               return null;
             },
           ),
@@ -759,18 +760,18 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
               Expanded(
                 child: _buildInputField(
                   controller: _signupDistrictController,
-                  placeholder: 'District / City',
+                  placeholder: _languageService.getTranslation('district_city_hint'),
                   prefixIcon: Icons.location_city_outlined,
-                  validator: (val) => (val == null || val.trim().isEmpty) ? 'District required' : null,
+                  validator: (val) => (val == null || val.trim().isEmpty) ? _languageService.getTranslation('district_hint') : null,
                 ),
               ),
               const SizedBox(width: 8),
               Expanded(
                 child: _buildInputField(
                   controller: _signupWardController,
-                  placeholder: 'Ward / Area',
+                  placeholder: _languageService.getTranslation('ward_area_hint'),
                   prefixIcon: Icons.map_outlined,
-                  validator: (val) => (val == null || val.trim().isEmpty) ? 'Ward required' : null,
+                  validator: (val) => (val == null || val.trim().isEmpty) ? _languageService.getTranslation('ward_hint') : null,
                 ),
               ),
             ],
@@ -813,7 +814,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
           ],
 
           _buildLoginButton(
-            text: 'Register & Enter Portal',
+            text: _languageService.getTranslation('register_enter_btn'),
             onPressed: _handleCitizenRegistration,
             isLoading: _isLoading,
           ),
@@ -860,7 +861,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                     ),
                     alignment: Alignment.center,
                     child: Text(
-                      'Sign In (Aadhaar/OTP)',
+                      _languageService.getTranslation('sign_in_tab'),
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
@@ -893,7 +894,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                     ),
                     alignment: Alignment.center,
                     child: Text(
-                      'New Citizen Sign Up',
+                      _languageService.getTranslation('sign_up_tab'),
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
@@ -915,9 +916,9 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Citizen Login',
-                      style: TextStyle(
+                    Text(
+                      _languageService.getTranslation('citizen_login_header'),
+                      style: const TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
                         color: Color(0xFF1E293B),
@@ -928,7 +929,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                     if (!_isOtpSent) ...[
                       _buildInputField(
                         controller: _aadharController,
-                        placeholder: '12-digit Aadhaar Number',
+                        placeholder: _languageService.getTranslation('aadhaar_input_hint'),
                         prefixIcon: Icons.credit_card,
                         keyboardType: TextInputType.number,
                         inputFormatters: [
@@ -978,7 +979,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                       ],
                       
                       _buildLoginButton(
-                        text: 'Login with Aadhaar',
+                        text: _languageService.getTranslation('login_with_aadhaar_btn'),
                         onPressed: _handleCitizenLogin,
                         isLoading: _isLoading,
                       ),
@@ -998,9 +999,9 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                               size: 32,
                             ),
                             const SizedBox(height: 8),
-                            const Text(
-                              'OTP sent to your mobile',
-                              style: TextStyle(
+                            Text(
+                              _languageService.getTranslation('otp_sent_card_title'),
+                              style: const TextStyle(
                                 color: Color(0xFF374151),
                                 fontWeight: FontWeight.w600,
                               ),
@@ -1020,7 +1021,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                       
                       _buildInputField(
                         controller: _otpController,
-                        placeholder: '6-digit OTP (e.g. 123456)',
+                        placeholder: _languageService.getTranslation('otp_input_hint'),
                         prefixIcon: Icons.lock_outline,
                         keyboardType: TextInputType.number,
                         inputFormatters: [
@@ -1063,7 +1064,9 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
-                            _canResendOtp ? 'You can resend OTP now' : 'Resend OTP in ${_otpTimer}s',
+                            _canResendOtp
+                                ? _languageService.getTranslation('can_resend_otp_text')
+                                : '${_languageService.getTranslation('resend_otp_in_text')} ${_otpTimer}s',
                             style: const TextStyle(
                               color: Color(0xFF6B7280),
                               fontSize: 13,
@@ -1077,9 +1080,9 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                                 });
                                 _handleCitizenLogin();
                               },
-                              child: const Text(
-                                'Resend',
-                                style: TextStyle(
+                              child: Text(
+                                _languageService.getTranslation('resend_btn'),
+                                style: const TextStyle(
                                   color: Color(0xFF3B82F6),
                                   fontWeight: FontWeight.w600,
                                 ),
@@ -1090,7 +1093,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                       const SizedBox(height: 20),
                       
                       _buildLoginButton(
-                        text: 'Verify & Login',
+                        text: _languageService.getTranslation('verify_login_btn'),
                         onPressed: _handleCitizenLogin,
                         isLoading: _isLoading,
                       ),
@@ -1104,9 +1107,9 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                               _otpController.clear();
                             });
                           },
-                          child: const Text(
-                            'Change Aadhaar Number',
-                            style: TextStyle(
+                          child: Text(
+                            _languageService.getTranslation('change_aadhaar_btn'),
+                            style: const TextStyle(
                               color: Color(0xFF6B7280),
                               fontSize: 14,
                             ),
@@ -1127,9 +1130,9 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Field Officer / Contractor Login',
-            style: TextStyle(
+          Text(
+            _languageService.getTranslation('field_officer_login_header'),
+            style: const TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.bold,
               color: Color(0xFF1E293B),
@@ -1139,11 +1142,11 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
           
           _buildInputField(
             controller: _publicServantIdController,
-            placeholder: 'Officer ID / Email (e.g. demo.officer@civicresolve.gov)',
+            placeholder: _languageService.getTranslation('officer_id_hint'),
             prefixIcon: Icons.badge_outlined,
             validator: (value) {
               if (value == null || value.trim().isEmpty) {
-                return 'Officer ID or Email is required';
+                return _languageService.getTranslation('fill_required_fields');
               }
               return null;
             },
@@ -1152,7 +1155,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
           
           _buildInputField(
             controller: _passwordController,
-            placeholder: 'Password',
+            placeholder: _languageService.getTranslation('password'),
             prefixIcon: Icons.lock_outline,
             isPassword: true,
             obscureText: !_isPasswordVisible,
@@ -1163,7 +1166,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
             },
             validator: (value) {
               if (value == null || value.trim().isEmpty) {
-                return 'Password is required';
+                return _languageService.getTranslation('fill_required_fields');
               }
               return null;
             },
@@ -1201,7 +1204,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
           ],
           
           _buildLoginButton(
-            text: 'Log in as Field Officer',
+            text: _languageService.getTranslation('login_as_officer_btn'),
             onPressed: _handlePublicServantLogin,
             isLoading: _isLoading,
           ),
@@ -1300,9 +1303,9 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                 child: const Icon(Icons.flash_on_rounded, color: Colors.white, size: 16),
               ),
               const SizedBox(width: 8),
-              const Text(
-                'EVALUATOR QUICK ACCESS',
-                style: TextStyle(
+              Text(
+                _languageService.getTranslation('evaluator_access_title'),
+                style: const TextStyle(
                   fontSize: 11.5,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 0.5,
@@ -1312,9 +1315,9 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
             ],
           ),
           const SizedBox(height: 6),
-          const Text(
-            'One-tap authenticated Citizen session for hackathon evaluation and live feature testing.',
-            style: TextStyle(
+          Text(
+            _languageService.getTranslation('evaluator_access_desc'),
+            style: const TextStyle(
               fontSize: 12,
               color: Color(0xFF78350F),
               height: 1.35,
@@ -1327,9 +1330,9 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
             child: ElevatedButton.icon(
               onPressed: _isLoading ? null : _handleJudgeQuickLogin,
               icon: const Icon(Icons.bolt_rounded, size: 18, color: Color(0xFF78350F)),
-              label: const Text(
-                '⚡ One-Tap Judge / Demo Login',
-                style: TextStyle(
+              label: Text(
+                _languageService.getTranslation('one_tap_demo_btn'),
+                style: const TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.bold,
                   color: Color(0xFF78350F),
@@ -1355,6 +1358,35 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        actions: [
+          TextButton.icon(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const LanguageSelectionScreen()),
+              );
+            },
+            icon: const Icon(Icons.translate, size: 18, color: Color(0xFF3B82F6)),
+            label: Text(
+              _languageService.currentLanguage.nativeName,
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF3B82F6),
+              ),
+            ),
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              backgroundColor: const Color(0xFFEFF6FF),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            ),
+          ),
+          const SizedBox(width: 16),
+        ],
+      ),
       body: SafeArea(
         child: AnimatedBuilder(
           animation: _fadeAnimation,
@@ -1364,46 +1396,47 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
               child: SlideTransition(
                 position: _slideAnimation,
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
                   child: Column(
                     children: [
                       // App Logo
                       _buildAppLogo(),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 16),
                       
                       // App Name
                       const Text(
                         'CivicResolve',
                         style: TextStyle(
-                          fontSize: 32,
+                          fontSize: 30,
                           fontWeight: FontWeight.bold,
                           color: Color(0xFF374151),
                         ),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 10),
                       
                       // Tagline
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                         decoration: BoxDecoration(
                           color: const Color(0xFFF9FAFB),
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(color: const Color(0xFFE5E7EB), width: 1),
                         ),
-                        child: const Text(
-                          'Empowering communities, one report at a time.',
-                          style: TextStyle(
-                            fontSize: 16,
+                        child: Text(
+                          _languageService.getTranslation('app_tagline_login'),
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 14,
                             color: Color(0xFF6B7280),
                             fontWeight: FontWeight.w500,
                           ),
                         ),
                       ),
-                      const SizedBox(height: 40),
+                      const SizedBox(height: 32),
                       
                       // User Type Toggle
                       _buildUserTypeToggle(),
-                      const SizedBox(height: 32),
+                      const SizedBox(height: 28),
                       
                       // Login Form
                       _isCitizenSelected ? _buildCitizenLogin() : _buildPublicServantLogin(),

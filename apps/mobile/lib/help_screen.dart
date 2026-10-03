@@ -84,9 +84,9 @@ class _HelpScreenState extends State<HelpScreen> with TickerProviderStateMixin {
         elevation: 0,
         backgroundColor: Colors.transparent,
         foregroundColor: const Color(0xFF0F172A),
-        title: const Text(
-          'Help & Support',
-          style: TextStyle(
+        title: Text(
+          _languageService.getTranslation('help_support'),
+          style: const TextStyle(
             fontWeight: FontWeight.bold,
             fontSize: 20,
           ),
@@ -167,9 +167,9 @@ class _HelpScreenState extends State<HelpScreen> with TickerProviderStateMixin {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'We\'re Here to Help',
-                  style: TextStyle(
+                Text(
+                  _languageService.getTranslation('were_here_to_help'),
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 24,
                     fontWeight: FontWeight.w800,
@@ -178,7 +178,7 @@ class _HelpScreenState extends State<HelpScreen> with TickerProviderStateMixin {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Find answers, learn how to use the app, and get in touch with our support team',
+                  _languageService.getTranslation('help_intro_desc'),
                   style: TextStyle(
                     color: Colors.white.withValues(alpha: 0.9),
                     fontSize: 15,
@@ -218,10 +218,10 @@ class _HelpScreenState extends State<HelpScreen> with TickerProviderStateMixin {
         labelColor: Colors.white,
         unselectedLabelColor: const Color(0xFF64748B),
         labelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
-        tabs: const [
-          Tab(text: 'App Guide'),
-          Tab(text: 'FAQ'),
-          Tab(text: 'Contact'),
+        tabs: [
+          Tab(text: _languageService.getTranslation('app_guide_tab')),
+          Tab(text: _languageService.getTranslation('faq_tab')),
+          Tab(text: _languageService.getTranslation('contact_tab')),
         ],
       ),
     );
@@ -234,17 +234,17 @@ class _HelpScreenState extends State<HelpScreen> with TickerProviderStateMixin {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildGuideSection(
-            'Getting Started',
+            _languageService.getTranslation('getting_started'),
             Icons.play_circle_filled,
             [
               _buildGuideStep(
-                '1. Create Your Profile',
-                'Set up your account with basic information and preferences',
+                _languageService.getTranslation('step_create_profile'),
+                _languageService.getTranslation('step_create_profile_desc'),
                 Icons.person_add,
               ),
               _buildGuideStep(
-                '2. Enable Location Services',
-                'Allow location access for accurate issue reporting and tracking',
+                _languageService.getTranslation('step_enable_location'),
+                _languageService.getTranslation('step_enable_location_desc'),
                 Icons.location_on,
               ),
               _buildGuideStep(

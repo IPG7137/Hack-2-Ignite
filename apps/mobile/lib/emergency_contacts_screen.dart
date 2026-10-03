@@ -146,16 +146,16 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> with 
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Row(
           children: [
-            Icon(Icons.phone, color: const Color(0xFFDC2626), size: 24),
+            const Icon(Icons.phone, color: Color(0xFFDC2626), size: 24),
             const SizedBox(width: 8),
-            const Text('Confirm Call'),
+            Text(_languageService.getTranslation('confirm_call')),
           ],
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Are you sure you want to call?'),
+            Text(_languageService.getTranslation('are_you_sure_call')),
             const SizedBox(height: 8),
             Container(
               padding: const EdgeInsets.all(12),
@@ -177,10 +177,10 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> with 
                   const SizedBox(height: 4),
                   Text(
                     number,
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: const Color(0xFFDC2626),
+                      color: Color(0xFFDC2626),
                       letterSpacing: 1.2,
                     ),
                   ),
@@ -192,7 +192,7 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> with 
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text(_languageService.getTranslation('cancel')),
           ),
           ElevatedButton(
             onPressed: () {
@@ -203,7 +203,7 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> with 
               backgroundColor: const Color(0xFFDC2626),
               foregroundColor: Colors.white,
             ),
-            child: const Text('Call Now'),
+            child: Text(_languageService.getTranslation('call_now')),
           ),
         ],
       ),
@@ -228,13 +228,13 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> with 
               ),
             ),
             const SizedBox(width: 12),
-            Expanded(child: Text('Connecting to $title ($number)...')),
+            Expanded(child: Text('${_languageService.getTranslation('connecting_to')} $title ($number)...')),
           ],
         ),
         backgroundColor: const Color(0xFFDC2626),
         duration: const Duration(seconds: 3),
         action: SnackBarAction(
-          label: 'Cancel',
+          label: _languageService.getTranslation('cancel'),
           textColor: Colors.white,
           onPressed: () {
             ScaffoldMessenger.of(context).hideCurrentSnackBar();
@@ -283,9 +283,9 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> with 
                     ),
                   ),
                   const SizedBox(width: 16),
-                  const Text(
-                    'Emergency Tips',
-                    style: TextStyle(
+                  Text(
+                    _languageService.getTranslation('emergency_tips'),
+                    style: const TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
                     ),
@@ -298,28 +298,28 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> with 
                 padding: const EdgeInsets.symmetric(horizontal: 24),
                 children: [
                   _buildTipCard(
-                    'Stay Calm',
-                    'Keep calm and speak clearly when calling emergency services',
+                    _languageService.getTranslation('stay_calm'),
+                    _languageService.getTranslation('stay_calm_desc'),
                     Icons.psychology_outlined,
                   ),
                   _buildTipCard(
-                    'Know Your Location',
-                    'Be ready to provide your exact location or nearby landmarks',
+                    _languageService.getTranslation('know_location'),
+                    _languageService.getTranslation('know_location_desc'),
                     Icons.location_on_outlined,
                   ),
                   _buildTipCard(
-                    'Have Important Info Ready',
-                    'Keep medical information and emergency contacts accessible',
+                    _languageService.getTranslation('have_info_ready'),
+                    _languageService.getTranslation('have_info_ready_desc'),
                     Icons.info_outlined,
                   ),
                   _buildTipCard(
-                    'Follow Instructions',
-                    'Listen carefully and follow the operator\'s instructions',
+                    _languageService.getTranslation('follow_instructions'),
+                    _languageService.getTranslation('follow_instructions_desc'),
                     Icons.hearing_outlined,
                   ),
                   _buildTipCard(
-                    'Don\'t Hang Up',
-                    'Stay on the line until the operator says it\'s okay to disconnect',
+                    _languageService.getTranslation('dont_hang_up'),
+                    _languageService.getTranslation('dont_hang_up_desc'),
                     Icons.phone_in_talk_outlined,
                   ),
                 ],
@@ -386,9 +386,9 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> with 
         elevation: 0,
         backgroundColor: Colors.transparent,
         foregroundColor: const Color(0xFFDC2626),
-        title: const Text(
-          'Emergency Contacts',
-          style: TextStyle(
+        title: Text(
+          _languageService.getTranslation('emergency_contacts'),
+          style: const TextStyle(
             fontWeight: FontWeight.bold,
             fontSize: 20,
           ),
@@ -397,7 +397,7 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> with 
           IconButton(
             onPressed: _showEmergencyTips,
             icon: const Icon(Icons.lightbulb_outlined),
-            tooltip: 'Emergency Tips',
+            tooltip: _languageService.getTranslation('emergency_tips'),
           ),
         ],
       ),

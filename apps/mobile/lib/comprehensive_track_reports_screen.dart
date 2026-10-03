@@ -660,11 +660,11 @@ class _ComprehensiveTrackReportsScreenState extends State<ComprehensiveTrackRepo
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            _isAdmin ? 'Municipal Tracking (Admin)' : 'Track My Complaints',
+            _isAdmin ? 'Municipal Tracking (Admin)' : _languageService.getTranslation('track_my_complaints'),
             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
           ),
           Text(
-            _isAdmin ? 'Live municipal dispatch & oversight' : 'Real-time municipal action status',
+            _isAdmin ? 'Live municipal dispatch & oversight' : _languageService.getTranslation('realtime_action_status'),
             style: TextStyle(
               fontSize: 11,
               color: colorScheme.onPrimary.withValues(alpha: 0.8),
@@ -725,17 +725,17 @@ class _ComprehensiveTrackReportsScreenState extends State<ComprehensiveTrackRepo
               borderRadius: BorderRadius.circular(8),
               border: Border.all(color: const Color(0xFFBFDBFE)),
             ),
-            child: const Row(
+            child: Row(
               children: [
-                SizedBox(
+                const SizedBox(
                   width: 16,
                   height: 16,
                   child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF1E3A8A)),
                 ),
-                SizedBox(width: 10),
+                const SizedBox(width: 10),
                 Text(
-                  'Syncing live status from municipal system...',
-                  style: TextStyle(
+                  _languageService.getTranslation('syncing_status'),
+                  style: const TextStyle(
                     color: Color(0xFF1E3A8A),
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
@@ -868,7 +868,7 @@ class _ComprehensiveTrackReportsScreenState extends State<ComprehensiveTrackRepo
             ElevatedButton.icon(
               onPressed: () => _initializeReportsStream(),
               icon: const Icon(Icons.refresh, size: 18),
-              label: const Text('Try Again'),
+              label: Text(_languageService.getTranslation('retry')),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF1E3A8A),
                 foregroundColor: Colors.white,
@@ -900,7 +900,7 @@ class _ComprehensiveTrackReportsScreenState extends State<ComprehensiveTrackRepo
           TextField(
             controller: _searchController,
             decoration: InputDecoration(
-              hintText: 'Search by ID (#CR-...), title, location...',
+              hintText: _languageService.getTranslation('search_complaints_hint'),
               hintStyle: TextStyle(fontSize: 13, color: Colors.grey.shade400),
               prefixIcon: Icon(Icons.search, size: 20, color: Colors.grey.shade600),
               suffixIcon: _searchQuery.isNotEmpty
@@ -952,7 +952,7 @@ class _ComprehensiveTrackReportsScreenState extends State<ComprehensiveTrackRepo
                       ].map((String value) {
                         return DropdownMenuItem<String>(
                           value: value,
-                          child: Text(value),
+                          child: Text(_getFilterLabel(value)),
                         );
                       }).toList(),
                       onChanged: _onFilterChanged,
@@ -979,7 +979,7 @@ class _ComprehensiveTrackReportsScreenState extends State<ComprehensiveTrackRepo
                       items: ['Newest', 'Oldest', 'Priority', 'Status'].map((String value) {
                         return DropdownMenuItem<String>(
                           value: value,
-                          child: Text(value),
+                          child: Text(_getSortLabel(value)),
                         );
                       }).toList(),
                       onChanged: _onSortChanged,
@@ -994,6 +994,42 @@ class _ComprehensiveTrackReportsScreenState extends State<ComprehensiveTrackRepo
     );
   }
 
+  String _getFilterLabel(String filter) {
+    switch (filter) {
+      case 'All':
+        return _languageService.getTranslation('filter_all');
+      case 'Submitted':
+        return _languageService.getTranslation('filter_submitted');
+      case 'Under Review':
+        return _languageService.getTranslation('filter_under_review');
+      case 'Assigned':
+        return _languageService.getTranslation('filter_assigned');
+      case 'In Progress':
+        return _languageService.getTranslation('filter_in_progress');
+      case 'Resolved':
+        return _languageService.getTranslation('filter_resolved');
+      case 'High Priority':
+        return _languageService.getTranslation('filter_high_priority');
+      default:
+        return filter;
+    }
+  }
+
+  String _getSortLabel(String sort) {
+    switch (sort) {
+      case 'Newest':
+        return _languageService.getTranslation('sort_newest');
+      case 'Oldest':
+        return _languageService.getTranslation('sort_oldest');
+      case 'Priority':
+        return _languageService.getTranslation('priority');
+      case 'Status':
+        return _languageService.getTranslation('live_status_timeline');
+      default:
+        return sort;
+    }
+  }
+
   Widget _buildReportsCount(ColorScheme colorScheme) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -1001,7 +1037,7 @@ class _ComprehensiveTrackReportsScreenState extends State<ComprehensiveTrackRepo
       child: Row(
         children: [
           Text(
-            '${_filteredReports.length} ${_filteredReports.length == 1 ? 'complaint' : 'complaints'} found',
+            '${_filteredReports.length} ${_languageService.getTranslation('complaints_found')}',
             style: TextStyle(
               color: Colors.grey.shade700,
               fontSize: 12,
@@ -1026,9 +1062,9 @@ class _ComprehensiveTrackReportsScreenState extends State<ComprehensiveTrackRepo
                   ),
                 ),
                 const SizedBox(width: 4),
-                const Text(
-                  'Live Sync',
-                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF334155)),
+                Text(
+                  _languageService.getTranslation('live_sync'),
+                  style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF334155)),
                 ),
               ],
             ),
@@ -1061,7 +1097,9 @@ class _ComprehensiveTrackReportsScreenState extends State<ComprehensiveTrackRepo
             ),
             const SizedBox(height: 16),
             Text(
-              isSearching ? 'No matching complaints' : 'No complaints yet',
+              isSearching
+                  ? _languageService.getTranslation('no_matching_complaints')
+                  : _languageService.getTranslation('no_complaints_yet_track'),
               style: const TextStyle(
                 fontSize: 17,
                 fontWeight: FontWeight.bold,
@@ -1071,8 +1109,8 @@ class _ComprehensiveTrackReportsScreenState extends State<ComprehensiveTrackRepo
             const SizedBox(height: 8),
             Text(
               isSearching
-                  ? 'Try changing your search keywords or filter selection.'
-                  : 'Report your first civic issue and track its resolution here.',
+                  ? _languageService.getTranslation('try_changing_filters')
+                  : _languageService.getTranslation('report_first_track_desc'),
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 13,
@@ -1092,7 +1130,7 @@ class _ComprehensiveTrackReportsScreenState extends State<ComprehensiveTrackRepo
                   _applyFiltersAndSearch();
                 },
                 icon: const Icon(Icons.filter_alt_off, size: 16),
-                label: const Text('Clear Filters'),
+                label: Text(_languageService.getTranslation('clear_filters')),
               )
             else
               ElevatedButton.icon(
@@ -1103,7 +1141,7 @@ class _ComprehensiveTrackReportsScreenState extends State<ComprehensiveTrackRepo
                   );
                 },
                 icon: const Icon(Icons.add, size: 18),
-                label: const Text('Report Your First Issue'),
+                label: Text(_languageService.getTranslation('report_first_issue_btn')),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF1E3A8A),
                   foregroundColor: Colors.white,
@@ -1376,38 +1414,40 @@ class _ComprehensiveTrackReportsScreenState extends State<ComprehensiveTrackRepo
       backgroundColor: const Color(0xFF1E3A8A),
       foregroundColor: Colors.white,
       icon: const Icon(Icons.add_circle_outline, size: 20),
-      label: const Text(
-        'New Report',
-        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+      label: Text(
+        _languageService.getTranslation('register_new_grievance'),
+        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
       ),
     );
   }
 
   static String _mapCitizenStatusLabel(ReportStatus status) {
+    final ls = LanguageService();
     switch (status) {
       case ReportStatus.submitted:
-        return 'Submitted';
+        return ls.getTranslation('status_submitted');
       case ReportStatus.review:
       case ReportStatus.underReview:
-        return 'Under Review';
+        return ls.getTranslation('status_under_review');
       case ReportStatus.assigned:
-        return 'Assigned';
+        return ls.getTranslation('status_assigned');
       case ReportStatus.progress:
       case ReportStatus.inProgress:
-        return 'In Progress';
+        return ls.getTranslation('status_in_progress');
       case ReportStatus.resolutionSubmitted:
-        return 'Resolution Submitted';
+        return ls.getTranslation('status_resolution_submitted');
       case ReportStatus.citizenVerification:
-        return 'Citizen Verification';
+        return ls.getTranslation('status_citizen_verification');
       case ReportStatus.resolved:
+        return ls.getTranslation('status_resolved');
       case ReportStatus.verified:
-        return 'Verified';
+        return ls.getTranslation('status_verified');
       case ReportStatus.reopened:
-        return 'Reopened';
+        return ls.getTranslation('status_reopened');
       case ReportStatus.closed:
-        return 'Closed';
+        return ls.getTranslation('status_closed');
       case ReportStatus.rejected:
-        return 'Rejected';
+        return ls.getTranslation('status_rejected');
     }
   }
 

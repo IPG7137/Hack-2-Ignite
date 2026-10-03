@@ -5,6 +5,7 @@ import 'plant_shop_page.dart';
 import 'edit_profile_screen.dart';
 import 'app_preferences.dart';
 import 'comprehensive_database_service.dart';
+import 'language_service.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -15,6 +16,7 @@ class ProfilePage extends StatefulWidget {
 
 class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin {
   final AuthService _authService = AuthService.instance;
+  final LanguageService _languageService = LanguageService();
   
   late AnimationController _animationController;
   late AnimationController _staggerController;
@@ -38,6 +40,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
   @override
   void initState() {
     super.initState();
+    _languageService.addListener(_onLanguageChanged);
     
     // Initialize animations
     _animationController = AnimationController(
@@ -73,6 +76,10 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
     // Load user credits and profile
     _loadUserCredits();
     _loadUserProfile();
+  }
+
+  void _onLanguageChanged() {
+    if (mounted) setState(() {});
   }
 
   Future<void> _loadUserProfile() async {
@@ -169,6 +176,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
   void dispose() {
     _animationController.dispose();
     _staggerController.dispose();
+    _languageService.removeListener(_onLanguageChanged);
     super.dispose();
   }
 
@@ -261,7 +269,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
           ),
           const SizedBox(width: 12),
           Text(
-            'My Profile',
+            _languageService.getTranslation('my_profile'),
             style: TextStyle(
               color: colorScheme.onSurface,
               fontWeight: FontWeight.w600,
@@ -380,8 +388,8 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
                     ),
                     const SizedBox(width: 6),
                     Text(
-                      'Verified Citizen',
-                      style: TextStyle(
+                      _languageService.getTranslation('verified_citizen'),
+                      style: const TextStyle(
                         color: Colors.white,
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
@@ -400,22 +408,22 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
   Widget _buildPersonalInfoSection(ColorScheme colorScheme) {
     return _buildSection(
       colorScheme: colorScheme,
-      title: 'Personal Information',
+      title: _languageService.getTranslation('personal_info'),
       icon: Icons.person_outline_rounded,
       children: [
         _buildInfoTile(
           icon: Icons.cake_outlined,
-          label: 'Date of Birth',
+          label: _languageService.getTranslation('date_of_birth'),
           value: _userProfile['dateOfBirth'],
         ),
         _buildInfoTile(
           icon: Icons.work_outline_rounded,
-          label: 'Occupation',
+          label: _languageService.getTranslation('occupation'),
           value: _userProfile['occupation'],
         ),
         _buildInfoTile(
           icon: Icons.calendar_today_outlined,
-          label: 'Member Since',
+          label: _languageService.getTranslation('member_since'),
           value: _userProfile['memberSince'],
         ),
       ],
@@ -425,12 +433,12 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
   Widget _buildContactInfoSection(ColorScheme colorScheme) {
     return _buildSection(
       colorScheme: colorScheme,
-      title: 'Contact Information',
+      title: _languageService.getTranslation('contact_info'),
       icon: Icons.contact_phone_outlined,
       children: [
         _buildInfoTile(
           icon: Icons.location_on_outlined,
-          label: 'Address',
+          label: _languageService.getTranslation('address'),
           value: _userProfile['address'],
           isMultiline: true,
         ),
@@ -441,7 +449,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
   Widget _buildStatsSection(ColorScheme colorScheme) {
     return _buildSection(
       colorScheme: colorScheme,
-      title: 'Community Activity',
+      title: _languageService.getTranslation('community_activity'),
       icon: Icons.analytics_outlined,
       children: [
         Row(
@@ -450,7 +458,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
               child: _buildStatCard(
                 colorScheme: colorScheme,
                 icon: Icons.report_outlined,
-                label: 'Reports Submitted',
+                label: _languageService.getTranslation('reports_submitted_count'),
                 value: '${_userProfile['reportsSubmitted']}',
                 color: const Color(0xFF10B981),
               ),
@@ -460,7 +468,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
               child: _buildStatCard(
                 colorScheme: colorScheme,
                 icon: Icons.star_outline_rounded,
-                label: 'Community Score',
+                label: _languageService.getTranslation('community_score'),
                 value: '${_userProfile['communityScore']}',
                 color: const Color(0xFFF59E0B),
               ),
@@ -470,7 +478,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
               child: _buildStatCard(
                 colorScheme: colorScheme,
                 icon: Icons.eco_outlined,
-                label: 'Green Credits',
+                label: _languageService.getTranslation('green_credits_label'),
                 value: _isLoadingCredits ? '...' : '$_userCredits',
                 color: const Color(0xFF22C55E),
                 suffix: _isLoadingCredits ? '' : ' 🌱',
@@ -485,7 +493,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
   Widget _buildCivicPointCategoriesSection(ColorScheme colorScheme) {
     return _buildSection(
       colorScheme: colorScheme,
-      title: 'Civic Rewards & Contributions',
+      title: _languageService.getTranslation('civic_rewards_contributions'),
       icon: Icons.military_tech_outlined,
       children: [
         Container(
@@ -499,7 +507,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Scores are updated automatically when on-site municipal teams verify reports or resolutions.',
+                _languageService.getTranslation('scores_auto_updated_desc'),
                 style: TextStyle(
                   fontSize: 12,
                   color: colorScheme.onSurfaceVariant,
@@ -521,17 +529,17 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
-                    children: const [
+                    children: [
                       Text(
-                        'VIEW CONTRIBUTION HISTORY',
-                        style: TextStyle(
+                        _languageService.getTranslation('view_contribution_history_btn'),
+                        style: const TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.bold,
                           letterSpacing: 0.5,
                         ),
                       ),
-                      SizedBox(width: 6),
-                      Icon(Icons.arrow_forward_rounded, size: 14),
+                      const SizedBox(width: 6),
+                      const Icon(Icons.arrow_forward_rounded, size: 14),
                     ],
                   ),
                 ),
@@ -765,9 +773,9 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
               children: [
                 const Text('🌱', style: TextStyle(fontSize: 20)),
                 const SizedBox(width: 8),
-                const Text(
-                  'Plant Shop',
-                  style: TextStyle(
+                Text(
+                  _languageService.getTranslation('plant_shop_btn'),
+                  style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
                   ),
@@ -811,9 +819,9 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
               children: [
                 const Icon(Icons.edit_outlined, size: 20),
                 const SizedBox(width: 8),
-                const Text(
-                  'Edit Profile',
-                  style: TextStyle(
+                Text(
+                  _languageService.getTranslation('edit_profile_btn'),
+                  style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
                   ),
@@ -840,9 +848,9 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
               children: [
                 const Icon(Icons.logout_rounded, size: 20),
                 const SizedBox(width: 8),
-                const Text(
-                  'Logout',
-                  style: TextStyle(
+                Text(
+                  _languageService.getTranslation('logout'),
+                  style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
                   ),
@@ -877,12 +885,12 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Logout'),
-        content: const Text('Are you sure you want to logout?'),
+        title: Text(_languageService.getTranslation('logout')),
+        content: Text(_languageService.getTranslation('logout_confirm')),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text(_languageService.getTranslation('cancel')),
           ),
           TextButton(
             onPressed: () {
@@ -891,7 +899,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
               Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
             },
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Logout'),
+            child: Text(_languageService.getTranslation('logout')),
           ),
         ],
       ),

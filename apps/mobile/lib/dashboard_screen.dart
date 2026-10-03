@@ -95,9 +95,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   String _getTimeGreeting() {
     final hour = DateTime.now().hour;
-    if (hour < 12) return 'Good morning';
-    if (hour < 17) return 'Good afternoon';
-    return 'Good evening';
+    if (hour < 12) return _languageService.getTranslation('good_morning');
+    if (hour < 17) return _languageService.getTranslation('good_afternoon');
+    return _languageService.getTranslation('good_evening');
   }
 
   @override
@@ -161,15 +161,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
       elevation: 0,
       leading: IconButton(
         icon: const Icon(Icons.menu_rounded, color: Colors.white),
-        tooltip: 'Menu',
+        tooltip: _languageService.getTranslation('menu'),
         onPressed: () => _scaffoldKey.currentState?.openDrawer(),
       ),
       title: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'CivicResolve',
-            style: TextStyle(
+          Text(
+            _languageService.getTranslation('app_name'),
+            style: const TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w700,
               color: Colors.white,
@@ -177,7 +177,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
           ),
           Text(
-            widget.isAdmin ? 'Municipal Administrative Control' : 'Municipal Citizen Services',
+            widget.isAdmin
+                ? _languageService.getTranslation('municipal_admin_control')
+                : _languageService.getTranslation('municipal_citizen_services'),
             style: const TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w400,
@@ -195,7 +197,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         // Language Selector Action
         IconButton(
           icon: const Icon(Icons.translate_rounded, color: Colors.white, size: 20),
-          tooltip: 'Select Language',
+          tooltip: _languageService.getTranslation('change_language'),
           onPressed: _showLanguageSelector,
         ),
         // Notifications Action
@@ -207,7 +209,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               children: [
                 IconButton(
                   icon: const Icon(Icons.notifications_outlined, color: Colors.white),
-                  tooltip: 'Notifications',
+                  tooltip: _languageService.getTranslation('notifications'),
                   onPressed: _navigateToNotifications,
                 ),
                 if (count > 0)
@@ -364,22 +366,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 child: const Icon(Icons.campaign_outlined, color: Colors.white, size: 22),
               ),
               const SizedBox(width: 12),
-              const Expanded(
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Report a Municipal Problem',
-                      style: TextStyle(
+                      _languageService.getTranslation('report_problem_title'),
+                      style: const TextStyle(
                         color: Colors.white,
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    SizedBox(height: 2),
+                    const SizedBox(height: 2),
                     Text(
-                      'Potholes, water supply, streetlights, garbage & sanitation',
-                      style: TextStyle(
+                      _languageService.getTranslation('report_problem_subtitle'),
+                      style: const TextStyle(
                         color: Color(0xFFEFF8FF),
                         fontSize: 12,
                       ),
@@ -396,9 +398,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
             child: ElevatedButton.icon(
               onPressed: _navigateToReportIssue,
               icon: const Icon(Icons.add_circle_outline, size: 18, color: Color(0xFF155EEF)),
-              label: const Text(
-                'Register New Grievance',
-                style: TextStyle(
+              label: Text(
+                _languageService.getTranslation('register_new_grievance'),
+                style: const TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.bold,
                   color: Color(0xFF155EEF),
@@ -418,9 +420,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildQuickActionsHeader() {
-    return const Text(
-      'Citizen Services',
-      style: TextStyle(
+    return Text(
+      _languageService.getTranslation('citizen_services'),
+      style: const TextStyle(
         fontSize: 15,
         fontWeight: FontWeight.w700,
         color: Color(0xFF172B4D),
@@ -438,32 +440,32 @@ class _DashboardScreenState extends State<DashboardScreen> {
       childAspectRatio: 1.55,
       children: [
         _buildActionTile(
-          title: 'Local Civic Feed',
-          subtitle: 'Discover & support',
+          title: _languageService.getTranslation('local_civic_feed'),
+          subtitle: _languageService.getTranslation('discover_support'),
           icon: Icons.forum_rounded,
           iconColor: const Color(0xFFD97706),
           bgColor: const Color(0xFFFFFBEB),
           onTap: _navigateToCivicFeed,
         ),
         _buildActionTile(
-          title: 'Nearby Civic Map',
-          subtitle: 'OpenStreetMap view',
+          title: _languageService.getTranslation('nearby_issues_map'),
+          subtitle: _languageService.getTranslation('map_view'),
           icon: Icons.map_outlined,
           iconColor: const Color(0xFF059669),
           bgColor: const Color(0xFFECFDF5),
           onTap: _navigateToMapView,
         ),
         _buildActionTile(
-          title: 'Track Grievances',
-          subtitle: 'Live status timeline',
+          title: _languageService.getTranslation('track_complaints'),
+          subtitle: _languageService.getTranslation('live_status_timeline'),
           icon: Icons.track_changes_rounded,
           iconColor: const Color(0xFF155EEF),
           bgColor: const Color(0xFFEFF8FF),
           onTap: _navigateToTrackReports,
         ),
         _buildActionTile(
-          title: 'Emergency Helpline',
-          subtitle: 'Control room & police',
+          title: _languageService.getTranslation('emergency_helpline'),
+          subtitle: _languageService.getTranslation('control_room_police'),
           icon: Icons.phone_in_talk_rounded,
           iconColor: const Color(0xFFD92D20),
           bgColor: const Color(0xFFFEF3F2),
@@ -546,21 +548,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        const Column(
+        Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'My Recent Complaints',
-              style: TextStyle(
+              _languageService.getTranslation('recent_grievances'),
+              style: const TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w700,
                 color: Color(0xFF172B4D),
               ),
             ),
-            SizedBox(height: 2),
+            const SizedBox(height: 2),
             Text(
-              'Personal grievance submissions & status',
-              style: TextStyle(
+              _languageService.getTranslation('my_reports'),
+              style: const TextStyle(
                 fontSize: 11,
                 color: Color(0xFF667085),
               ),
@@ -575,7 +577,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
               visualDensity: VisualDensity.compact,
               foregroundColor: const Color(0xFF155EEF),
             ),
-            child: const Text('View All Track', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold)),
+            child: Text(
+              _languageService.getTranslation('view_all'),
+              style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold),
+            ),
           ),
       ],
     );
@@ -625,9 +630,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
             ),
             const SizedBox(height: 12),
-            const Text(
-              "No personal grievances registered yet",
-              style: TextStyle(
+            Text(
+              _languageService.getTranslation('no_reports_yet'),
+              style: const TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w700,
                 color: Color(0xFF172B4D),
@@ -635,10 +640,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 6),
-            const Text(
-              'Your verified citizen account is active. When you report a municipal issue, track real-time dispatch progress and field resolution evidence right here.',
+            Text(
+              _languageService.getTranslation('no_reports_desc'),
               textAlign: TextAlign.center,
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 12.5,
                 color: Color(0xFF667085),
                 height: 1.4,
@@ -648,7 +653,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ElevatedButton.icon(
               onPressed: _navigateToReportIssue,
               icon: const Icon(Icons.add_a_photo_outlined, size: 16),
-              label: const Text('Register New Grievance', style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold)),
+              label: Text(
+                _languageService.getTranslation('register_new_grievance'),
+                style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold),
+              ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF155EEF),
                 foregroundColor: Colors.white,
@@ -798,14 +806,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
         color: const Color(0xFFF2F4F7),
         borderRadius: BorderRadius.circular(8),
       ),
-      child: const Row(
+      child: Row(
         children: [
-          Icon(Icons.shield_outlined, size: 16, color: Color(0xFF475467)),
-          SizedBox(width: 8),
+          const Icon(Icons.shield_outlined, size: 16, color: Color(0xFF475467)),
+          const SizedBox(width: 8),
           Expanded(
             child: Text(
-              'Official Civic Redressal Service • Public Grievance Cell',
-              style: TextStyle(
+              _languageService.getTranslation('official_civic_service'),
+              style: const TextStyle(
                 fontSize: 11,
                 color: Color(0xFF475467),
                 fontWeight: FontWeight.w500,
@@ -848,26 +856,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
               break;
           }
         },
-        items: const [
+        items: [
           BottomNavigationBarItem(
-            icon: Icon(Icons.home_outlined),
-            activeIcon: Icon(Icons.home),
-            label: 'Home',
+            icon: const Icon(Icons.home_outlined),
+            activeIcon: const Icon(Icons.home),
+            label: _languageService.getTranslation('nav_home'),
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.add_circle_outline),
-            activeIcon: Icon(Icons.add_circle),
-            label: 'Report',
+            icon: const Icon(Icons.add_circle_outline),
+            activeIcon: const Icon(Icons.add_circle),
+            label: _languageService.getTranslation('nav_report'),
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.track_changes_outlined),
-            activeIcon: Icon(Icons.track_changes),
-            label: 'Track',
+            icon: const Icon(Icons.track_changes_outlined),
+            activeIcon: const Icon(Icons.track_changes),
+            label: _languageService.getTranslation('nav_track'),
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.map_outlined),
-            activeIcon: Icon(Icons.map),
-            label: 'Map',
+            icon: const Icon(Icons.map_outlined),
+            activeIcon: const Icon(Icons.map),
+            label: _languageService.getTranslation('nav_map'),
           ),
         ],
       ),
@@ -918,12 +926,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
           ListTile(
             leading: const Icon(Icons.home_outlined, color: Color(0xFF155EEF)),
-            title: const Text('Home Dashboard'),
+            title: Text(_languageService.getTranslation('home_dashboard')),
             onTap: () => Navigator.pop(context),
           ),
           ListTile(
             leading: const Icon(Icons.add_circle_outline, color: Color(0xFF155EEF)),
-            title: const Text('Register Grievance'),
+            title: Text(_languageService.getTranslation('register_new_grievance')),
             onTap: () {
               Navigator.pop(context);
               _navigateToReportIssue();
@@ -931,7 +939,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
           ListTile(
             leading: const Icon(Icons.track_changes_outlined, color: Color(0xFF155EEF)),
-            title: const Text('Track Complaints'),
+            title: Text(_languageService.getTranslation('track_complaints')),
             onTap: () {
               Navigator.pop(context);
               _navigateToTrackReports();
@@ -939,7 +947,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
           ListTile(
             leading: const Icon(Icons.map_outlined, color: Color(0xFF155EEF)),
-            title: const Text('Nearby Issues Map'),
+            title: Text(_languageService.getTranslation('nearby_issues_map')),
             onTap: () {
               Navigator.pop(context);
               _navigateToMapView();
@@ -948,7 +956,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           const Divider(),
           ListTile(
             leading: const Icon(Icons.phone_in_talk_outlined, color: Color(0xFF344054)),
-            title: const Text('Emergency Helpline'),
+            title: Text(_languageService.getTranslation('emergency_helpline')),
             onTap: () {
               Navigator.pop(context);
               _showEmergencyContacts();
@@ -956,7 +964,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
           ListTile(
             leading: const Icon(Icons.language_rounded, color: Color(0xFF344054)),
-            title: const Text('Change Language'),
+            title: Text(_languageService.getTranslation('change_language')),
             onTap: () {
               Navigator.pop(context);
               _showLanguageSelector();
@@ -964,7 +972,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
           ListTile(
             leading: const Icon(Icons.person_outline, color: Color(0xFF344054)),
-            title: const Text('Profile'),
+            title: Text(_languageService.getTranslation('nav_profile')),
             onTap: () {
               Navigator.pop(context);
               _navigateToProfile();
@@ -973,7 +981,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           const Divider(),
           ListTile(
             leading: const Icon(Icons.logout, color: Color(0xFFD92D20)),
-            title: const Text('Log Out', style: TextStyle(color: Color(0xFFD92D20))),
+            title: Text(_languageService.getTranslation('logout'), style: const TextStyle(color: Color(0xFFD92D20))),
             onTap: () {
               Navigator.pop(context);
               _handleLogout();
@@ -1078,31 +1086,31 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
-  static String _getStatusLabel(ReportStatus status) {
+  String _getStatusLabel(ReportStatus status) {
     switch (status) {
       case ReportStatus.submitted:
-        return 'Submitted';
+        return _languageService.getTranslation('status_submitted');
       case ReportStatus.review:
       case ReportStatus.underReview:
-        return 'Under Review';
+        return _languageService.getTranslation('status_under_review');
       case ReportStatus.assigned:
-        return 'Assigned';
+        return _languageService.getTranslation('status_assigned');
       case ReportStatus.progress:
       case ReportStatus.inProgress:
-        return 'In Progress';
+        return _languageService.getTranslation('status_in_progress');
       case ReportStatus.resolutionSubmitted:
-        return 'Resolution Submitted';
+        return _languageService.getTranslation('status_resolution_submitted');
       case ReportStatus.citizenVerification:
-        return 'Citizen Verification';
+        return _languageService.getTranslation('status_citizen_verification');
       case ReportStatus.resolved:
       case ReportStatus.verified:
-        return 'Verified';
+        return _languageService.getTranslation('status_resolved');
       case ReportStatus.reopened:
-        return 'Reopened';
+        return _languageService.getTranslation('status_reopened');
       case ReportStatus.closed:
-        return 'Closed';
+        return _languageService.getTranslation('status_closed');
       case ReportStatus.rejected:
-        return 'Rejected';
+        return _languageService.getTranslation('status_rejected');
     }
   }
 

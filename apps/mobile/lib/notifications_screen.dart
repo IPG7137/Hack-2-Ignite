@@ -160,18 +160,18 @@ class _NotificationsScreenState extends State<NotificationsScreen> with TickerPr
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
-          title: const Row(
+          title: Row(
             children: [
-              Icon(Icons.delete_outline, color: Colors.red, size: 24),
-              SizedBox(width: 8),
-              Text('Clear All Notifications'),
+              const Icon(Icons.delete_outline, color: Colors.red, size: 24),
+              const SizedBox(width: 8),
+              Text(_languageService.getTranslation('clear_all_notifications')),
             ],
           ),
-          content: const Text('Are you sure you want to clear all notifications? This action cannot be undone.'),
+          content: Text(_languageService.getTranslation('clear_all_confirm_desc')),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
+              child: Text(_languageService.getTranslation('cancel')),
             ),
             ElevatedButton(
               onPressed: () {
@@ -180,16 +180,16 @@ class _NotificationsScreenState extends State<NotificationsScreen> with TickerPr
                 });
                 Navigator.of(context).pop();
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
+                  SnackBar(
                     content: Row(
                       children: [
-                        Icon(Icons.check_circle, color: Colors.white, size: 20),
-                        SizedBox(width: 8),
-                        Text('All notifications cleared'),
+                        const Icon(Icons.check_circle, color: Colors.white, size: 20),
+                        const SizedBox(width: 8),
+                        Text(_languageService.getTranslation('all_notifications_cleared')),
                       ],
                     ),
                     backgroundColor: Colors.green,
-                    duration: Duration(seconds: 2),
+                    duration: const Duration(seconds: 2),
                   ),
                 );
               },
@@ -197,7 +197,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> with TickerPr
                 backgroundColor: Colors.red,
                 foregroundColor: Colors.white,
               ),
-              child: const Text('Clear All'),
+              child: Text(_languageService.getTranslation('clear_filters')),
             ),
           ],
         );
@@ -217,9 +217,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> with TickerPr
         foregroundColor: const Color(0xFF1E293B),
         title: Row(
           children: [
-            const Text(
-              'Notifications',
-              style: TextStyle(
+            Text(
+              _languageService.getTranslation('notifications'),
+              style: const TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 20,
               ),
@@ -250,7 +250,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> with TickerPr
               IconButton(
                 onPressed: _markAllAsRead,
                 icon: const Icon(Icons.done_all),
-                tooltip: 'Mark all as read',
+                tooltip: _languageService.getTranslation('confirm'),
               ),
             PopupMenuButton<String>(
               onSelected: (value) {
@@ -259,13 +259,13 @@ class _NotificationsScreenState extends State<NotificationsScreen> with TickerPr
                 }
               },
               itemBuilder: (context) => [
-                const PopupMenuItem(
+                PopupMenuItem(
                   value: 'clear',
                   child: Row(
                     children: [
-                      Icon(Icons.delete_outline, color: Colors.red, size: 20),
-                      SizedBox(width: 8),
-                      Text('Clear All'),
+                      const Icon(Icons.delete_outline, color: Colors.red, size: 20),
+                      const SizedBox(width: 8),
+                      Text(_languageService.getTranslation('clear_all_notifications')),
                     ],
                   ),
                 ),
@@ -307,7 +307,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> with TickerPr
           ),
           const SizedBox(height: 24),
           Text(
-            'No Notifications',
+            _languageService.getTranslation('no_notifications_yet'),
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
@@ -316,7 +316,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> with TickerPr
           ),
           const SizedBox(height: 8),
           Text(
-            'You\'re all caught up! New notifications will appear here.',
+            _languageService.getTranslation('all_caught_up'),
             style: TextStyle(
               fontSize: 16,
               color: Colors.grey[500],

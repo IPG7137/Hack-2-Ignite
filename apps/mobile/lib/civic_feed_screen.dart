@@ -271,9 +271,9 @@ class _CivicFeedScreenState extends State<CivicFeedScreen> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Local Civic Feed',
-              style: TextStyle(
+            Text(
+              _languageService.getTranslation('civic_feed_title'),
+              style: const TextStyle(
                 fontSize: 17,
                 fontWeight: FontWeight.w700,
                 color: Colors.white,
@@ -282,7 +282,7 @@ class _CivicFeedScreenState extends State<CivicFeedScreen> {
             Text(
               _activeLat != null
                   ? '📍 Near ${_locationService.currentAreaLabel}'
-                  : 'Community Grievance Feed',
+                  : _languageService.getTranslation('nearby_issues'),
               style: const TextStyle(
                 fontSize: 11,
                 color: Color(0xFFCBD5E1),
@@ -359,8 +359,8 @@ class _CivicFeedScreenState extends State<CivicFeedScreen> {
           Expanded(
             child: Text(
               hasGps
-                  ? '${_locationService.currentAreaLabel} • Radius: ${_selectedRadiusKm >= 900 ? "City-wide" : "${_selectedRadiusKm.toInt()} km"}'
-                  : 'GPS off: showing public grievances',
+                  ? '${_locationService.currentAreaLabel} • ${_languageService.getTranslation('km_radius')}: ${_selectedRadiusKm >= 900 ? _languageService.getTranslation('city_wide') : "${_selectedRadiusKm.toInt()} km"}'
+                  : _languageService.getTranslation('gps_off_showing_public'),
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
@@ -372,11 +372,11 @@ class _CivicFeedScreenState extends State<CivicFeedScreen> {
             InkWell(
               onTap: _resolveLocationAndLoad,
               borderRadius: BorderRadius.circular(4),
-              child: const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 child: Text(
-                  'Enable GPS',
-                  style: TextStyle(
+                  _languageService.getTranslation('enable_gps'),
+                  style: const TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.bold,
                     color: Color(0xFFB45309),
@@ -397,7 +397,9 @@ class _CivicFeedScreenState extends State<CivicFeedScreen> {
                 _loadFeed();
               },
               itemBuilder: (context) => _radii.map((r) {
-                final label = r >= 900 ? 'City-wide (All)' : '${r.toInt()} km radius';
+                final label = r >= 900
+                    ? '${_languageService.getTranslation('city_wide')} (${_languageService.getTranslation('filter_all')})'
+                    : '${r.toInt()} ${_languageService.getTranslation('km_radius')}';
                 return PopupMenuItem<double>(
                   value: r,
                   child: Row(
@@ -424,7 +426,7 @@ class _CivicFeedScreenState extends State<CivicFeedScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      _selectedRadiusKm >= 900 ? 'City-wide' : '${_selectedRadiusKm.toInt()} km',
+                      _selectedRadiusKm >= 900 ? _languageService.getTranslation('city_wide') : '${_selectedRadiusKm.toInt()} km',
                       style: const TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.bold,
@@ -460,7 +462,7 @@ class _CivicFeedScreenState extends State<CivicFeedScreen> {
               onChanged: (_) => setState(() {}),
               style: const TextStyle(fontSize: 13),
               decoration: InputDecoration(
-                hintText: 'Search grievances, descriptions, locations...',
+                hintText: _languageService.getTranslation('search_feed_hint'),
                 hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 12.5),
                 prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFF64748B), size: 19),
                 suffixIcon: _searchController.text.isNotEmpty
@@ -481,20 +483,11 @@ class _CivicFeedScreenState extends State<CivicFeedScreen> {
           // Sort Options
           Row(
             children: [
-              const Text(
-                'Sort:',
-                style: TextStyle(
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF64748B),
-                ),
-              ),
+              _buildSortChip(_languageService.getTranslation('sort_most_supported'), 'most_supported', Icons.trending_up_rounded),
               const SizedBox(width: 6),
-              _buildSortChip('Most Supported', 'most_supported', Icons.trending_up_rounded),
+              _buildSortChip(_languageService.getTranslation('sort_recent'), 'recent', Icons.access_time_rounded),
               const SizedBox(width: 6),
-              _buildSortChip('Recent', 'recent', Icons.access_time_rounded),
-              const SizedBox(width: 6),
-              _buildSortChip('Nearby', 'nearby', Icons.near_me_rounded),
+              _buildSortChip(_languageService.getTranslation('sort_nearby'), 'nearby', Icons.near_me_rounded),
             ],
           ),
         ],
@@ -503,7 +496,12 @@ class _CivicFeedScreenState extends State<CivicFeedScreen> {
   }
 
   Widget _buildFilterStrips() {
-    final statusList = ['All', 'Active', 'In Progress', 'Resolved'];
+    final statusList = [
+      {'key': 'All', 'label': _languageService.getTranslation('filter_all')},
+      {'key': 'Active', 'label': _languageService.getTranslation('active_reports')},
+      {'key': 'In Progress', 'label': _languageService.getTranslation('filter_in_progress')},
+      {'key': 'Resolved', 'label': _languageService.getTranslation('filter_resolved')},
+    ];
 
     return Container(
       color: Colors.white,
@@ -519,15 +517,17 @@ class _CivicFeedScreenState extends State<CivicFeedScreen> {
               itemCount: statusList.length,
               separatorBuilder: (_, __) => const SizedBox(width: 6),
               itemBuilder: (context, index) {
-                final st = statusList[index];
-                final isSelected = _selectedStatus == st;
+                final item = statusList[index];
+                final stKey = item['key']!;
+                final stLabel = item['label']!;
+                final isSelected = _selectedStatus == stKey;
                 return ChoiceChip(
-                  label: Text(st),
+                  label: Text(stLabel),
                   selected: isSelected,
                   onSelected: (selected) {
                     if (selected) {
                       setState(() {
-                        _selectedStatus = st;
+                        _selectedStatus = stKey;
                       });
                       _loadFeed();
                     }
@@ -558,7 +558,7 @@ class _CivicFeedScreenState extends State<CivicFeedScreen> {
                 final cat = _categories[index];
                 final isSelected = _selectedCategory == cat;
                 return ChoiceChip(
-                  label: Text(cat),
+                  label: Text(_getLocalizedCategoryName(cat)),
                   selected: isSelected,
                   onSelected: (selected) {
                     if (selected) {
@@ -584,6 +584,29 @@ class _CivicFeedScreenState extends State<CivicFeedScreen> {
         ],
       ),
     );
+  }
+
+  String _getLocalizedCategoryName(String cat) {
+    switch (cat) {
+      case 'All':
+        return _languageService.getTranslation('filter_all');
+      case 'Roads & Potholes':
+        return _languageService.getTranslation('cat_potholes_roads');
+      case 'Water Supply':
+        return _languageService.getTranslation('cat_water_drainage');
+      case 'Drainage':
+        return _languageService.getTranslation('cat_drainage_sewage');
+      case 'Streetlights':
+        return _languageService.getTranslation('cat_electricity_streetlights');
+      case 'Garbage & Sanitation':
+        return _languageService.getTranslation('cat_waste_management');
+      case 'Public Safety':
+        return _languageService.getTranslation('cat_safety_hazard');
+      case 'Parks & Trees':
+        return _languageService.getTranslation('cat_parks_trees');
+      default:
+        return cat;
+    }
   }
 
   Widget _buildSortChip(String label, String value, IconData icon) {
@@ -791,8 +814,8 @@ class _CivicFeedScreenState extends State<CivicFeedScreen> {
                           ),
                     label: Text(
                       hasSupported
-                          ? 'Supported (${item.supportCount})'
-                          : 'Support (${item.supportCount})',
+                          ? '${_languageService.getTranslation('supported')} (${item.supportCount})'
+                          : '${_languageService.getTranslation('support_issue')} (${item.supportCount})',
                       style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600),
                     ),
                     style: ElevatedButton.styleFrom(
@@ -812,14 +835,14 @@ class _CivicFeedScreenState extends State<CivicFeedScreen> {
                         borderRadius: BorderRadius.circular(6),
                         border: Border.all(color: const Color(0xFFFECDCA)),
                       ),
-                      child: const Row(
+                      child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.local_fire_department_rounded, size: 12, color: Color(0xFFD92D20)),
-                          SizedBox(width: 3),
+                          const Icon(Icons.local_fire_department_rounded, size: 12, color: Color(0xFFD92D20)),
+                          const SizedBox(width: 3),
                           Text(
-                            'High Priority',
-                            style: TextStyle(
+                            _languageService.getTranslation('priority_high'),
+                            style: const TextStyle(
                               fontSize: 9.5,
                               fontWeight: FontWeight.w700,
                               color: Color(0xFFD92D20),
@@ -907,8 +930,8 @@ class _CivicFeedScreenState extends State<CivicFeedScreen> {
             const SizedBox(height: 16),
             Text(
               isRadiusRestricted
-                  ? 'No Civic Issues within ${_selectedRadiusKm.toInt()} km'
-                  : 'No Civic Issues in this Category',
+                  ? '${_languageService.getTranslation('no_reports_yet')} (${_selectedRadiusKm.toInt()} km)'
+                  : _languageService.getTranslation('no_matching_complaints'),
               textAlign: TextAlign.center,
               style: const TextStyle(
                 fontSize: 16,
@@ -919,8 +942,8 @@ class _CivicFeedScreenState extends State<CivicFeedScreen> {
             const SizedBox(height: 6),
             Text(
               isRadiusRestricted
-                  ? 'There are no active civic grievances reported in this radius. Expand search distance or report a local issue.'
-                  : 'Check other filters or register a new grievance in your neighborhood.',
+                  ? _languageService.getTranslation('try_changing_filters')
+                  : _languageService.getTranslation('no_reports_desc'),
               textAlign: TextAlign.center,
               style: const TextStyle(fontSize: 13, color: Color(0xFF64748B), height: 1.4),
             ),
@@ -937,7 +960,7 @@ class _CivicFeedScreenState extends State<CivicFeedScreen> {
                       _loadFeed();
                     },
                     icon: const Icon(Icons.travel_explore_rounded, size: 16),
-                    label: const Text('View City-wide'),
+                    label: Text(_languageService.getTranslation('city_wide')),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: const Color(0xFF155EEF),
                       side: const BorderSide(color: Color(0xFF155EEF)),
@@ -954,7 +977,7 @@ class _CivicFeedScreenState extends State<CivicFeedScreen> {
                     );
                   },
                   icon: const Icon(Icons.add_circle_outline, size: 16),
-                  label: const Text('Report a Problem'),
+                  label: Text(_languageService.getTranslation('register_new_grievance')),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF155EEF),
                     foregroundColor: Colors.white,
