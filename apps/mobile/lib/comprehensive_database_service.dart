@@ -9,6 +9,7 @@ import 'similarity_engine.dart';
 import 'emerging_problem_engine.dart';
 import 'incident_grouping_engine.dart';
 import 'resolution_verification_engine.dart';
+import 'multilingual_civic_engine.dart';
 
 class ComprehensiveDatabaseService {
   static final ComprehensiveDatabaseService _instance = ComprehensiveDatabaseService._internal();
@@ -309,6 +310,7 @@ class ComprehensiveDatabaseService {
     double? longitude,
     List<String>? imageUrls,
     String? contactNumber,
+    String? priority,
   }) async {
     try {
       debugPrint('🔄 Submitting report to database...');
@@ -320,6 +322,7 @@ class ComprehensiveDatabaseService {
       debugPrint('   Longitude: $longitude');
       debugPrint('   Images: ${imageUrls?.length ?? 0} images');
       debugPrint('   Contact: $contactNumber');
+      debugPrint('   Supplied Priority: $priority');
       
       // Validate required fields
       if (userId.isEmpty) {
@@ -337,17 +340,16 @@ class ComprehensiveDatabaseService {
         return ReportSubmissionResult.error('Description is required');
       }
       
-      // Determine priority based on category
-      String priority = 'medium';
-      if (category.contains('public_safety') || category.contains('water') || category.contains('sewage')) {
-        priority = 'high';
-      } else if (category.contains('roads') || category.contains('electricity') || category.contains('streetlights')) {
-        priority = 'medium';
+      // Determine priority based on supplied priority or MultilingualCivicEngine
+      String finalPriority;
+      if (priority != null && priority.trim().isNotEmpty) {
+        finalPriority = priority.trim().toLowerCase();
       } else {
-        priority = 'low';
+        final multilingualAnalysis = MultilingualCivicEngine.analyzeCivicComplaint(description);
+        finalPriority = multilingualAnalysis.priorityLevel.toLowerCase();
       }
       
-      debugPrint('   Calculated Priority: $priority');
+      debugPrint('   Effective Calculated Priority: $finalPriority');
       
       // Prepare clean coordinates and safe lat/lng
       double? safeLat;
@@ -403,7 +405,7 @@ class ComprehensiveDatabaseService {
         'latitude': safeLat,
         'longitude': safeLng,
         'image_urls': imageUrls ?? [],
-        'priority': priority,
+        'priority': finalPriority,
         'status': 'submitted',
         if (contactNumber != null && contactNumber.trim().isNotEmpty) 'contact_number': contactNumber.trim(),
       };

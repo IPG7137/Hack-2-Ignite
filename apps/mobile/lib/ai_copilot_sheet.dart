@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import 'comprehensive_report_models.dart';
 import 'category_selection_screen.dart';
+import 'multilingual_civic_engine.dart';
 
 class CopilotMessageItem {
   final String id;
@@ -139,19 +140,34 @@ class _AiCopilotSheetState extends State<AiCopilotSheet> {
       }
     }
 
+    final lang = MultilingualCivicEngine.detectLanguage(query);
+    final isMarathi = lang == CivicLanguage.marathi;
+    final isHindi = lang == CivicLanguage.hindi;
+
     // 2. Status inquiry
     if (qLower.contains('status') ||
         qLower.contains('pending') ||
         qLower.contains('assigned') ||
-        qLower.contains('resolved')) {
+        qLower.contains('resolved') ||
+        query.contains('स्थिती') ||
+        query.contains('स्टेटस') ||
+        query.contains('माहिती') ||
+        query.contains('स्थिति')) {
       if (widget.reports.isEmpty) {
+        final noReportsMsg = isMarathi
+            ? '📋 **तक्रार स्थिती आढावा**\n\nआपल्याकडे सध्या कोणतीही सक्रिय तक्रार नोंदवलेली नाही.'
+            : isHindi
+                ? '📋 **शिकायत स्थिति सारांश**\n\nवर्तमान में आपके पास कोई सक्रिय शिकायत दर्ज नहीं है।'
+                : '📋 **Grievance Status Overview**\n\n'
+                    'You currently have no active complaints recorded in this district session.';
         return CopilotMessageItem(
           id: 'resp-${DateTime.now().millisecondsSinceEpoch}',
           sender: 'copilot',
-          content: '📋 **Grievance Status Overview**\n\n'
-              'You currently have no active complaints recorded in this district session.',
+          content: noReportsMsg,
           timestamp: DateTime.now(),
-          suggestedPrompts: ['How do I report a garbage problem?'],
+          suggestedPrompts: [
+            isMarathi ? 'कचरा समस्येची नोंद कशी करावी?' : 'How do I report a garbage problem?'
+          ],
         );
       }
 
@@ -159,6 +175,40 @@ class _AiCopilotSheetState extends State<AiCopilotSheet> {
       final statusStr = latest.statusDisplay.toUpperCase();
       final categoryStr = latest.categoryDisplayName ?? latest.category;
       final timeStr = latest.createdAt.toLocal().toString().split('.')[0];
+
+      if (isMarathi) {
+        return CopilotMessageItem(
+          id: 'resp-${DateTime.now().millisecondsSinceEpoch}',
+          sender: 'copilot',
+          content: '📋 **तक्रार स्थिती तपशील**\n\n'
+              'आपली तक्रार **#${latest.id}** सध्या **"$statusStr"** स्थितीत आहे.\n\n'
+              '• **वर्ग:** $categoryStr\n'
+              '• **स्थान:** ${latest.location}\n'
+              '• **नोंदणी दिनांक:** $timeStr\n'
+              '• **नियुक्त अधिकारी:** ${latest.assignedOfficerName != null ? 'अधिकारी ${latest.assignedOfficerName}' : categoryStr}\n'
+              '• **प्राधान्य:** ${latest.priority.displayName.toUpperCase()}\n\n'
+              '${(latest.status == ReportStatus.inProgress || latest.status == ReportStatus.progress) ? "संबंधित क्षेत्रीय पथकाद्वारे काम सुरू आहे." : (latest.status == ReportStatus.resolved || latest.status == ReportStatus.citizenVerification) ? "काम पूर्ण झाले आहे. आपल्या नागरिकांच्या पडताळणीची प्रतीक्षा आहे." : "तक्रार नोंदवली गेली असून संबंधित विभागाकडे सोपवली आहे."}',
+          timestamp: DateTime.now(),
+          suggestedPrompts: ['माझ्या जवळ इतर तक्रार आहे का?'],
+        );
+      }
+
+      if (isHindi) {
+        return CopilotMessageItem(
+          id: 'resp-${DateTime.now().millisecondsSinceEpoch}',
+          sender: 'copilot',
+          content: '📋 **शिकायत स्थिति विवरण**\n\n'
+              'आपकी शिकायत **#${latest.id}** वर्तमान में **"$statusStr"** है।\n\n'
+              '• **श्रेणी:** $categoryStr\n'
+              '• **स्थान:** ${latest.location}\n'
+              '• **दिनांक:** $timeStr\n'
+              '• **संबंधित अधिकारी:** ${latest.assignedOfficerName != null ? 'अधिकारी ${latest.assignedOfficerName}' : categoryStr}\n'
+              '• **प्राथमिकता:** ${latest.priority.displayName.toUpperCase()}\n\n'
+              '${(latest.status == ReportStatus.inProgress || latest.status == ReportStatus.progress) ? "फील्ड टीम द्वारा काम चल रहा है।" : (latest.status == ReportStatus.resolved || latest.status == ReportStatus.citizenVerification) ? "कार्य पूरा हो चुका है। आपके सत्यापन की प्रतीक्षा है।" : "शिकायत दर्ज कर विभाग को सौंपी जा चुकी है।"}',
+          timestamp: DateTime.now(),
+          suggestedPrompts: ['क्या आस-पास कोई शिकायत है?'],
+        );
+      }
 
       return CopilotMessageItem(
         id: 'resp-${DateTime.now().millisecondsSinceEpoch}',
@@ -176,45 +226,40 @@ class _AiCopilotSheetState extends State<AiCopilotSheet> {
       );
     }
 
-    // 3. Issue reporting natural language parser
-    if (qLower.contains('pothole') ||
-        qLower.contains('road') ||
-        qLower.contains('garbage') ||
-        qLower.contains('waste') ||
-        qLower.contains('water') ||
-        qLower.contains('drain') ||
-        qLower.contains('street light') ||
-        qLower.contains('broken') ||
-        qLower.contains('leak') ||
-        qLower.contains('overflow')) {
-      String cat = 'Roads & Potholes';
-      String? secondary;
-      if (qLower.contains('garbage') || qLower.contains('waste') || qLower.contains('dump')) {
-        cat = 'Solid Waste Management';
-      } else if (qLower.contains('water') || qLower.contains('leak') || qLower.contains('drain')) {
-        cat = 'Water Supply & Drainage';
-        if (qLower.contains('pothole') || qLower.contains('road')) {
-          secondary = 'Waterlogging on roadway';
-        }
-      } else if (qLower.contains('light')) {
-        cat = 'Street Lighting';
-      }
-
+    // 3. Issue reporting natural language parser & Multilingual Semantic Engine
+    final analysis = MultilingualCivicEngine.analyzeCivicComplaint(query);
+    if (analysis.extractedIssueEn != 'Civic Issue' || query.length >= 10) {
       final proposal = {
-        'category': cat,
-        'secondaryIssue': secondary,
+        'category': analysis.categoryNameEn,
+        'categoryLocal': analysis.categoryNameLocal,
+        'secondaryIssue': analysis.safetyContext,
         'description': query,
         'location': 'Current GPS / Detected Location',
+        'priority': analysis.priorityLevel,
+        'sla': analysis.slaEstimate,
       };
+
+      final draftMsg = isMarathi
+          ? '📝 **तक्रार मसुदा तयार केला आहे**\n\n'
+              'आपल्या वर्णनावरून खालील तपशील आपोआप तयार केले आहेत:\n\n'
+              '${analysis.localizedSummaryResponse}'
+          : isHindi
+              ? '📝 **शिकायत का प्रारूप तैयार किया गया**\n\n'
+                  'आपके विवरण से निम्नलिखित प्रारूप तैयार किया गया है:\n\n'
+                  '${analysis.localizedSummaryResponse}'
+              : '📝 **Grievance Draft Extracted**\n\n'
+                  'I have formulated a grievance draft from your description. Please review before submission:\n\n'
+                  '${analysis.localizedSummaryResponse}';
 
       return CopilotMessageItem(
         id: 'resp-${DateTime.now().millisecondsSinceEpoch}',
         sender: 'copilot',
-        content: '📝 **Grievance Draft Extracted**\n\n'
-            'I have formulated a grievance draft from your description. Please review before submission:',
+        content: draftMsg,
         timestamp: DateTime.now(),
         actionProposal: proposal,
-        suggestedPrompts: ['Is there already a complaint nearby?'],
+        suggestedPrompts: [
+          isMarathi ? 'माझ्या जवळ इतर तक्रार आहे का?' : 'Is there already a complaint nearby?'
+        ],
       );
     }
 

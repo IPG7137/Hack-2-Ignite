@@ -48,18 +48,30 @@ class CivicPriorityEngine {
   static const double thresholdHigh = 60.0;
   static const double thresholdMedium = 35.0;
 
-  /// High-risk keywords indicating immediate public hazard
+  /// High-risk keywords indicating immediate public hazard (English, Marathi, Hindi)
   static const Set<String> _criticalHazardKeywords = {
+    // English
     'manhole', 'open manhole', 'wire', 'live wire', 'transformer', 'sparking',
     'electric shock', 'collapse', 'collapsed', 'cave in', 'caved', 'fire',
     'smoke', 'gas leak', 'pipeline burst', 'major flood', 'deep crater',
-    'accident', 'emergency', 'fallen tree', 'hanging wire'
+    'accident', 'emergency', 'fallen tree', 'hanging wire',
+    // Marathi
+    'विजेची तार', 'विजेचा शॉक', 'मॅनहोल', 'गटर उघडे', 'झाकण उघडे', 'जीवघेणा', 'धोकादायक',
+    'आग', 'धूर', 'अपघात', 'झाड पडले', 'मोठा खड्डा', 'रात्री', 'रात्रीचा धोका',
+    // Hindi
+    'बिजली का तार', 'बिजली का झटका', 'मैनहोल', 'गटर खुला', 'ढक्कन खुला', 'जानलेवा', 'खतरनाक',
+    'धुआं', 'दुर्घटना', 'पेड़ गिरा', 'बड़ा गड्ढा', 'रात', 'खतरा'
   };
 
-  /// Moderate-risk keywords indicating heightened safety concern
+  /// Moderate-risk keywords indicating heightened safety concern (English, Marathi, Hindi)
   static const Set<String> _moderateHazardKeywords = {
+    // English
     'pothole', 'broken divider', 'dark street', 'blackout', 'streetlight dead',
-    'waterlogging', 'sewage leak', 'garbage burning', 'blocked drain', 'slippery'
+    'waterlogging', 'sewage leak', 'garbage burning', 'blocked drain', 'slippery',
+    // Marathi
+    'खड्डा', 'खड्डे', 'अंधार', 'स्ट्रीट लाईट बंद', 'पाणी तुंबले', 'सांडपाणी', 'कचऱ्याचा ढीग', 'दुर्गंधी',
+    // Hindi
+    'गड्ढा', 'गड्ढे', 'अंधेरा', 'स्ट्रीट लाइट बंद', 'पानी भरा', 'सीवर ओवरफ्लो', 'कचरे का ढेर', 'बदबू'
   };
 
   /// Calculate severity score (0 - 100) from AI triage or manual input

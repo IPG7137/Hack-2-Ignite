@@ -13,6 +13,7 @@ import 'auth_service.dart';
 import 'notification_service.dart';
 import 'credit_service.dart';
 import 'image_validation_service.dart';
+import 'multilingual_civic_engine.dart';
 
 class ConfirmationScreen extends StatefulWidget {
   final ReportCategory category;
@@ -25,6 +26,7 @@ class ConfirmationScreen extends StatefulWidget {
   final String? priority;
   final String? aiAnalysisResult;
   final ImageValidationResult? imageValidationResult;
+  final CivicSemanticAnalysis? multilingualAnalysis;
 
   const ConfirmationScreen({
     super.key,
@@ -38,6 +40,7 @@ class ConfirmationScreen extends StatefulWidget {
     this.priority,
     this.aiAnalysisResult,
     this.imageValidationResult,
+    this.multilingualAnalysis,
   });
 
   @override
@@ -58,12 +61,17 @@ class _ConfirmationScreenState extends State<ConfirmationScreen>
   String? _errorMessage;
   String? _finalPriority;
 
+  late CivicSemanticAnalysis _semanticAnalysis;
+
   @override
   void initState() {
     super.initState();
     _languageService.addListener(_onLanguageChanged);
 
-    _finalPriority = widget.priority ?? 'Medium';
+    _semanticAnalysis = widget.multilingualAnalysis ??
+        MultilingualCivicEngine.analyzeCivicComplaint(widget.description);
+
+    _finalPriority = widget.priority ?? _semanticAnalysis.priorityLevel;
 
     // Initialize animations for success state
     _iconAnimationController = AnimationController(
@@ -186,6 +194,7 @@ class _ConfirmationScreenState extends State<ConfirmationScreen>
           longitude: widget.longitude,
           imageUrls: imageDataUrls,
           contactNumber: null,
+          priority: _finalPriority,
         );
 
         if (result.success && result.reportId != null) {
@@ -582,6 +591,11 @@ class _ConfirmationScreenState extends State<ConfirmationScreen>
 
                 const SizedBox(height: 12),
 
+                // 4.5 Multilingual Civic Understanding & Routing Breakdown
+                _buildMultilingualReviewCard(),
+
+                const SizedBox(height: 12),
+
                 // 5. AI-Assisted Analysis Summary
                 _buildAiAssistedSummaryCard(),
 
@@ -955,6 +969,162 @@ class _ConfirmationScreenState extends State<ConfirmationScreen>
     );
   }
 
+  Widget _buildMultilingualReviewCard() {
+    final lang = _semanticAnalysis.language;
+    final langBadge = lang == CivicLanguage.marathi
+        ? 'मराठी (Marathi)'
+        : lang == CivicLanguage.hindi
+            ? 'हिंदी (Hindi)'
+            : 'English';
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: const [
+                  Icon(Icons.translate_rounded, size: 18, color: Color(0xFF155EEF)),
+                  SizedBox(width: 8),
+                  Text(
+                    'CIVIC AI MULTILINGUAL UNDERSTANDING',
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF64748B),
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF155EEF).withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  langBadge,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF155EEF),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          // Structured breakdown
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildSemanticRow('🏷️ Issue Identified:', _semanticAnalysis.extractedIssue),
+                const SizedBox(height: 6),
+                _buildSemanticRow('📂 Category:', _semanticAnalysis.categoryNameLocal),
+                const SizedBox(height: 6),
+                _buildSemanticRow('🏛️ Department:', _semanticAnalysis.routingDepartmentLocal),
+                const SizedBox(height: 6),
+                _buildSemanticRow('⏱️ SLA Target:', _semanticAnalysis.slaEstimate),
+                if (_semanticAnalysis.hasSafetyHazard && _semanticAnalysis.safetyContext != null) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFEF2F2),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: const Color(0xFFFCA5A5)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.warning_amber_rounded, color: Color(0xFFDC2626), size: 16),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            _semanticAnalysis.safetyContext!,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF991B1B),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          if (lang != CivicLanguage.english) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Administrative English Translation: "${_semanticAnalysis.translatedSummaryEn}"',
+              style: const TextStyle(
+                fontSize: 11.5,
+                fontStyle: FontStyle.italic,
+                color: Color(0xFF64748B),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSemanticRow(String label, String value) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 125,
+          child: Text(
+            label,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF64748B),
+            ),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: const TextStyle(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF0F172A),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildAiAssistedSummaryCard() {
     final priority = _finalPriority ?? 'Medium';
     final priorityColor = _getPriorityColor(priority);
@@ -1282,6 +1452,11 @@ class _ConfirmationScreenState extends State<ConfirmationScreen>
                       ),
                     ),
 
+                    const SizedBox(height: 16),
+
+                    // Multilingual Civic Triage Confirmation Banner
+                    _buildMultilingualSuccessBanner(),
+
                     const SizedBox(height: 20),
 
                     // Next Steps Card
@@ -1407,6 +1582,49 @@ class _ConfirmationScreenState extends State<ConfirmationScreen>
                 color: Color(0xFF475569),
                 height: 1.35,
               ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMultilingualSuccessBanner() {
+    final lang = _semanticAnalysis.language;
+    final isVernacular = lang != CivicLanguage.english;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFCBD5E1)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.check_circle_outline_rounded, size: 16, color: Color(0xFF155EEF)),
+              const SizedBox(width: 8),
+              Text(
+                isVernacular ? 'तक्रार विश्लेषण व पुष्टीकरण (${lang.nativeName})' : 'Multilingual Civic Analysis',
+                style: const TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF1E293B),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            _semanticAnalysis.localizedSummaryResponse,
+            style: const TextStyle(
+              fontSize: 12,
+              color: Color(0xFF334155),
+              height: 1.45,
             ),
           ),
         ],

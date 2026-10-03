@@ -20,6 +20,7 @@ import 'leaflet_map_service.dart';
 import 'geospatial_geojson_service.dart';
 import 'similarity_engine.dart';
 import 'image_validation_service.dart';
+import 'multilingual_civic_engine.dart';
 
 class ReportDetailsScreen extends StatefulWidget {
   final ReportCategory category;
@@ -50,6 +51,9 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> with TickerPr
   bool isAnalyzingImage = false;
   String? aiAnalysisResult;
   late AnimationController _scannerController;
+
+  // Multilingual Civic AI Semantic Analysis State
+  CivicSemanticAnalysis? _multilingualAnalysis;
 
   // 3-Level Image Validation Pipeline State
   final Map<String, ImageValidationResult> _imageValidationResults = {};
@@ -134,48 +138,24 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> with TickerPr
     }
   }
 
-  /// Analyzes description text in real-time for priority keywords
+  /// Analyzes description text in real-time for multilingual understanding and priority keywords
   void _onDescriptionChanged() {
     final description = _descriptionController.text.trim();
-    if (description.length > 15) { // Only analyze if description has meaningful content
-      _analyzeDescriptionOnly(description);
-    }
-  }
-
-  /// Analyzes only the description text for priority keywords
-  void _analyzeDescriptionOnly(String description) {
-    final analysis = ImageAnalysisService.analyzeDescriptionForPriority(description);
-    final detectedPriority = analysis['priority'] ?? 'Medium';
-    final keywords = analysis['keywords'] ?? '';
-    
-    // Only update priority if we detect high priority keywords
-    if (detectedPriority == 'High' && keywords.isNotEmpty) {
+    if (description.length >= 4) {
+      final analysis = MultilingualCivicEngine.analyzeCivicComplaint(description);
       setState(() {
-        selectedPriority = detectedPriority;
-        aiAnalysisResult = 'AI detected emergency/disaster keywords in description: $keywords. ${analysis['explanation']}';
+        _multilingualAnalysis = analysis;
+        if (analysis.priorityLevel == 'High' || analysis.priorityLevel == 'Critical') {
+          selectedPriority = analysis.priorityLevel;
+          aiAnalysisResult = analysis.hasSafetyHazard && analysis.safetyContext != null
+              ? 'AI detected urgent safety hazard: ${analysis.safetyContext}'
+              : 'AI recommended priority: ${analysis.priorityLevel} based on issue severity.';
+        }
       });
-      
-      // Show notification about automatic priority change
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.warning_amber_rounded, color: Colors.white, size: 20),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text('High priority detected from description keywords: $keywords'),
-              ),
-            ],
-          ),
-          backgroundColor: Colors.red[700],
-          duration: const Duration(seconds: 4),
-          action: SnackBarAction(
-            label: 'Details',
-            textColor: Colors.white,
-            onPressed: () => _showAIAnalysisDialog(),
-          ),
-        ),
-      );
+    } else if (_multilingualAnalysis != null) {
+      setState(() {
+        _multilingualAnalysis = null;
+      });
     }
   }
 
@@ -1511,6 +1491,208 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> with TickerPr
     );
   }
 
+  Widget _buildMultilingualCivicCard() {
+    final analysis = _multilingualAnalysis!;
+    final lang = analysis.language;
+    final langBadge = lang == CivicLanguage.marathi
+        ? 'मराठी (Marathi)'
+        : lang == CivicLanguage.hindi
+            ? 'हिंदी (Hindi)'
+            : 'English';
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFD0D5DD)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF155EEF).withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.auto_awesome, color: Color(0xFF155EEF), size: 16),
+              ),
+              const SizedBox(width: 8),
+              const Expanded(
+                child: Text(
+                  'Civic AI Semantic Understanding',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF101828),
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEFF8FF),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFB2DDFF)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 6,
+                      height: 6,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFF175CD3),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 5),
+                    Text(
+                      langBadge,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF175CD3),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: const Color(0xFFEAECF0)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('🏷️ ', style: TextStyle(fontSize: 12)),
+                    const SizedBox(width: 4),
+                    const Text('Issue: ', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF475467))),
+                    Expanded(
+                      child: Text(
+                        analysis.extractedIssue,
+                        style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: Color(0xFF1D2939)),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('📂 ', style: TextStyle(fontSize: 12)),
+                    const SizedBox(width: 4),
+                    const Text('Category: ', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF475467))),
+                    Expanded(
+                      child: Text(
+                        analysis.categoryNameLocal,
+                        style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: Color(0xFF155EEF)),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('🏛️ ', style: TextStyle(fontSize: 12)),
+                    const SizedBox(width: 4),
+                    const Text('Routing: ', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF475467))),
+                    Expanded(
+                      child: Text(
+                        analysis.routingDepartmentLocal,
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF344054)),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    const Text('⚡ ', style: TextStyle(fontSize: 12)),
+                    const SizedBox(width: 4),
+                    const Text('Priority & SLA: ', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF475467))),
+                    Text(
+                      '${analysis.priorityLabelLocal} • ${analysis.slaEstimate}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: analysis.priorityLevel == 'High' || analysis.priorityLevel == 'Critical'
+                            ? const Color(0xFFD92D20)
+                            : const Color(0xFF175CD3),
+                      ),
+                    ),
+                  ],
+                ),
+                if (analysis.hasSafetyHazard && analysis.safetyContext != null) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFEF3F2),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: const Color(0xFFFECDCA)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.warning_amber_rounded, color: Color(0xFFD92D20), size: 16),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            analysis.safetyContext!,
+                            style: const TextStyle(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFFB42318),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: 6),
+          Row(
+            children: const [
+              Icon(Icons.check_circle_outline, size: 13, color: Color(0xFF039855)),
+              SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  'No manual translation needed. Civic meaning & routing extracted automatically.',
+                  style: TextStyle(fontSize: 11, color: Color(0xFF039855), fontWeight: FontWeight.w500),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   void _handleSubmitReport() {
     if (_formKey.currentState!.validate()) {
       if (selectedImages.isEmpty) {
@@ -1596,6 +1778,7 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> with TickerPr
             priority: selectedPriority,
             aiAnalysisResult: aiAnalysisResult,
             imageValidationResult: _overallValidationResult,
+            multilingualAnalysis: _multilingualAnalysis,
           ),
         ),
       );
@@ -1732,6 +1915,12 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> with TickerPr
                         },
                       ),
                     ),
+                    
+                    // Multilingual Civic AI Semantic Understanding Card
+                    if (_multilingualAnalysis != null) ...[
+                      const SizedBox(height: 10),
+                      _buildMultilingualCivicCard(),
+                    ],
                     
                     const SizedBox(height: 16),
                     

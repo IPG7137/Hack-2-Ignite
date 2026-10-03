@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'multilingual_civic_engine.dart';
 
 /// Strongly-typed model representing structured civic issue triage from CivicResolve AI
 class AiTriageResult {
@@ -152,47 +153,29 @@ class ImageAnalysisService {
       );
     }
 
-    final lower = description.toLowerCase();
-    
-    // Critical & High checks (exact semantic context)
-    if (lower.contains('fire') || lower.contains('smoke') || lower.contains('explosion') ||
-        lower.contains('flood') || lower.contains('submerged') || lower.contains('collapsed') ||
-        lower.contains('sparking wire') || lower.contains('open manhole')) {
-      return AiTriageResult.fallback(
-        category: lower.contains('wire') ? 'Streetlights' : lower.contains('water') || lower.contains('flood') ? 'Water' : 'Public Safety',
-        severity: 'High',
-        reasoning: 'High priority assigned due to urgent civic safety keywords in description.',
-      );
-    }
-
-    if (lower.contains('garbage') || lower.contains('waste') || lower.contains('trash') || lower.contains('dump')) {
-      return AiTriageResult.fallback(
-        category: 'Waste',
-        severity: 'Medium',
-        reasoning: 'Waste management issue identified from report description.',
-      );
-    }
-
-    if (lower.contains('pothole') || lower.contains('road') || lower.contains('tar') || lower.contains('asphalt')) {
-      return AiTriageResult.fallback(
-        category: 'Roads',
-        severity: 'Medium',
-        reasoning: 'Road and infrastructure maintenance issue identified.',
-      );
-    }
-
-    return AiTriageResult.fallback(
-      category: 'Other',
-      severity: 'Medium',
-      reasoning: 'Automated keyword triage performed.',
+    // Use MultilingualCivicEngine for multilingual understanding (Marathi, Hindi, English)
+    final analysis = MultilingualCivicEngine.analyzeCivicComplaint(description);
+    return AiTriageResult(
+      category: analysis.categoryNameEn,
+      severity: analysis.priorityLevel,
+      suggestedDepartment: analysis.routingDepartmentEn,
+      reasoning: analysis.hasSafetyHazard && analysis.safetyContext != null
+          ? 'Urgent safety context detected: ${analysis.safetyContext}'
+          : 'Issue categorized as ${analysis.categoryNameEn} (${analysis.extractedIssueEn}) with SLA ${analysis.slaEstimate}.',
+      isSuccessful: true,
     );
   }
 
   static Map<String, String> analyzeDescriptionForPriority(String description) {
-    final triage = _fallbackTriage(description);
+    final analysis = MultilingualCivicEngine.analyzeCivicComplaint(description);
     return {
-      'priority': triage.severity,
-      'explanation': triage.reasoning,
+      'priority': analysis.priorityLevel,
+      'explanation': analysis.hasSafetyHazard && analysis.safetyContext != null
+          ? 'Safety hazard alert: ${analysis.safetyContext}'
+          : 'Categorized under ${analysis.categoryNameEn} with ${analysis.priorityLevel} priority.',
+      'language': analysis.language.code,
+      'category': analysis.categoryNameEn,
+      'issue': analysis.extractedIssue,
     };
   }
 
