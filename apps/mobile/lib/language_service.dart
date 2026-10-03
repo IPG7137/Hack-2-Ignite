@@ -78,6 +78,98 @@ class LanguageService extends ChangeNotifier {
     return key;
   }
 
+  /// Returns all canonical keys defined in English dictionary
+  static List<String> getAllCanonicalKeys() => _getTranslations()['en']?.keys.toList() ?? [];
+
+  /// Returns raw translations dictionary for a specific language code
+  static Map<String, String>? getTranslationsFor(String code) => _getTranslations()[code];
+
+  /// Localizes any raw status string (e.g. 'submitted', 'in_progress', 'resolved')
+  String localizeStatus(dynamic rawStatus) {
+    if (rawStatus == null) return getTranslation('status_submitted');
+    final str = rawStatus.toString().toLowerCase().trim().replaceAll('reportstatus.', '').replaceAll(' ', '_');
+    
+    if (str.contains('submit') && !str.contains('resolution')) {
+      return getTranslation('status_submitted');
+    }
+    if (str.contains('review')) {
+      return getTranslation('status_under_review');
+    }
+    if (str.contains('assign')) {
+      return getTranslation('status_assigned');
+    }
+    if (str.contains('progress')) {
+      return getTranslation('status_in_progress');
+    }
+    if (str.contains('resolution_submit') || str.contains('remediation')) {
+      return getTranslation('status_resolution_submitted');
+    }
+    if (str.contains('citizen_verif') || str.contains('verification')) {
+      return getTranslation('status_citizen_verification');
+    }
+    if (str.contains('reopen')) {
+      return getTranslation('status_reopened');
+    }
+    if (str.contains('resolve') || str.contains('verif')) {
+      return getTranslation('status_resolved');
+    }
+    if (str.contains('close')) {
+      return getTranslation('status_closed');
+    }
+    if (str.contains('reject')) {
+      return getTranslation('status_rejected');
+    }
+
+    final lookup = getTranslation('status_$str');
+    if (lookup != 'status_$str') return lookup;
+    return getTranslation('status_submitted');
+  }
+
+  /// Localizes any raw priority string (e.g. 'High', 'Medium', 'Low', 'Critical')
+  String localizePriority(dynamic rawPriority) {
+    if (rawPriority == null) return getTranslation('priority_medium');
+    final str = rawPriority.toString().toLowerCase().trim().replaceAll('reportpriority.', '');
+    
+    if (str.contains('high')) return getTranslation('priority_high');
+    if (str.contains('crit')) return getTranslation('priority_critical');
+    if (str.contains('low')) return getTranslation('priority_low');
+    return getTranslation('priority_medium');
+  }
+
+  /// Localizes any category ID or display name
+  String localizeCategory(String categoryIdOrName) {
+    final clean = categoryIdOrName.trim().toLowerCase().replaceAll('-', '_').replaceAll(' ', '_');
+    final direct = getTranslation('cat_$clean');
+    if (direct != 'cat_$clean') return direct;
+
+    if (clean.contains('pothole') || clean.contains('road') || clean.contains('footpath')) {
+      return getTranslation('cat_potholes_roads');
+    }
+    if (clean.contains('water') || clean.contains('pipe')) {
+      return getTranslation('cat_water_drainage');
+    }
+    if (clean.contains('drain') || clean.contains('sewag') || clean.contains('manhole')) {
+      return getTranslation('cat_drainage_sewage');
+    }
+    if (clean.contains('electric') || clean.contains('light') || clean.contains('wire')) {
+      return getTranslation('cat_electricity_streetlights');
+    }
+    if (clean.contains('garbage') || clean.contains('waste') || clean.contains('trash') || clean.contains('sanitation')) {
+      return getTranslation('cat_waste_management');
+    }
+    if (clean.contains('safety') || clean.contains('hazard') || clean.contains('fire')) {
+      return getTranslation('cat_safety_hazard');
+    }
+    if (clean.contains('park') || clean.contains('tree')) {
+      return getTranslation('cat_parks_trees');
+    }
+    if (clean.contains('encroach') || clean.contains('illegal')) {
+      return getTranslation('cat_illegal_encroachment');
+    }
+
+    return getTranslation('cat_other');
+  }
+
   static Map<String, Map<String, String>> _getTranslations() {
     return {
       // =======================================================================
@@ -333,10 +425,13 @@ class LanguageService extends ChangeNotifier {
         'verify_login_btn': 'Verify & Login',
         'change_aadhaar_btn': 'Change Aadhaar Number',
         'officer_id_hint': 'Officer ID / Email (e.g. demo.officer@civicresolve.gov)',
-        'login_as_officer_btn': 'Log in as Field Officer',
         'evaluator_access_title': 'EVALUATOR QUICK ACCESS',
         'evaluator_access_desc': 'One-tap authenticated Citizen session for hackathon evaluation and live feature testing.',
+        'evaluator_access_citizen_desc': 'One-tap authenticated Citizen session for hackathon evaluation and live feature testing.',
+        'evaluator_access_officer_desc': 'One-tap authenticated Field Officer session for municipal field-worker evaluation and live task tracking.',
         'one_tap_demo_btn': '⚡ One-Tap Judge / Demo Login',
+        'one_tap_citizen_demo_btn': '⚡ One-Tap Citizen Demo Login',
+        'one_tap_officer_demo_btn': '⚡ One-Tap Field Officer Demo Login',
         
         // Additional Track Keys
         'track_my_complaints': 'Track My Complaints',
@@ -470,6 +565,50 @@ class LanguageService extends ChangeNotifier {
         'view_as_map': 'Map View',
         'view_as_list': 'List View',
         'recenter_map': 'Recenter',
+
+        // Common Form & Dialog Actions
+        'edit': 'Edit',
+        'camera': 'Camera',
+        'gallery': 'Gallery',
+        'select_location': 'Select Location',
+        'confirm_location': 'Confirm Location',
+        'location_confirmed': 'Location confirmed!',
+        'quick_options': 'Quick Options',
+        'specific_address_label': 'Specific Address or Landmark *',
+        'fill_address': 'Please provide the problem address',
+        'fill_specific_address': 'Please provide a more specific address',
+        'fill_description': 'Please describe the problem',
+        'fill_detailed_description': 'Please provide a more detailed description (at least 10 characters)',
+        'suggested_priority': 'Suggested priority',
+        'ai_review_disclaimer': 'AI-assisted suggestions may be reviewed by municipal staff.',
+        'gps_unavailable_fallback': 'Using default municipal center (GPS unavailable). Drag map or edit address to set exact location.',
+        'attached_evidence': 'ATTACHED EVIDENCE',
+        'no_images_attached': 'No images attached.',
+        'replace_photo_to_submit': 'REPLACE PHOTO TO SUBMIT',
+        'genuine_report_disclaimer': 'By submitting, you confirm that this report describes a genuine civic issue.',
+        'official_municipal_tracking': 'Official Municipal Tracking',
+        'seven_stage_lifecycle': '7-Stage Municipal Lifecycle',
+        'stage_1_title': '1. Complaint Submitted',
+        'stage_1_desc': 'Registered in CivicResolve municipal grievance repository.',
+        'stage_2_title': '2. Under Review',
+        'stage_2_desc': 'Municipal grievance cell assessing jurisdiction and priority.',
+        'stage_3_title': '3. Assigned to Department & Field Officer',
+        'stage_3_desc': 'Assigned to jurisdictional municipal maintenance division.',
+        'stage_4_title': '4. Field Work In Progress',
+        'stage_4_desc': 'Field inspection and maintenance crew active on-site.',
+        'stage_5_title': '5. Resolution Submitted',
+        'stage_5_desc': 'Field contractor has uploaded photographic remediation proof.',
+        'stage_6_title': '6. Resolution Verification',
+        'stage_6_desc': 'Evidence verification and citizen feedback sentiment audit.',
+        'stage_7_title': '7. Statutory Closure',
+        'stage_7_desc': 'Issue successfully resolved and signed off by municipal authority.',
+        'submitted_location': 'Submitted Complaint Location',
+        'awaiting_field_assignment': 'Awaiting field assignment',
+        'on_site_active': 'On Site / Active',
+        'assigned_dispatched': 'Assigned / Dispatched',
+        'remediation_submitted': 'Remediation Submitted',
+        'officer_location_unavailable': 'Officer location unavailable',
+        'jurisdictional_cell_assessing': 'Jurisdictional municipal cell assessing',
       },
 
       // =======================================================================
@@ -728,7 +867,11 @@ class LanguageService extends ChangeNotifier {
         'login_as_officer_btn': 'फील्ड अधिकारी के रूप में लॉगिन करें',
         'evaluator_access_title': 'परीक्षक त्वरित प्रवेश',
         'evaluator_access_desc': 'हैकथॉन मूल्यांकन और लाइव परीक्षण के लिए एक-टैप नागरिक सत्र।',
+        'evaluator_access_citizen_desc': 'हैकथॉन मूल्यांकन और लाइव परीक्षण के लिए एक-टैप नागरिक सत्र।',
+        'evaluator_access_officer_desc': 'नगर निगम फील्ड कार्यकर्ता मूल्यांकन और लाइव कार्य ट्रैकिंग के लिए एक-टैप फील्ड अधिकारी सत्र।',
         'one_tap_demo_btn': '⚡ वन-टैप परीक्षक / डेमो लॉगिन',
+        'one_tap_citizen_demo_btn': '⚡ वन-टैप नागरिक डेमो लॉगिन',
+        'one_tap_officer_demo_btn': '⚡ वन-टैप फील्ड अधिकारी डेमो लॉगिन',
 
         // Additional Track Keys in Hindi
         'track_my_complaints': 'मेरी शिकायतें ट्रैक करें',
@@ -862,6 +1005,50 @@ class LanguageService extends ChangeNotifier {
         'view_as_map': 'मानचित्र दृश्य',
         'view_as_list': 'सूची दृश्य',
         'recenter_map': 'पुनः केंद्रित करें',
+
+        // Common Form & Dialog Actions in Hindi
+        'edit': 'संपादित करें',
+        'camera': 'कैमरा',
+        'gallery': 'गैलरी',
+        'select_location': 'स्थान चुनें',
+        'confirm_location': 'स्थान की पुष्टि करें',
+        'location_confirmed': 'स्थान की पुष्टि हुई!',
+        'quick_options': 'त्वरित विकल्प',
+        'specific_address_label': 'विशिष्ट पता या लैंडमार्क *',
+        'fill_address': 'कृपया समस्या का पता प्रदान करें',
+        'fill_specific_address': 'कृपया अधिक विशिष्ट पता दें',
+        'fill_description': 'कृपया समस्या का विवरण दें',
+        'fill_detailed_description': 'कृपया अधिक विस्तृत विवरण दें (कम से कम 10 वर्ण)',
+        'suggested_priority': 'सुझाई गई प्राथमिकता',
+        'ai_review_disclaimer': 'एआई सुझावों की नगर निगम कर्मचारियों द्वारा समीक्षा की जा सकती है।',
+        'gps_unavailable_fallback': 'डिफ़ॉल्ट नगर निगम केंद्र का उपयोग कर रहे हैं (जीपीएस अनुपलब्ध)। सटीक स्थान सेट करने के लिए नक्शा खींचें या पता संपादित करें।',
+        'attached_evidence': 'संलग्न साक्ष्य',
+        'no_images_attached': 'कोई फोटो संलग्न नहीं है।',
+        'replace_photo_to_submit': 'जमा करने के लिए फोटो बदलें',
+        'genuine_report_disclaimer': 'जमा करके, आप पुष्टि करते हैं कि यह रिपोर्ट एक वास्तविक नागरिक समस्या का वर्णन करती है।',
+        'official_municipal_tracking': 'आधिकारिक नगर निगम ट्रैकिंग',
+        'seven_stage_lifecycle': '७-चरणीय नगर निगम जीवनचक्र',
+        'stage_1_title': '१. शिकायत दर्ज की गई',
+        'stage_1_desc': 'CivicResolve नगर निगम शिकायत प्रणाली में पंजीकृत।',
+        'stage_2_title': '२. समीक्षाधीन',
+        'stage_2_desc': 'नगर निगम प्रकोष्ठ क्षेत्राधिकार और प्राथमिकता का आकलन कर रहा है।',
+        'stage_3_title': '३. विभाग और फील्ड अधिकारी को आवंटित',
+        'stage_3_desc': 'संबंधित नगर निगम रखरखाव प्रभाग को सौंपा गया।',
+        'stage_4_title': '४. फील्ड कार्य प्रगति पर है',
+        'stage_4_desc': 'फील्ड निरीक्षण और रखरखाव दल स्थल पर सक्रिय है।',
+        'stage_5_title': '५. समाधान प्रस्तुत किया गया',
+        'stage_5_desc': 'फील्ड ठेकेदार ने काम का फोटो साक्ष्य अपलोड किया है।',
+        'stage_6_title': '६. समाधान सत्यापन',
+        'stage_6_desc': 'साक्ष्य सत्यापन और नागरिक संतुष्टि समीक्षा।',
+        'stage_7_title': '७. वैधानिक समापन',
+        'stage_7_desc': 'समस्या का सफलतापूर्वक समाधान हुआ और नगर निगम द्वारा अनुमोदित।',
+        'submitted_location': 'शिकायत दर्ज स्थान',
+        'awaiting_field_assignment': 'फील्ड आवंटन की प्रतीक्षा है',
+        'on_site_active': 'स्थल पर सक्रिय',
+        'assigned_dispatched': 'आवंटित / रवाना किया गया',
+        'remediation_submitted': 'समाधान साक्ष्य प्रस्तुत',
+        'officer_location_unavailable': 'अधिकारी का स्थान अनुपलब्ध',
+        'jurisdictional_cell_assessing': 'संबंधित नगर निगम सेल आकलन कर रहा है',
       },
 
       // =======================================================================
@@ -1120,7 +1307,11 @@ class LanguageService extends ChangeNotifier {
         'login_as_officer_btn': 'फील्ड अधिकारी म्हणून लॉगिन करा',
         'evaluator_access_title': 'परीक्षक त्वरित प्रवेश',
         'evaluator_access_desc': 'हॅकाथॉन मूल्यांकन आणि थेट चाचणीसाठी एक-टॅप नागरिक सत्र.',
+        'evaluator_access_citizen_desc': 'हॅकाथॉन मूल्यांकन आणि थेट चाचणीसाठी एक-टॅप नागरिक सत्र.',
+        'evaluator_access_officer_desc': 'महापालिका फील्ड कर्मचारी मूल्यांकन आणि थेट कार्य ट्रॅकिंगसाठी एक-टॅप फील्ड अधिकारी सत्र.',
         'one_tap_demo_btn': '⚡ वन-टॅप परीक्षक / डेमो लॉगिन',
+        'one_tap_citizen_demo_btn': '⚡ वन-टॅप नागरिक डेमो लॉगिन',
+        'one_tap_officer_demo_btn': '⚡ वन-टॅप फील्ड अधिकारी डेमो लॉगिन',
 
         // Additional Track Keys in Marathi
         'track_my_complaints': 'माझ्या तक्रारींचा मागोवा घ्या',
@@ -1254,6 +1445,50 @@ class LanguageService extends ChangeNotifier {
         'view_as_map': 'नकाशा दृश्य',
         'view_as_list': 'यादी दृश्य',
         'recenter_map': 'पुन्हा केंद्रित करा',
+
+        // Common Form & Dialog Actions in Marathi
+        'edit': 'संपादित करा',
+        'camera': 'कॅमेरा',
+        'gallery': 'गॅलरी',
+        'select_location': 'स्थान निवडा',
+        'confirm_location': 'स्थानाची पुष्टी करा',
+        'location_confirmed': 'स्थान निश्चित झाले!',
+        'quick_options': 'जलद पर्याय',
+        'specific_address_label': 'विशिष्ट पत्ता किंवा खूण *',
+        'fill_address': 'कृपया समस्येचा पत्ता द्या',
+        'fill_specific_address': 'कृपया अधिक तपशीलवार पत्ता द्या',
+        'fill_description': 'कृपया समस्येचे वर्णन करा',
+        'fill_detailed_description': 'कृपया अधिक तपशीलवार वर्णन द्या (किमान १० अक्षरे)',
+        'suggested_priority': 'सुचवलेला प्राधान्यक्रम',
+        'ai_review_disclaimer': 'एआय सूचनांची महानगरपालिका कर्मचाऱ्यांद्वारे पडताळणी केली जाऊ शकते.',
+        'gps_unavailable_fallback': 'महानगरपालिका केंद्र वापरत आहे (GPS अनुपलब्ध). अचूक स्थानासाठी नकाशा हलवा किंवा पत्ता संपादित करा.',
+        'attached_evidence': 'जोडलेला पुरावा',
+        'no_images_attached': 'कोणताही फोटो जोडलेला नाही.',
+        'replace_photo_to_submit': 'दाखल करण्यासाठी फोटो बदला',
+        'genuine_report_disclaimer': 'तक्रार दाखल करून, आपण पुष्टी करता की ही तक्रार खरी नागरी समस्या आहे.',
+        'official_municipal_tracking': 'अधिकृत महानगरपालिका ट्रॅकिंग',
+        'seven_stage_lifecycle': '७-टप्प्यांचे महानगरपालिका जीवनचक्र',
+        'stage_1_title': '१. तक्रार नोंदवली',
+        'stage_1_desc': 'CivicResolve महानगरपालिका तक्रार प्रणालीमध्ये नोंदवले.',
+        'stage_2_title': '२. तपासणी सुरू',
+        'stage_2_desc': 'महानगरपालिका कक्ष अधिकारक्षेत्र आणि प्राधान्य निश्चित करत आहे.',
+        'stage_3_title': '३. विभाग व फील्ड अधिकाऱ्याकडे सोपवले',
+        'stage_3_desc': 'संबंधित महानगरपालिका देखभाल विभागाकडे सोपवले.',
+        'stage_4_title': '४. प्रत्यक्ष काम प्रगतीपथावर आहे',
+        'stage_4_desc': 'क्षेत्रीय तपासणी व देखभाल पथक घटनास्थळी कार्यरत आहे.',
+        'stage_5_title': '५. निवारण सादर केले',
+        'stage_5_desc': 'क्षेत्रीय कंत्राटदाराने कामाचा फोटो पुरावा अपलोड केला आहे.',
+        'stage_6_title': '६. निवारण पडताळणी',
+        'stage_6_desc': 'पुरावा पडताळणी आणि नागरिक समाधान आढावा.',
+        'stage_7_title': '७. अधिकृत पूर्णता / बंद',
+        'stage_7_desc': 'समस्या यशस्वीरित्या सोडवली गेली आणि महानगरपालिकेद्वारे बंद करण्यात आली.',
+        'submitted_location': 'तक्रारीचे नोंदवलेले स्थान',
+        'awaiting_field_assignment': 'अधिकारी नेमणुकीची प्रतीक्षा आहे',
+        'on_site_active': 'घटनास्थळी सक्रिय',
+        'assigned_dispatched': 'नेमणूक झाली / रवाना',
+        'remediation_submitted': 'निवारण पुरावा सादर केला',
+        'officer_location_unavailable': 'अधिकाऱ्याचे स्थान अनुपलब्ध',
+        'jurisdictional_cell_assessing': 'संबंधित महानगरपालिका कक्ष आढावा घेत आहे',
       },
 
       // Telugu, Tamil, Malayalam fallback to English if keys are not explicitly provided

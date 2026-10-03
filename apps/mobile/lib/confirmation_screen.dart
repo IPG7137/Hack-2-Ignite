@@ -433,7 +433,7 @@ class _ConfirmationScreenState extends State<ConfirmationScreen>
 
                 // 1. Category Section
                 _buildReviewCard(
-                  title: 'CIVIC CATEGORY',
+                  title: _languageService.getTranslation('selected_category').toUpperCase(),
                   icon: Icons.category_rounded,
                   iconColor: widget.category.color,
                   content: Row(
@@ -452,7 +452,7 @@ class _ConfirmationScreenState extends State<ConfirmationScreen>
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              widget.category.name,
+                              _languageService.localizeCategory(widget.category.name),
                               style: const TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w700,
@@ -479,7 +479,7 @@ class _ConfirmationScreenState extends State<ConfirmationScreen>
 
                 // 2. Complaint Title & Description
                 _buildReviewCard(
-                  title: 'PROBLEM DETAILS',
+                  title: _languageService.getTranslation('complaint_description').toUpperCase().replaceAll(' *', ''),
                   icon: Icons.description_rounded,
                   iconColor: const Color(0xFF1E40AF),
                   content: Column(
@@ -511,7 +511,7 @@ class _ConfirmationScreenState extends State<ConfirmationScreen>
 
                 // 3. Location & GPS
                 _buildReviewCard(
-                  title: 'LOCATION & ADDRESS',
+                  title: _languageService.getTranslation('problem_location').toUpperCase().replaceAll(' *', ''),
                   icon: Icons.location_on_rounded,
                   iconColor: const Color(0xFF059669),
                   content: Column(
@@ -562,13 +562,13 @@ class _ConfirmationScreenState extends State<ConfirmationScreen>
 
                 // 4. Evidence Media
                 _buildReviewCard(
-                  title: 'ATTACHED EVIDENCE (${widget.images.length})',
+                  title: '${_languageService.getTranslation('attached_evidence')} (${widget.images.length})',
                   icon: Icons.photo_library_rounded,
                   iconColor: const Color(0xFF7C3AED),
                   content: widget.images.isEmpty
-                      ? const Text(
-                          'No images attached.',
-                          style: TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
+                      ? Text(
+                          _languageService.getTranslation('no_images_attached'),
+                          style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
                         )
                       : SizedBox(
                           height: 80,
@@ -649,8 +649,8 @@ class _ConfirmationScreenState extends State<ConfirmationScreen>
                   child: _isSubmitting
                       ? Row(
                           mainAxisAlignment: MainAxisAlignment.center,
-                          children: const [
-                            SizedBox(
+                          children: [
+                            const SizedBox(
                               width: 20,
                               height: 20,
                               child: CircularProgressIndicator(
@@ -658,10 +658,10 @@ class _ConfirmationScreenState extends State<ConfirmationScreen>
                                 valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                               ),
                             ),
-                            SizedBox(width: 12),
+                            const SizedBox(width: 12),
                             Text(
-                              'Submitting Complaint...',
-                              style: TextStyle(
+                              _languageService.getTranslation('submitting_complaint'),
+                              style: const TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w700,
                               ),
@@ -669,13 +669,29 @@ class _ConfirmationScreenState extends State<ConfirmationScreen>
                           ],
                         )
                       : (widget.imageValidationResult?.isReject == true)
-                          ? const Text(
-                              'REPLACE PHOTO TO SUBMIT',
-                              style: TextStyle(
+                          ? Text(
+                              _languageService.getTranslation('replace_photo_to_submit'),
+                              style: const TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w700,
                                 letterSpacing: 0.5,
                               ),
+                            )
+                      : (_errorMessage != null)
+                          ? const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.refresh_rounded, size: 18),
+                                SizedBox(width: 8),
+                                Text(
+                                  'Retry Submission',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                              ],
                             )
                           : Text(
                               _languageService.getTranslation('submit_complaint'),
@@ -688,10 +704,10 @@ class _ConfirmationScreenState extends State<ConfirmationScreen>
                 ),
               ),
               const SizedBox(height: 8),
-              const Text(
-                'By submitting, you confirm that this report describes a genuine civic issue.',
+              Text(
+                _languageService.getTranslation('genuine_report_disclaimer'),
                 textAlign: TextAlign.center,
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 11,
                   color: Color(0xFF64748B),
                 ),
@@ -862,12 +878,12 @@ class _ConfirmationScreenState extends State<ConfirmationScreen>
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   child: Row(
-                    children: const [
-                      Icon(Icons.edit_rounded, size: 14, color: Color(0xFF1E40AF)),
-                      SizedBox(width: 4),
+                    children: [
+                      const Icon(Icons.edit_rounded, size: 14, color: Color(0xFF1E40AF)),
+                      const SizedBox(width: 4),
                       Text(
-                        'Edit',
-                        style: TextStyle(
+                        _languageService.getTranslation('edit'),
+                        style: const TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
                           color: Color(0xFF1E40AF),
@@ -1323,9 +1339,9 @@ class _ConfirmationScreenState extends State<ConfirmationScreen>
                 opacity: _contentFadeAnimation.value,
                 child: Column(
                   children: [
-                    const Text(
-                      'Complaint Submitted',
-                      style: TextStyle(
+                    Text(
+                      _languageService.getTranslation('complaint_submitted'),
+                      style: const TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.w800,
                         color: Color(0xFF0F172A),
@@ -1333,9 +1349,9 @@ class _ConfirmationScreenState extends State<ConfirmationScreen>
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 8),
-                    const Text(
-                      'Your complaint has been received by CivicResolve and forwarded to municipal authorities.',
-                      style: TextStyle(
+                    Text(
+                      _languageService.getTranslation('complaint_submitted_desc'),
+                      style: const TextStyle(
                         fontSize: 13.5,
                         color: Color(0xFF64748B),
                         height: 1.45,
@@ -1356,9 +1372,9 @@ class _ConfirmationScreenState extends State<ConfirmationScreen>
                       ),
                       child: Column(
                         children: [
-                          const Text(
-                            'COMPLAINT REFERENCE ID',
-                            style: TextStyle(
+                          Text(
+                            _languageService.getTranslation('complaint_ref_id'),
+                            style: const TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w800,
                               color: Color(0xFF1E40AF),
@@ -1394,7 +1410,7 @@ class _ConfirmationScreenState extends State<ConfirmationScreen>
                                     Icon(widget.category.icon, size: 14, color: widget.category.color),
                                     const SizedBox(width: 5),
                                     Text(
-                                      widget.category.name,
+                                      _languageService.localizeCategory(widget.category.name),
                                       style: const TextStyle(
                                         fontSize: 11.5,
                                         fontWeight: FontWeight.w700,
@@ -1412,7 +1428,7 @@ class _ConfirmationScreenState extends State<ConfirmationScreen>
                                   border: Border.all(color: _getPriorityColor(_finalPriority ?? 'Medium').withValues(alpha: 0.3)),
                                 ),
                                 child: Text(
-                                  '${(_finalPriority ?? "Medium").toUpperCase()} PRIORITY',
+                                  _languageService.localizePriority(_finalPriority ?? "Medium").toUpperCase(),
                                   style: TextStyle(
                                     fontSize: 11,
                                     fontWeight: FontWeight.w800,
@@ -1437,13 +1453,13 @@ class _ConfirmationScreenState extends State<ConfirmationScreen>
                         border: Border.all(color: const Color(0xFFBBF7D0)),
                       ),
                       child: Row(
-                        children: const [
-                          Text('🌱', style: TextStyle(fontSize: 22)),
-                          SizedBox(width: 12),
+                        children: [
+                          const Text('🌱', style: TextStyle(fontSize: 22)),
+                          const SizedBox(width: 12),
                           Expanded(
                             child: Text(
-                              '+10 Green Credits earned for active civic reporting!',
-                              style: TextStyle(
+                              _languageService.getTranslation('green_credits_earned'),
+                              style: const TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w700,
                                 color: Color(0xFF15803D),
@@ -1474,12 +1490,12 @@ class _ConfirmationScreenState extends State<ConfirmationScreen>
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Row(
-                            children: const [
-                              Icon(Icons.info_outline_rounded, color: Color(0xFF0F172A), size: 18),
-                              SizedBox(width: 8),
+                            children: [
+                              const Icon(Icons.info_outline_rounded, color: Color(0xFF0F172A), size: 18),
+                              const SizedBox(width: 8),
                               Text(
-                                'What Happens Next?',
-                                style: TextStyle(
+                                _languageService.getTranslation('what_happens_next'),
+                                style: const TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w700,
                                   color: Color(0xFF0F172A),
@@ -1488,9 +1504,9 @@ class _ConfirmationScreenState extends State<ConfirmationScreen>
                             ],
                           ),
                           const SizedBox(height: 10),
-                          _buildNextStepItem('1', 'Automated municipal validation & department assignment.'),
-                          _buildNextStepItem('2', 'Field inspection team dispatched to site.'),
-                          _buildNextStepItem('3', 'Track real-time progress and photos in "Track My Reports".'),
+                          _buildNextStepItem('1', _languageService.getTranslation('next_step_1')),
+                          _buildNextStepItem('2', _languageService.getTranslation('next_step_2')),
+                          _buildNextStepItem('3', _languageService.getTranslation('next_step_3')),
                         ],
                       ),
                     ),
@@ -1504,9 +1520,9 @@ class _ConfirmationScreenState extends State<ConfirmationScreen>
                       child: ElevatedButton.icon(
                         onPressed: _navigateToTrackReports,
                         icon: const Icon(Icons.timeline_rounded, size: 20),
-                        label: const Text(
-                          'Track Complaint',
-                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                        label: Text(
+                          _languageService.getTranslation('track_complaint'),
+                          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
                         ),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF1E40AF),
@@ -1534,9 +1550,9 @@ class _ConfirmationScreenState extends State<ConfirmationScreen>
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-                        child: const Text(
-                          'Return to Home',
-                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                        child: Text(
+                          _languageService.getTranslation('return_to_home'),
+                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
                         ),
                       ),
                     ),

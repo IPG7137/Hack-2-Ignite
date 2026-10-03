@@ -2,14 +2,13 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'image_analysis_service.dart';
 
 /// 3-Level Image Validation Decision
 enum ImageValidationDecision {
   /// Evidence is verified and clearly relevant to the selected civic category
   accept,
 
-  /// Relevance cannot be definitively established; queued for municipal staff review
+  /// Relevance cannot be definitively established or AI is unavailable; queued for municipal staff review
   review,
 
   /// Evidence is clearly irrelevant, corrupt, or discordant with the selected category
@@ -23,6 +22,7 @@ class ImageValidationResult {
   final double? confidence;
   final String reason;
   final String userFriendlyMessage;
+  final bool isTechnicalFailure;
   final Map<String, dynamic> metadata;
 
   const ImageValidationResult({
@@ -31,12 +31,18 @@ class ImageValidationResult {
     this.confidence,
     required this.reason,
     required this.userFriendlyMessage,
+    this.isTechnicalFailure = false,
     this.metadata = const {},
   });
 
   bool get isAccept => decision == ImageValidationDecision.accept;
   bool get isReview => decision == ImageValidationDecision.review;
   bool get isReject => decision == ImageValidationDecision.reject;
+
+  /// True ONLY when authentic remote AI successfully verified category match
+  bool get isAIVerified => isAccept && !isTechnicalFailure && (confidence != null && confidence! > 0.0);
+  bool get isCategoryMismatch => isReject;
+  bool get isUnverified => isReview;
 
   /// Both 'accept' and 'review' can proceed to submission (with review flagged for staff verification).
   /// 'reject' blocks until the citizen replaces the irrelevant/invalid image.
@@ -47,7 +53,7 @@ class ImageValidationResult {
       case ImageValidationDecision.accept:
         return 'Verified Proof';
       case ImageValidationDecision.review:
-        return 'Pending Staff Review';
+        return isTechnicalFailure ? 'Evidence Unverified (Pending Review)' : 'Pending Staff Review';
       case ImageValidationDecision.reject:
         return 'Invalid / Mismatch';
     }
@@ -60,6 +66,7 @@ class ImageValidationResult {
       'confidence': confidence,
       'reason': reason,
       'user_friendly_message': userFriendlyMessage,
+      'is_technical_failure': isTechnicalFailure,
       'can_proceed': canProceedToSubmission,
       'metadata': metadata,
     };
@@ -78,16 +85,18 @@ class ImageValidationResult {
       reason: json['reason']?.toString() ?? 'Validation completed.',
       userFriendlyMessage: json['user_friendly_message']?.toString() ??
           'Evidence processed through verification pipeline.',
+      isTechnicalFailure: json['is_technical_failure'] == true,
       metadata: (json['metadata'] is Map) ? Map<String, dynamic>.from(json['metadata']) : {},
     );
   }
 }
 
-/// Prediction payload returned by pluggable vision classifiers
+/// Prediction payload returned by vision classifiers
 class ClassifierPrediction {
   final String? predictedCategory;
   final double? confidence;
   final bool isDefinitive;
+  final bool isTechnicalFailure;
   final String? details;
   final Map<String, dynamic> rawOutput;
 
@@ -95,9 +104,18 @@ class ClassifierPrediction {
     this.predictedCategory,
     this.confidence,
     this.isDefinitive = false,
+    this.isTechnicalFailure = false,
     this.details,
     this.rawOutput = const {},
   });
+
+  const ClassifierPrediction.technicalFailure({
+    this.details = 'AI verification service temporarily unreachable.',
+    this.rawOutput = const {},
+  })  : predictedCategory = null,
+        confidence = null,
+        isDefinitive = false,
+        isTechnicalFailure = true;
 }
 
 /// Pluggable interface allowing future trained ML classifiers (TFLite, ONNX, PyTorch, remote API)
@@ -134,14 +152,17 @@ class RemoteGeminiVisionClassifierAdapter implements ImageClassifierAdapter {
     );
   }
 
-  /// Direct server-to-server Gemini Vision classification
+  /// Direct server-to-server Gemini Vision classification via Supabase Edge Function
   static Future<ClassifierPrediction> validateWithServer({
     required Uint8List imageBytes,
     required String selectedCategoryId,
     String? description,
+    Duration timeout = const Duration(seconds: 12),
   }) async {
     try {
       debugPrint('🔍 Invoking server-side Gemini Vision evidence validation for $selectedCategoryId...');
+      
+      // Check if Supabase is initialized
       final client = Supabase.instance.client;
       final session = client.auth.currentSession;
 
@@ -155,55 +176,94 @@ class RemoteGeminiVisionClassifierAdapter implements ImageClassifierAdapter {
           'image_base64': base64Encode(imageBytes),
           'mime_type': 'image/jpeg',
         },
-      );
+      ).timeout(timeout);
 
-      if (response.status == 200 && response.data != null) {
-        final data = response.data;
-        final valPayload = data is Map<String, dynamic> ? (data['data'] ?? data) : null;
-        if (valPayload is Map<String, dynamic>) {
-          final categoryMatch = valPayload['category_match']?.toString().toLowerCase();
-          final detectedSubject = valPayload['detected_subject']?.toString() ?? '';
-          final confidence = (valPayload['confidence'] is num) ? (valPayload['confidence'] as num).toDouble() : null;
-          final reasoning = valPayload['reasoning']?.toString() ?? '';
+      if (response.status != 200) {
+        debugPrint('⚠️ Remote Gemini Vision returned non-200 status: ${response.status}');
+        return ClassifierPrediction.technicalFailure(
+          details: 'Remote AI service returned status code ${response.status}.',
+          rawOutput: {'status': response.status},
+        );
+      }
 
-          if (categoryMatch == 'yes') {
-            return ClassifierPrediction(
-              predictedCategory: selectedCategoryId,
-              confidence: confidence ?? 0.92,
-              isDefinitive: true,
-              details: reasoning,
-              rawOutput: Map<String, dynamic>.from(valPayload),
-            );
-          } else if (categoryMatch == 'no') {
-            return ClassifierPrediction(
-              predictedCategory: detectedSubject.isNotEmpty ? detectedSubject : 'discordant_evidence',
-              confidence: confidence ?? 0.90,
-              isDefinitive: true,
-              details: reasoning,
-              rawOutput: Map<String, dynamic>.from(valPayload),
-            );
-          } else {
-            return ClassifierPrediction(
-              predictedCategory: null,
-              confidence: confidence ?? 0.5,
-              isDefinitive: false,
-              details: reasoning,
-              rawOutput: Map<String, dynamic>.from(valPayload),
-            );
-          }
+      if (response.data == null) {
+        debugPrint('⚠️ Remote Gemini Vision returned empty data.');
+        return const ClassifierPrediction.technicalFailure(
+          details: 'Remote AI service returned empty response data.',
+        );
+      }
+
+      final dynamic data = response.data;
+      final Map<String, dynamic>? valPayload = data is Map<String, dynamic>
+          ? ((data['data'] is Map<String, dynamic>) ? (data['data'] as Map<String, dynamic>) : data)
+          : null;
+
+      if (valPayload == null) {
+        debugPrint('⚠️ Remote Gemini Vision returned non-map payload.');
+        return const ClassifierPrediction.technicalFailure(
+          details: 'Remote AI service returned malformed payload.',
+        );
+      }
+
+      // Check for explicit error field in payload
+      if (valPayload.containsKey('error') && valPayload['error'] != null) {
+        debugPrint('⚠️ Remote Gemini Vision reported error: ${valPayload['error']}');
+        return ClassifierPrediction.technicalFailure(
+          details: 'AI service reported error: ${valPayload['error']}',
+          rawOutput: valPayload,
+        );
+      }
+
+      final categoryMatchRaw = valPayload['category_match']?.toString().toLowerCase().trim();
+      final detectedSubject = valPayload['detected_subject']?.toString().trim() ?? '';
+      
+      // Parse confidence with strict validation: must be a finite number between 0.0 and 1.0
+      double? confidence;
+      final rawConf = valPayload['confidence'];
+      if (rawConf is num && !rawConf.isNaN && !rawConf.isInfinite) {
+        final confVal = rawConf.toDouble();
+        if (confVal >= 0.0 && confVal <= 1.0) {
+          confidence = confVal;
         }
       }
-    } catch (e) {
-      debugPrint('ℹ️ Server-side Gemini Vision evaluation unavailable ($e).');
-    }
 
-    // Default fallback when server or Gemini Vision is unreachable: return uncertain/review
-    return const ClassifierPrediction(
-      predictedCategory: null,
-      confidence: null,
-      isDefinitive: false,
-      details: 'Remote vision verification unavailable; falling back to conservative human review.',
-    );
+      final reasoning = valPayload['reasoning']?.toString() ?? '';
+
+      if (categoryMatchRaw == 'yes') {
+        return ClassifierPrediction(
+          predictedCategory: selectedCategoryId,
+          confidence: confidence ?? 0.90,
+          isDefinitive: true,
+          isTechnicalFailure: false,
+          details: reasoning.isNotEmpty ? reasoning : 'Visual evidence matches selected civic category.',
+          rawOutput: valPayload,
+        );
+      } else if (categoryMatchRaw == 'no') {
+        return ClassifierPrediction(
+          predictedCategory: detectedSubject.isNotEmpty ? detectedSubject : 'discordant_evidence',
+          confidence: confidence ?? 0.90,
+          isDefinitive: true,
+          isTechnicalFailure: false,
+          details: reasoning.isNotEmpty ? reasoning : 'Visual evidence does not match selected civic category.',
+          rawOutput: valPayload,
+        );
+      } else {
+        // Ambiguous / uncertain response from remote model
+        return ClassifierPrediction(
+          predictedCategory: null,
+          confidence: confidence,
+          isDefinitive: false,
+          isTechnicalFailure: false,
+          details: reasoning.isNotEmpty ? reasoning : 'AI evidence triage returned uncertain classification.',
+          rawOutput: valPayload,
+        );
+      }
+    } catch (e) {
+      debugPrint('ℹ️ Server-side Gemini Vision evaluation unavailable: $e');
+      return ClassifierPrediction.technicalFailure(
+        details: 'AI verification service temporarily unreachable ($e).',
+      );
+    }
   }
 }
 
@@ -211,12 +271,16 @@ class RemoteGeminiVisionClassifierAdapter implements ImageClassifierAdapter {
 class ImageValidationService {
   static ImageClassifierAdapter? _customClassifier;
 
-  /// Registers a pluggable classifier implementation (e.g. trained vision model)
+  /// User-facing message returned whenever AI verification encounters technical failure or unavailability.
+  static const String technicalFailureMessage =
+      'AI verification is temporarily unavailable. Your evidence has not been automatically verified. You can retry or submit it for review.';
+
+  /// Registers a pluggable classifier implementation (used for test mocks)
   static void setClassifier(ImageClassifierAdapter? classifier) {
     _customClassifier = classifier;
   }
 
-  /// Resets to default conservative validator
+  /// Resets to default production validator
   static void resetClassifier() {
     _customClassifier = null;
   }
@@ -252,9 +316,9 @@ class ImageValidationService {
     }
 
     // -------------------------------------------------------------------------
-    // Level 2: Pluggable / Vision Classifier Evaluation
+    // Level 2: Classifier Execution (Pluggable custom or Remote Gemini Vision)
     // -------------------------------------------------------------------------
-    ClassifierPrediction? prediction;
+    ClassifierPrediction prediction;
 
     if (_customClassifier != null) {
       try {
@@ -266,57 +330,47 @@ class ImageValidationService {
         );
       } catch (e) {
         debugPrint('⚠️ Custom classifier error: $e');
+        prediction = const ClassifierPrediction.technicalFailure();
       }
-    }
-
-    // If no custom classifier or custom prediction failed, use remote Gemini Vision adapter
-    if (prediction == null || (prediction.predictedCategory == null && prediction.confidence == null && !prediction.isDefinitive)) {
+    } else {
+      // Production path: strictly use Remote Gemini Vision classifier
       try {
-        final serverPrediction = await RemoteGeminiVisionClassifierAdapter.validateWithServer(
+        prediction = await RemoteGeminiVisionClassifierAdapter.validateWithServer(
           imageBytes: imageBytes,
           selectedCategoryId: selectedCategoryId,
           description: description,
         );
-
-        if (serverPrediction.predictedCategory != null || serverPrediction.isDefinitive) {
-          prediction = serverPrediction;
-        }
       } catch (e) {
-        debugPrint('ℹ️ Gemini Vision evaluation fallback: $e');
-      }
-    }
-
-    // If remote Gemini Vision is unavailable, check deterministic fallback
-    if (prediction == null) {
-      try {
-        final triageResult = await ImageAnalysisService.analyzeImageBytes(
-          imageBytes,
-          description: description,
-        );
-
-        if (triageResult.isSuccessful && triageResult.category.isNotEmpty && triageResult.category != 'Other') {
-          prediction = ClassifierPrediction(
-            predictedCategory: triageResult.category,
-            confidence: null, // Truthful: remote triage does not fabricate raw logits
-            isDefinitive: false,
-            details: triageResult.reasoning,
-          );
-        }
-      } catch (e) {
-        debugPrint('ℹ️ Image triage evaluation: $e');
+        debugPrint('ℹ️ Gemini Vision evaluation error: $e');
+        prediction = const ClassifierPrediction.technicalFailure();
       }
     }
 
     // -------------------------------------------------------------------------
-    // Level 3: Category Compatibility & Conservative Triage
+    // Level 3: Security & Integrity Rule: AI unavailable != image verified.
     // -------------------------------------------------------------------------
-    // CRITICAL: Image existence alone NEVER produces automatic acceptance.
-    // If no definitive prediction exists, the system defaults to REVIEW.
-    if (prediction == null || prediction.predictedCategory == null || prediction.predictedCategory!.trim().isEmpty) {
+    // If remote Gemini Vision or adapter experienced a technical failure,
+    // NEVER fall back to a mock/heuristic that grants auto-acceptance.
+    // Must return 'review' (Pending Review / Evidence Unverified) with truthful confidence (null).
+    if (prediction.isTechnicalFailure) {
+      return const ImageValidationResult(
+        decision: ImageValidationDecision.review,
+        predictedCategory: null,
+        confidence: null, // Truthful: no fake confidence fabricated
+        isTechnicalFailure: true,
+        reason: 'AI verification service temporarily unavailable or encountered a technical failure.',
+        userFriendlyMessage: technicalFailureMessage,
+        metadata: {'stage': 'technical_failure'},
+      );
+    }
+
+    // If prediction returned no category match or was inconclusive
+    if (prediction.predictedCategory == null || prediction.predictedCategory!.trim().isEmpty) {
       return const ImageValidationResult(
         decision: ImageValidationDecision.review,
         predictedCategory: null,
         confidence: null,
+        isTechnicalFailure: false,
         reason: 'No conclusive visual category match; queued for municipal officer review.',
         userFriendlyMessage:
             "We couldn't confidently verify this image automatically. Your report will be queued for municipal staff review.",
@@ -329,12 +383,13 @@ class ImageValidationService {
 
     final isMatching = _categoriesMatch(normalizedSelected, normalizedPredicted);
 
-    // If matching and prediction is marked definitive or matching category
-    if (isMatching) {
+    // If matching and prediction is marked definitive
+    if (isMatching && prediction.isDefinitive) {
       return ImageValidationResult(
         decision: ImageValidationDecision.accept,
         predictedCategory: prediction.predictedCategory,
         confidence: prediction.confidence,
+        isTechnicalFailure: false,
         reason: 'Visual evidence matches selected civic category ($normalizedSelected).',
         userFriendlyMessage: 'Evidence appears relevant to the selected issue category.',
         metadata: {
@@ -352,6 +407,7 @@ class ImageValidationService {
         decision: ImageValidationDecision.reject,
         predictedCategory: prediction.predictedCategory,
         confidence: prediction.confidence,
+        isTechnicalFailure: false,
         reason: 'Visual evidence does not match category ($normalizedSelected vs $normalizedPredicted).',
         userFriendlyMessage:
             "This image doesn't appear to match the selected issue category. Please upload relevant evidence.",
@@ -368,6 +424,7 @@ class ImageValidationService {
       decision: ImageValidationDecision.review,
       predictedCategory: prediction.predictedCategory,
       confidence: prediction.confidence,
+      isTechnicalFailure: false,
       reason: 'Partial or uncertain category alignment ($normalizedSelected / $normalizedPredicted); queued for staff review.',
       userFriendlyMessage:
           "We couldn't confidently verify this image. Your report will be reviewed by municipal staff.",
@@ -458,3 +515,4 @@ class ImageValidationService {
     return false;
   }
 }
+

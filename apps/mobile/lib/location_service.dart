@@ -15,7 +15,12 @@ class LocationContext {
   final String municipalityTitle;
   final bool hasGps;
   final bool permissionDenied;
-  final String source; // 'gps', 'profile', 'fallback'
+  final String source; // 'gps', 'osm_reverse_geocoding', 'landmark_ner', 'profile', 'fallback', 'unavailable'
+  final String roadClass; // 'highway', 'major_arterial', 'local_road', 'residential_lane', 'unspecified', 'unknown'
+  final String trafficExposure; // 'high', 'moderate', 'low', 'unknown'
+  final String nearbySensitiveZone; // 'school', 'hospital', 'transit_hub', 'market', 'none', 'unknown'
+  final String infrastructureType; // 'transit', 'healthcare', 'education', 'commercial', 'residential', 'industrial', 'general'
+  final double confidence; // 0.0 - 1.0
 
   const LocationContext({
     this.latitude,
@@ -30,6 +35,11 @@ class LocationContext {
     required this.hasGps,
     required this.permissionDenied,
     required this.source,
+    this.roadClass = 'unknown',
+    this.trafficExposure = 'unknown',
+    this.nearbySensitiveZone = 'unknown',
+    this.infrastructureType = 'general',
+    this.confidence = 0.0,
   });
 
   static const LocationContext defaultContext = LocationContext(
@@ -38,7 +48,166 @@ class LocationContext {
     hasGps: false,
     permissionDenied: false,
     source: 'fallback',
+    roadClass: 'unknown',
+    trafficExposure: 'unknown',
+    nearbySensitiveZone: 'unknown',
+    infrastructureType: 'general',
+    confidence: 0.0,
   );
+
+  /// Builds a structured LocationContext from free-form location text / landmarks
+  static LocationContext fromLocationString(
+    String locationText, {
+    double? latitude,
+    double? longitude,
+    String? locality,
+    String? subLocality,
+    String? city,
+    String? district,
+    String? state,
+    String source = 'landmark_ner',
+  }) {
+    final lower = locationText.toLowerCase().trim();
+    if (lower.isEmpty) {
+      return defaultContext;
+    }
+
+    // 1. Road Class & Traffic Exposure
+    String roadClass = 'unknown';
+    String trafficExposure = 'unknown';
+
+    if (lower.contains('highway') ||
+        lower.contains('expressway') ||
+        lower.contains('bypass') ||
+        lower.contains('nh-') ||
+        lower.contains('sh-') ||
+        lower.contains('महामार्ग') ||
+        lower.contains('हाईवे')) {
+      roadClass = 'highway';
+      trafficExposure = 'high';
+    } else if (lower.contains('main road') ||
+        lower.contains('ring road') ||
+        lower.contains('arterial') ||
+        lower.contains('station road') ||
+        lower.contains('flyover') ||
+        lower.contains('मुख्य रस्ता') ||
+        lower.contains('मुख्य सड़क')) {
+      roadClass = 'major_arterial';
+      trafficExposure = 'high';
+    } else if (lower.contains('market') ||
+        lower.contains('bazaar') ||
+        lower.contains('mandi') ||
+        lower.contains('commercial') ||
+        lower.contains('बाजार') ||
+        lower.contains('मार्केट')) {
+      roadClass = 'local_road';
+      trafficExposure = 'moderate';
+    } else if (lower.contains('residential') ||
+        lower.contains('lane') ||
+        lower.contains('society') ||
+        lower.contains('colony') ||
+        lower.contains('galli') ||
+        lower.contains('nagar') ||
+        lower.contains('कॉलनी') ||
+        lower.contains('सोसायटी') ||
+        lower.contains('गल्ली')) {
+      roadClass = 'residential_lane';
+      trafficExposure = 'low';
+    } else if (lower.isNotEmpty) {
+      roadClass = 'local_road';
+      trafficExposure = 'moderate';
+    }
+
+    // 2. Nearby Sensitive Zone & Infrastructure Type
+    String nearbySensitiveZone = 'none';
+    String infrastructureType = 'general';
+
+    if (lower.contains('hospital') ||
+        lower.contains('clinic') ||
+        lower.contains('trauma') ||
+        lower.contains('dispensary') ||
+        lower.contains('rughnalaya') ||
+        lower.contains('रुग्णालय') ||
+        lower.contains('अस्पताल') ||
+        lower.contains('दवाखाना')) {
+      nearbySensitiveZone = 'hospital';
+      infrastructureType = 'healthcare';
+    } else if (lower.contains('school') ||
+        lower.contains('college') ||
+        lower.contains('vidyalaya') ||
+        lower.contains('shala') ||
+        lower.contains('campus') ||
+        lower.contains('शाळा') ||
+        lower.contains('विद्यालय') ||
+        lower.contains('कॉलेज') ||
+        lower.contains('स्कूल')) {
+      nearbySensitiveZone = 'school';
+      infrastructureType = 'education';
+    } else if (lower.contains('railway station') ||
+        lower.contains('bus stand') ||
+        lower.contains('metro') ||
+        lower.contains('bus terminal') ||
+        lower.contains('depot') ||
+        lower.contains('स्थानक') ||
+        lower.contains('बस स्थानक') ||
+        lower.contains('रेलवे स्टेशन')) {
+      nearbySensitiveZone = 'transit_hub';
+      infrastructureType = 'transit';
+    } else if (lower.contains('market') ||
+        lower.contains('bazaar') ||
+        lower.contains('mandi') ||
+        lower.contains('mall')) {
+      nearbySensitiveZone = 'market';
+      infrastructureType = 'commercial';
+    } else if (roadClass == 'highway' || roadClass == 'major_arterial') {
+      infrastructureType = 'transit';
+    } else if (roadClass == 'residential_lane') {
+      infrastructureType = 'residential';
+    }
+
+    final hasGeo = latitude != null && longitude != null;
+    final hasSpecificInfo = roadClass != 'unknown' || nearbySensitiveZone != 'none';
+
+    return LocationContext(
+      latitude: latitude,
+      longitude: longitude,
+      locality: locality,
+      subLocality: subLocality,
+      city: city,
+      district: district,
+      state: state,
+      currentAreaLabel: locationText.isNotEmpty ? locationText : 'Location unavailable',
+      municipalityTitle: city != null ? '$city Municipal Corporation' : 'Municipal Grievance Redressal Portal',
+      hasGps: hasGeo,
+      permissionDenied: false,
+      source: hasSpecificInfo ? source : 'unknown',
+      roadClass: roadClass,
+      trafficExposure: trafficExposure,
+      nearbySensitiveZone: nearbySensitiveZone,
+      infrastructureType: infrastructureType,
+      confidence: hasSpecificInfo ? 0.90 : 0.0,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'latitude': latitude,
+      'longitude': longitude,
+      'locality': locality,
+      'sub_locality': subLocality,
+      'city': city,
+      'district': district,
+      'state': state,
+      'area_label': currentAreaLabel,
+      'has_gps': hasGps,
+      'source': source,
+      'road_class': roadClass,
+      'traffic_exposure': trafficExposure,
+      'nearby_sensitive_zone': nearbySensitiveZone,
+      'infrastructure_type': infrastructureType,
+      'confidence': confidence,
+    };
+  }
 }
 
 class LocationService extends ChangeNotifier {

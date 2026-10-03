@@ -13,6 +13,7 @@ import 'dashboard_screen.dart';
 import 'priority_engine.dart';
 import 'leaflet_map_service.dart';
 import 'category_selection_screen.dart';
+import 'dynamic_translatable_text.dart';
 
 class ComprehensiveTrackReportsScreen extends StatefulWidget {
   const ComprehensiveTrackReportsScreen({super.key});
@@ -1523,6 +1524,7 @@ class _ReportDetailsBottomSheet extends StatefulWidget {
 }
 
 class _ReportDetailsBottomSheetState extends State<_ReportDetailsBottomSheet> {
+  final LanguageService _languageService = LanguageService();
   List<ReportStatusHistoryModel> _history = [];
   StreamSubscription<List<ReportStatusHistoryModel>>? _historySubscription;
   bool _isLoadingHistory = true;
@@ -1534,6 +1536,7 @@ class _ReportDetailsBottomSheetState extends State<_ReportDetailsBottomSheet> {
   @override
   void initState() {
     super.initState();
+    _languageService.addListener(_onLanguageChanged);
     _loadStatusHistory();
     _subscribeToRealtimeStatusHistory();
     if (widget.report.rating != null) {
@@ -1565,7 +1568,12 @@ class _ReportDetailsBottomSheetState extends State<_ReportDetailsBottomSheet> {
   void dispose() {
     _historySubscription?.cancel();
     _feedbackController.dispose();
+    _languageService.removeListener(_onLanguageChanged);
     super.dispose();
+  }
+
+  void _onLanguageChanged() {
+    if (mounted) setState(() {});
   }
 
   Future<void> _loadStatusHistory() async {
@@ -1748,6 +1756,12 @@ class _ReportDetailsBottomSheetState extends State<_ReportDetailsBottomSheet> {
                       _buildSummaryCard(report),
                       const SizedBox(height: 16),
 
+                      // 1.5. Explainable Priority Analysis Card (3B Deterministic Formula)
+                      ExplainablePriorityCard(
+                        analysis: CivicPriorityEngine.evaluateReport(report),
+                      ),
+                      const SizedBox(height: 16),
+
                       // 2. Assigned Field Officer & Responsibility Card
                       _buildAssignedFieldOfficerCard(report),
                       const SizedBox(height: 16),
@@ -1846,8 +1860,8 @@ class _ReportDetailsBottomSheetState extends State<_ReportDetailsBottomSheet> {
             ),
           ),
           const SizedBox(height: 6),
-          Text(
-            report.description,
+          DynamicTranslatableText(
+            text: report.description,
             style: const TextStyle(
               fontSize: 13,
               color: Color(0xFF334155),
@@ -1898,7 +1912,7 @@ class _ReportDetailsBottomSheetState extends State<_ReportDetailsBottomSheet> {
         report.assignedOfficerName!.trim().isNotEmpty &&
         report.assignedOfficerName!.toLowerCase() != 'unassigned';
 
-    final officerName = hasOfficer ? report.assignedOfficerName! : 'Awaiting field assignment';
+    final officerName = hasOfficer ? report.assignedOfficerName! : _languageService.getTranslation('awaiting_field_assignment');
     final departmentName = report.assignedDepartment ??
         (report.categoryDisplayName != null
             ? '${report.categoryDisplayName} Maintenance Division'
@@ -1918,9 +1932,9 @@ class _ReportDetailsBottomSheetState extends State<_ReportDetailsBottomSheet> {
       locationIcon = Icons.location_on;
       locationColor = const Color(0xFF2563EB);
     } else if (hasOfficer) {
-      locationText = 'Officer location unavailable';
+      locationText = _languageService.getTranslation('officer_location_unavailable');
     } else {
-      locationText = 'Jurisdictional municipal cell assessing';
+      locationText = _languageService.getTranslation('jurisdictional_cell_assessing');
     }
 
     // Determine officer status
@@ -1929,23 +1943,23 @@ class _ReportDetailsBottomSheetState extends State<_ReportDetailsBottomSheet> {
     Color statusColor;
 
     if (!hasOfficer) {
-      statusText = 'Unassigned';
+      statusText = _languageService.getTranslation('awaiting_field_assignment');
       statusBg = const Color(0xFFF1F5F9);
       statusColor = const Color(0xFF64748B);
     } else if (report.status == ReportStatus.progress ||
         report.status == ReportStatus.inProgress) {
-      statusText = report.officerStatus ?? 'On Site / Active';
+      statusText = report.officerStatus ?? _languageService.getTranslation('on_site_active');
       statusBg = const Color(0xFFDCFCE7);
       statusColor = const Color(0xFF16A34A);
     } else if (report.status == ReportStatus.resolutionSubmitted ||
         report.status == ReportStatus.resolved ||
         report.status == ReportStatus.verified ||
         report.status == ReportStatus.closed) {
-      statusText = 'Remediation Submitted';
+      statusText = _languageService.getTranslation('remediation_submitted');
       statusBg = const Color(0xFFDBEAFE);
       statusColor = const Color(0xFF1E40AF);
     } else {
-      statusText = report.officerStatus ?? 'Assigned / Dispatched';
+      statusText = report.officerStatus ?? _languageService.getTranslation('assigned_dispatched');
       statusBg = const Color(0xFFFEF3C7);
       statusColor = const Color(0xFFD97706);
     }
@@ -1991,9 +2005,9 @@ class _ReportDetailsBottomSheetState extends State<_ReportDetailsBottomSheet> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Assigned Field Officer',
-                      style: TextStyle(
+                    Text(
+                      _languageService.getTranslation('assigned_officer'),
+                      style: const TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
                         color: Color(0xFF64748B),
@@ -2091,9 +2105,9 @@ class _ReportDetailsBottomSheetState extends State<_ReportDetailsBottomSheet> {
               children: [
                 const Icon(Icons.pin_drop, color: Color(0xFFDC2626), size: 18),
                 const SizedBox(width: 6),
-                const Text(
-                  'Submitted Complaint Location',
-                  style: TextStyle(
+                Text(
+                  _languageService.getTranslation('submitted_location'),
+                  style: const TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.bold,
                     color: Color(0xFF0F172A),
@@ -2232,9 +2246,9 @@ class _ReportDetailsBottomSheetState extends State<_ReportDetailsBottomSheet> {
             children: [
               const Icon(Icons.timeline, color: Color(0xFF1E3A8A), size: 18),
               const SizedBox(width: 6),
-              const Text(
-                '7-Stage Municipal Lifecycle',
-                style: TextStyle(
+              Text(
+                _languageService.getTranslation('seven_stage_lifecycle'),
+                style: const TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.bold,
                   color: Color(0xFF0F172A),
@@ -2253,8 +2267,8 @@ class _ReportDetailsBottomSheetState extends State<_ReportDetailsBottomSheet> {
 
           // Stage 1: Submitted
           _buildTimelineStep(
-            title: '1. Complaint Submitted',
-            description: 'Registered in CivicResolve municipal grievance repository.',
+            title: _languageService.getTranslation('stage_1_title'),
+            description: _languageService.getTranslation('stage_1_desc'),
             timestamp: report.submittedTime,
             isCompleted: currentStageIndex > 0,
             isActive: currentStageIndex == 0,
@@ -2263,8 +2277,8 @@ class _ReportDetailsBottomSheetState extends State<_ReportDetailsBottomSheet> {
 
           // Stage 2: Under Review
           _buildTimelineStep(
-            title: '2. Under Review',
-            description: 'Municipal grievance cell assessing jurisdiction and priority.',
+            title: _languageService.getTranslation('stage_2_title'),
+            description: _languageService.getTranslation('stage_2_desc'),
             timestamp: historyMap['review'] != null || historyMap['under_review'] != null
                 ? _formatDateTime((historyMap['review'] ?? historyMap['under_review'])!.createdAt)
                 : (currentStageIndex >= 1 ? report.lastUpdatedTime : null),
@@ -2275,10 +2289,10 @@ class _ReportDetailsBottomSheetState extends State<_ReportDetailsBottomSheet> {
 
           // Stage 3: Assigned
           _buildTimelineStep(
-            title: '3. Assigned to Department & Field Officer',
+            title: _languageService.getTranslation('stage_3_title'),
             description: report.assignedOfficerName != null
                 ? 'Assigned to: ${report.assignedOfficerName}${report.assignedDepartment != null ? ' (${report.assignedDepartment})' : ''}'
-                : 'Assigned to jurisdictional municipal maintenance division.',
+                : _languageService.getTranslation('stage_3_desc'),
             timestamp: historyMap['assigned'] != null
                 ? _formatDateTime(historyMap['assigned']!.createdAt)
                 : (currentStageIndex >= 2 ? report.lastUpdatedTime : null),
@@ -2289,10 +2303,10 @@ class _ReportDetailsBottomSheetState extends State<_ReportDetailsBottomSheet> {
 
           // Stage 4: In Progress
           _buildTimelineStep(
-            title: '4. Field Work In Progress',
+            title: _languageService.getTranslation('stage_4_title'),
             description: report.officerLocation != null
                 ? 'Field inspection crew active on-site (${report.officerLocation}).'
-                : 'Field inspection and maintenance crew active on-site.',
+                : _languageService.getTranslation('stage_4_desc'),
             timestamp: historyMap['progress'] != null || historyMap['in_progress'] != null
                 ? _formatDateTime((historyMap['progress'] ?? historyMap['in_progress'])!.createdAt)
                 : (currentStageIndex >= 3 ? report.lastUpdatedTime : null),
@@ -2303,8 +2317,8 @@ class _ReportDetailsBottomSheetState extends State<_ReportDetailsBottomSheet> {
 
           // Stage 5: Resolution Submitted
           _buildTimelineStep(
-            title: '5. Resolution Submitted',
-            description: 'Field contractor has uploaded photographic remediation proof.',
+            title: _languageService.getTranslation('stage_5_title'),
+            description: _languageService.getTranslation('stage_5_desc'),
             timestamp: historyMap['resolution_submitted'] != null
                 ? _formatDateTime(historyMap['resolution_submitted']!.createdAt)
                 : (currentStageIndex >= 4 ? report.lastUpdatedTime : null),
@@ -2315,8 +2329,8 @@ class _ReportDetailsBottomSheetState extends State<_ReportDetailsBottomSheet> {
 
           // Stage 6: Verification
           _buildTimelineStep(
-            title: '6. Resolution Verification',
-            description: 'Evidence verification and citizen feedback sentiment audit.',
+            title: _languageService.getTranslation('stage_6_title'),
+            description: _languageService.getTranslation('stage_6_desc'),
             timestamp: historyMap['verified'] != null
                 ? _formatDateTime(historyMap['verified']!.createdAt)
                 : (currentStageIndex >= 5 ? report.lastUpdatedTime : null),
@@ -2327,9 +2341,9 @@ class _ReportDetailsBottomSheetState extends State<_ReportDetailsBottomSheet> {
 
           // Stage 7: Closed
           _buildTimelineStep(
-            title: '7. Statutory Closure',
+            title: _languageService.getTranslation('stage_7_title'),
             description: currentStageIndex == 6
-                ? 'Issue successfully resolved and signed off by municipal authority.'
+                ? _languageService.getTranslation('stage_7_desc')
                 : 'Awaiting completion of previous lifecycle stages.',
             timestamp: report.completionDate != null
                 ? _formatDateTime(report.completionDate!)
@@ -2515,8 +2529,8 @@ class _ReportDetailsBottomSheetState extends State<_ReportDetailsBottomSheet> {
                     ),
                   ),
                   const SizedBox(height: 2),
-                  Text(
-                    report.resolutionNotes!,
+                  DynamicTranslatableText(
+                    text: report.resolutionNotes!,
                     style: const TextStyle(fontSize: 12, color: Color(0xFF1E293B)),
                   ),
                 ],

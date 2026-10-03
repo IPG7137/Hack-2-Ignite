@@ -1855,15 +1855,15 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> with TickerPr
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text(
-                                'Selected Category',
-                                style: TextStyle(
+                              Text(
+                                _languageService.getTranslation('selected_category'),
+                                style: const TextStyle(
                                   fontSize: 12,
                                   color: Color(0xFF667085),
                                 ),
                               ),
                               Text(
-                                widget.category.name,
+                                _languageService.localizeCategory(widget.category.name),
                                 style: const TextStyle(
                                   fontSize: 15,
                                   fontWeight: FontWeight.w700,
@@ -1906,10 +1906,10 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> with TickerPr
                         ),
                         validator: (value) {
                           if (value == null || value.trim().isEmpty) {
-                            return 'Please describe the problem';
+                            return _languageService.getTranslation('fill_description');
                           }
                           if (value.trim().length < 10) {
-                            return 'Please provide a more detailed description (at least 10 characters)';
+                            return _languageService.getTranslation('fill_detailed_description');
                           }
                           return null;
                         },
@@ -1956,9 +1956,9 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> with TickerPr
                                   size: 18,
                                 ),
                                 const SizedBox(width: 8),
-                                const Text(
-                                  'Upload Photos (Max 5)',
-                                  style: TextStyle(
+                                Text(
+                                  _languageService.getTranslation('upload_photos_max'),
+                                  style: const TextStyle(
                                     fontSize: 13,
                                     fontWeight: FontWeight.w600,
                                     color: Color(0xFF172B4D),
@@ -2022,7 +2022,10 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> with TickerPr
                                 Expanded(
                                   child: OutlinedButton.icon(
                                     icon: const Icon(Icons.camera_alt_outlined, size: 16),
-                                    label: const Text('Camera', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                                    label: Text(
+                                      _languageService.getTranslation('camera'),
+                                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                                    ),
                                     onPressed: selectedImages.length < 5 
                                         ? () => _pickImage(ImageSource.camera)
                                         : null,
@@ -2038,7 +2041,10 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> with TickerPr
                                 Expanded(
                                   child: OutlinedButton.icon(
                                     icon: const Icon(Icons.photo_library_outlined, size: 16),
-                                    label: const Text('Gallery', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                                    label: Text(
+                                      _languageService.getTranslation('gallery'),
+                                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                                    ),
                                     onPressed: selectedImages.length < 5 
                                         ? () => _pickImage(ImageSource.gallery)
                                         : null,
@@ -2060,9 +2066,9 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> with TickerPr
                     const SizedBox(height: 16),
                     
                     // Priority Section
-                    const Text(
-                      'Priority',
-                      style: TextStyle(
+                    Text(
+                      _languageService.getTranslation('priority'),
+                      style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
                         color: Color(0xFF172B4D),
@@ -2102,7 +2108,7 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> with TickerPr
                                     const SizedBox(width: 8),
                                     Expanded(
                                       child: Text(
-                                        'Suggested priority: $selectedPriority based on problem description and image.',
+                                        '${_languageService.getTranslation('suggested_priority')}: ${_languageService.localizePriority(selectedPriority)}',
                                         style: const TextStyle(
                                           fontSize: 12,
                                           color: Color(0xFF175CD3),
@@ -2120,23 +2126,23 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> with TickerPr
                             Row(
                               children: [
                                 Expanded(
-                                  child: _buildPriorityOption('High', 'Immediate hazard / urgent', Icons.priority_high_rounded, const Color(0xFFD92D20)),
+                                  child: _buildPriorityOption('High', _languageService.getTranslation('priority_high_desc'), Icons.priority_high_rounded, const Color(0xFFD92D20)),
                                 ),
                                 const SizedBox(width: 8),
                                 Expanded(
-                                  child: _buildPriorityOption('Medium', 'Standard service request', Icons.remove_rounded, const Color(0xFFF79009)),
+                                  child: _buildPriorityOption('Medium', _languageService.getTranslation('priority_medium_desc'), Icons.remove_rounded, const Color(0xFFF79009)),
                                 ),
                                 const SizedBox(width: 8),
                                 Expanded(
-                                  child: _buildPriorityOption('Low', 'Routine maintenance', Icons.arrow_downward_rounded, const Color(0xFF12B76A)),
+                                  child: _buildPriorityOption('Low', _languageService.getTranslation('priority_low_desc'), Icons.arrow_downward_rounded, const Color(0xFF12B76A)),
                                 ),
                               ],
                             ),
                             
                             const SizedBox(height: 8),
-                            const Text(
-                              'AI-assisted suggestions may be reviewed by municipal staff.',
-                              style: TextStyle(
+                            Text(
+                              _languageService.getTranslation('ai_review_disclaimer'),
+                              style: const TextStyle(
                                 fontSize: 11,
                                 color: Color(0xFF667085),
                                 fontStyle: FontStyle.italic,
@@ -2255,14 +2261,14 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> with TickerPr
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(color: const Color(0xFFF79009)),
                         ),
-                        child: const Row(
+                        child: Row(
                           children: [
-                            Icon(Icons.location_searching, color: Color(0xFFD97706), size: 16),
-                            SizedBox(width: 8),
+                            const Icon(Icons.location_searching, color: Color(0xFFD97706), size: 16),
+                            const SizedBox(width: 8),
                             Expanded(
                               child: Text(
-                                'Using default municipal center (GPS unavailable). Drag map or edit address to set exact location.',
-                                style: TextStyle(fontSize: 11, color: Color(0xFF92400E), fontWeight: FontWeight.w500),
+                                _languageService.getTranslation('gps_unavailable_fallback'),
+                                style: const TextStyle(fontSize: 11, color: Color(0xFF92400E), fontWeight: FontWeight.w500),
                               ),
                             ),
                           ],
@@ -2272,9 +2278,9 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> with TickerPr
                     const SizedBox(height: 12),
                     
                     // Address Section
-                    const Text(
-                      'Specific Address or Landmark *',
-                      style: TextStyle(
+                    Text(
+                      _languageService.getTranslation('specific_address_label'),
+                      style: const TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
                         color: Color(0xFF172B4D),
@@ -2293,19 +2299,19 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> with TickerPr
                         controller: _addressController,
                         maxLines: 2,
                         style: const TextStyle(fontSize: 13.5, color: Color(0xFF172B4D)),
-                        decoration: const InputDecoration(
-                          hintText: 'Enter address or nearby landmarks (e.g., Near City Hospital Gate 2, Station Road)...',
-                          hintStyle: TextStyle(color: Color(0xFF98A2B3), fontSize: 13),
-                          prefixIcon: Icon(Icons.pin_drop_outlined, color: Color(0xFF155EEF), size: 20),
+                        decoration: InputDecoration(
+                          hintText: _languageService.getTranslation('enter_address_hint'),
+                          hintStyle: const TextStyle(color: Color(0xFF98A2B3), fontSize: 13),
+                          prefixIcon: const Icon(Icons.pin_drop_outlined, color: Color(0xFF155EEF), size: 20),
                           border: InputBorder.none,
-                          contentPadding: EdgeInsets.all(12),
+                          contentPadding: const EdgeInsets.all(12),
                         ),
                         validator: (value) {
                           if (value == null || value.trim().isEmpty) {
-                            return 'Please provide the problem address';
+                            return _languageService.getTranslation('fill_address');
                           }
                           if (value.trim().length < 5) {
-                            return 'Please provide a more specific address';
+                            return _languageService.getTranslation('fill_specific_address');
                           }
                           return null;
                         },

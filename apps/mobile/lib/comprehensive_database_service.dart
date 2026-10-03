@@ -16,7 +16,7 @@ class ComprehensiveDatabaseService {
   factory ComprehensiveDatabaseService() => _instance;
   ComprehensiveDatabaseService._internal();
 
-  final SupabaseClient _supabase = Supabase.instance.client;
+  SupabaseClient get _supabase => Supabase.instance.client;
 
   // ========================================
   // PROXIMITY & DUPLICATE DETECTION (PS 02 & Phase 3A)

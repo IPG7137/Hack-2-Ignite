@@ -5,7 +5,7 @@ import 'package:civic_resolve/language_service.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  group('Full App Multilingual Localization Tests (Round 2)', () {
+  group('Full App Multilingual Localization Tests (Round 2 P0)', () {
     late LanguageService languageService;
 
     setUp(() async {
@@ -70,7 +70,6 @@ void main() {
       SharedPreferences.setMockInitialValues({'selected_language': 'mr'});
       
       final restoredService = LanguageService();
-      // Allow any microtask / async prefs load
       await Future.delayed(const Duration(milliseconds: 50));
 
       final mrLang = LanguageService.supportedLanguages.firstWhere((l) => l.code == 'mr');
@@ -80,41 +79,110 @@ void main() {
       expect(prefs.getString('selected_language'), 'mr');
     });
 
-    test('Key parity: All critical citizen keys in EN exist in HI and MR', () {
-      final criticalKeys = [
-        'app_name', 'welcome_to_civicresolve', 'citizen', 'public_servant',
-        'nav_home', 'nav_report', 'nav_track', 'nav_map', 'nav_profile',
-        'report_problem_title', 'recent_grievances', 'my_reports', 'community_reports',
-        'select_category_step', 'provide_details_step', 'review_submit_step',
-        'cat_potholes_roads', 'cat_water_drainage', 'cat_electricity_streetlights',
-        'cat_waste_management', 'cat_safety_hazard',
-        'priority_high', 'priority_medium', 'priority_low', 'priority_critical',
-        'status_submitted', 'status_under_review', 'status_assigned',
-        'status_in_progress', 'status_resolution_submitted', 'status_citizen_verification',
-        'status_resolved', 'status_closed', 'status_reopened',
-        'civic_feed_title', 'nearby_issues', 'support_issue',
-        'my_profile', 'edit_profile', 'logout', 'cancel', 'confirm',
-        'emergency_contacts', 'help_support', 'notifications',
-      ];
-
+    test('localizeStatus translates all lifecycle stages in EN, HI, MR', () async {
+      final enLang = LanguageService.supportedLanguages.firstWhere((l) => l.code == 'en');
       final hiLang = LanguageService.supportedLanguages.firstWhere((l) => l.code == 'hi');
       final mrLang = LanguageService.supportedLanguages.firstWhere((l) => l.code == 'mr');
 
-      // Test Hindi
-      languageService.changeLanguage(hiLang);
-      for (final key in criticalKeys) {
-        final val = languageService.getTranslation(key);
-        expect(val, isNotEmpty, reason: 'Key $key in HI should not be empty');
-        expect(val, isNot(equals(key)), reason: 'Key $key in HI should have real translation, not raw key');
+      // English
+      await languageService.changeLanguage(enLang);
+      expect(languageService.localizeStatus('submitted'), 'Submitted');
+      expect(languageService.localizeStatus('assigned'), 'Assigned');
+      expect(languageService.localizeStatus('in_progress'), 'In Progress');
+      expect(languageService.localizeStatus('resolution_submitted'), 'Resolution Submitted');
+      expect(languageService.localizeStatus('citizen_verification'), 'Citizen Verification');
+      expect(languageService.localizeStatus('resolved'), 'Resolved');
+      expect(languageService.localizeStatus('closed'), 'Closed');
+      expect(languageService.localizeStatus('reopened'), 'Reopened');
+
+      // Hindi
+      await languageService.changeLanguage(hiLang);
+      expect(languageService.localizeStatus('submitted'), 'जमा किया गया');
+      expect(languageService.localizeStatus('assigned'), 'अधिकारी नियुक्त');
+      expect(languageService.localizeStatus('in_progress'), 'कार्य प्रगति पर');
+      expect(languageService.localizeStatus('resolution_submitted'), 'समाधान प्रस्तुत');
+      expect(languageService.localizeStatus('citizen_verification'), 'नागरिक सत्यापन');
+      expect(languageService.localizeStatus('resolved'), 'हल हो गया');
+      expect(languageService.localizeStatus('closed'), 'बंद');
+      expect(languageService.localizeStatus('reopened'), 'पुनः खोला गया');
+
+      // Marathi
+      await languageService.changeLanguage(mrLang);
+      expect(languageService.localizeStatus('submitted'), 'नोंदवले');
+      expect(languageService.localizeStatus('assigned'), 'अधिकारी नेमले');
+      expect(languageService.localizeStatus('in_progress'), 'काम प्रगतीपथावर');
+      expect(languageService.localizeStatus('resolution_submitted'), 'तोडगा सादर केला');
+      expect(languageService.localizeStatus('citizen_verification'), 'नागरिक पडताळणी');
+      expect(languageService.localizeStatus('resolved'), 'समस्या निवारण झाले');
+      expect(languageService.localizeStatus('closed'), 'बंद केले');
+      expect(languageService.localizeStatus('reopened'), 'पुन्हा उघडले');
+    });
+
+    test('localizePriority translates priorities accurately in EN, HI, MR', () async {
+      final enLang = LanguageService.supportedLanguages.firstWhere((l) => l.code == 'en');
+      final hiLang = LanguageService.supportedLanguages.firstWhere((l) => l.code == 'hi');
+      final mrLang = LanguageService.supportedLanguages.firstWhere((l) => l.code == 'mr');
+
+      // English
+      await languageService.changeLanguage(enLang);
+      expect(languageService.localizePriority('low'), 'Low');
+      expect(languageService.localizePriority('medium'), 'Medium');
+      expect(languageService.localizePriority('high'), 'High');
+      expect(languageService.localizePriority('critical'), 'Critical');
+
+      // Hindi
+      await languageService.changeLanguage(hiLang);
+      expect(languageService.localizePriority('low'), 'निम्न');
+      expect(languageService.localizePriority('medium'), 'मध्यम');
+      expect(languageService.localizePriority('high'), 'उच्च');
+      expect(languageService.localizePriority('critical'), 'अतिगंभीर');
+
+      // Marathi
+      await languageService.changeLanguage(mrLang);
+      expect(languageService.localizePriority('low'), 'सामान्य');
+      expect(languageService.localizePriority('medium'), 'मध्यम');
+      expect(languageService.localizePriority('high'), 'उच्च');
+      expect(languageService.localizePriority('critical'), 'अतिगंभीर');
+    });
+
+    test('localizeCategory maps civic categories accurately across languages', () async {
+      final hiLang = LanguageService.supportedLanguages.firstWhere((l) => l.code == 'hi');
+      final mrLang = LanguageService.supportedLanguages.firstWhere((l) => l.code == 'mr');
+
+      await languageService.changeLanguage(hiLang);
+      expect(languageService.localizeCategory('potholes_roads'), 'सड़क और गड्ढे');
+      expect(languageService.localizeCategory('water_drainage'), 'जलापूर्ति एवं लीकेज');
+      expect(languageService.localizeCategory('waste_management'), 'कचरा एवं स्वच्छता');
+      expect(languageService.localizeCategory('electricity_streetlights'), 'बिजली व स्ट्रीट लाइट');
+
+      await languageService.changeLanguage(mrLang);
+      expect(languageService.localizeCategory('potholes_roads'), 'रस्ते आणि खड्डे');
+      expect(languageService.localizeCategory('water_drainage'), 'पाणीपुरवठा व गळती');
+      expect(languageService.localizeCategory('waste_management'), 'कचरा व स्वच्छता');
+      expect(languageService.localizeCategory('electricity_streetlights'), 'विद्युत व पथदिवे');
+    });
+
+    test('Complete Key Parity: Every key in English dictionary has a valid translation in Hindi and Marathi', () {
+      final canonicalKeys = LanguageService.getAllCanonicalKeys();
+      expect(canonicalKeys, isNotEmpty);
+
+      final hiDict = LanguageService.getTranslationsFor('hi') ?? {};
+      final mrDict = LanguageService.getTranslationsFor('mr') ?? {};
+
+      final missingInHi = <String>[];
+      final missingInMr = <String>[];
+
+      for (final key in canonicalKeys) {
+        if (!hiDict.containsKey(key) || hiDict[key]!.trim().isEmpty) {
+          missingInHi.add(key);
+        }
+        if (!mrDict.containsKey(key) || mrDict[key]!.trim().isEmpty) {
+          missingInMr.add(key);
+        }
       }
 
-      // Test Marathi
-      languageService.changeLanguage(mrLang);
-      for (final key in criticalKeys) {
-        final val = languageService.getTranslation(key);
-        expect(val, isNotEmpty, reason: 'Key $key in MR should not be empty');
-        expect(val, isNot(equals(key)), reason: 'Key $key in MR should have real translation, not raw key');
-      }
+      expect(missingInHi, isEmpty, reason: 'Keys missing in Hindi dictionary: $missingInHi');
+      expect(missingInMr, isEmpty, reason: 'Keys missing in Marathi dictionary: $missingInMr');
     });
   });
 }

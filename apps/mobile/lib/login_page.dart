@@ -110,6 +110,10 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
       final hasValidSession = await _authService.loadSavedSession();
       if (hasValidSession && mounted) {
         final resolvedRole = _authService.userRole;
+        if (resolvedRole == 'unresolved') {
+          // Do not route to dashboard if role cannot be authoritatively resolved
+          return;
+        }
         _navigateToDashboard(selectedRole: resolvedRole, isAdmin: _authService.isFieldWorker);
       }
     } catch (e) {
@@ -119,15 +123,22 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
 
   void _navigateToDashboard({String? selectedRole, bool isAdmin = false}) {
     final effectiveRole = (selectedRole ?? _authService.userRole).toLowerCase().trim();
+    if (effectiveRole == 'unresolved') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Unable to determine user role permissions. Please log in again.'),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
     final isFieldWorker = effectiveRole == 'contractor' ||
         effectiveRole == 'officer' ||
         effectiveRole == 'field_worker' ||
         effectiveRole == 'dept_admin' ||
-        isAdmin ||
-        _authService.isFieldWorker ||
-        _authService.userRole == 'contractor' ||
-        _authService.userRole == 'officer' ||
-        _authService.userRole == 'field_worker';
+        _authService.isFieldWorker;
 
     if (isFieldWorker) {
       Navigator.pushReplacement(
@@ -334,6 +345,20 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
 
       if (result.success) {
         final resolvedRole = _authService.userRole;
+        if (!_authService.isFieldWorker) {
+          await _authService.logout();
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Access Denied: This account does not have Field Officer / Contractor permissions.'),
+                backgroundColor: Colors.red,
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          }
+          return;
+        }
+
         await AppPreferences.setUserRole(resolvedRole);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -343,7 +368,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
               behavior: SnackBarBehavior.floating,
             ),
           );
-          _navigateToDashboard(selectedRole: resolvedRole, isAdmin: _authService.isFieldWorker);
+          _navigateToDashboard(selectedRole: resolvedRole, isAdmin: true);
         }
       } else {
         if (mounted) {
@@ -1213,13 +1238,13 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
     );
   }
 
-  Future<void> _handleJudgeQuickLogin() async {
+  Future<void> _handleCitizenQuickLogin() async {
     setState(() {
       _isLoading = true;
     });
 
     try {
-      final result = await _authService.loginAsJudgeCitizen();
+      final result = await _authService.loginAsCitizenDemo();
 
       if (!mounted) return;
       setState(() {
@@ -1227,37 +1252,43 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
       });
 
       if (result.success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Row(
-              children: [
-                Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
-                SizedBox(width: 8),
-                Expanded(
-                  child: Text('Logged in as Citizen Contributor (Hon. Hackathon Judge)'),
-                ),
-              ],
+        final resolvedRole = _authService.userRole;
+        await AppPreferences.setUserRole(resolvedRole);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Row(
+                children: [
+                  Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text('Logged in as Citizen Contributor (Hon. Hackathon Evaluator)'),
+                  ),
+                ],
+              ),
+              backgroundColor: const Color(0xFF059669),
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             ),
-            backgroundColor: const Color(0xFF059669),
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-          ),
-        );
-        _navigateToDashboard(selectedRole: 'citizen', isAdmin: false);
+          );
+          _navigateToDashboard(selectedRole: 'citizen', isAdmin: false);
+        }
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(result.message),
-            backgroundColor: const Color(0xFFDC2626),
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            action: SnackBarAction(
-              label: 'Retry',
-              textColor: Colors.white,
-              onPressed: _handleJudgeQuickLogin,
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(result.message),
+              backgroundColor: const Color(0xFFDC2626),
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              action: SnackBarAction(
+                label: 'Retry',
+                textColor: Colors.white,
+                onPressed: _handleCitizenQuickLogin,
+              ),
             ),
-          ),
-        );
+          );
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -1266,7 +1297,89 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Judge login failed: $e'),
+            content: Text('Citizen Demo login failed: $e'),
+            backgroundColor: const Color(0xFFDC2626),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _handleFieldOfficerQuickLogin() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final result = await _authService.loginAsFieldOfficerDemo();
+
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+      });
+
+      if (result.success) {
+        final resolvedRole = _authService.userRole;
+        if (!_authService.isFieldWorker) {
+          await _authService.logout();
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Access Denied: This account does not possess Field Officer permissions.'),
+                backgroundColor: Colors.red,
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          }
+          return;
+        }
+
+        await AppPreferences.setUserRole(resolvedRole);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Row(
+                children: [
+                  Icon(Icons.verified_rounded, color: Colors.white, size: 20),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text('Logged in as Duty Officer / Contractor Lead (Hon. Hackathon Evaluator)'),
+                  ),
+                ],
+              ),
+              backgroundColor: const Color(0xFF0284C7),
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+          );
+          _navigateToDashboard(selectedRole: resolvedRole, isAdmin: true);
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(result.message),
+              backgroundColor: const Color(0xFFDC2626),
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              action: SnackBarAction(
+                label: 'Retry',
+                textColor: Colors.white,
+                onPressed: _handleFieldOfficerQuickLogin,
+              ),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Field Officer Demo login failed: $e'),
             backgroundColor: const Color(0xFFDC2626),
             behavior: SnackBarBehavior.floating,
           ),
@@ -1276,18 +1389,24 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
   }
 
   Widget _buildJudgeQuickLoginCard() {
+    final isCitizen = _isCitizenSelected;
+
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.only(top: 24),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFFFEF3C7), Color(0xFFFFFBEB)],
+        gradient: LinearGradient(
+          colors: isCitizen
+              ? const [Color(0xFFFEF3C7), Color(0xFFFFFBEB)]
+              : const [Color(0xFFE0F2FE), Color(0xFFF0F9FF)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFFDE68A)),
+        border: Border.all(
+          color: isCitizen ? const Color(0xFFFDE68A) : const Color(0xFFBAE6FD),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1297,29 +1416,35 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
               Container(
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFD97706),
+                  color: isCitizen ? const Color(0xFFD97706) : const Color(0xFF0284C7),
                   borderRadius: BorderRadius.circular(6),
                 ),
-                child: const Icon(Icons.flash_on_rounded, color: Colors.white, size: 16),
+                child: Icon(
+                  isCitizen ? Icons.flash_on_rounded : Icons.engineering_rounded,
+                  color: Colors.white,
+                  size: 16,
+                ),
               ),
               const SizedBox(width: 8),
               Text(
                 _languageService.getTranslation('evaluator_access_title'),
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 11.5,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 0.5,
-                  color: Color(0xFF92400E),
+                  color: isCitizen ? const Color(0xFF92400E) : const Color(0xFF0369A1),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 6),
           Text(
-            _languageService.getTranslation('evaluator_access_desc'),
-            style: const TextStyle(
+            isCitizen
+                ? _languageService.getTranslation('evaluator_access_citizen_desc')
+                : _languageService.getTranslation('evaluator_access_officer_desc'),
+            style: TextStyle(
               fontSize: 12,
-              color: Color(0xFF78350F),
+              color: isCitizen ? const Color(0xFF78350F) : const Color(0xFF0C4A6E),
               height: 1.35,
             ),
           ),
@@ -1328,23 +1453,33 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
             width: double.infinity,
             height: 44,
             child: ElevatedButton.icon(
-              onPressed: _isLoading ? null : _handleJudgeQuickLogin,
-              icon: const Icon(Icons.bolt_rounded, size: 18, color: Color(0xFF78350F)),
+              onPressed: _isLoading
+                  ? null
+                  : (isCitizen ? _handleCitizenQuickLogin : _handleFieldOfficerQuickLogin),
+              icon: Icon(
+                Icons.bolt_rounded,
+                size: 18,
+                color: isCitizen ? const Color(0xFF78350F) : const Color(0xFF0C4A6E),
+              ),
               label: Text(
-                _languageService.getTranslation('one_tap_demo_btn'),
-                style: const TextStyle(
+                isCitizen
+                    ? _languageService.getTranslation('one_tap_citizen_demo_btn')
+                    : _languageService.getTranslation('one_tap_officer_demo_btn'),
+                style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF78350F),
+                  color: isCitizen ? const Color(0xFF78350F) : const Color(0xFF0C4A6E),
                 ),
               ),
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFFDE68A),
-                foregroundColor: const Color(0xFF78350F),
+                backgroundColor: isCitizen ? const Color(0xFFFDE68A) : const Color(0xFFBAE6FD),
+                foregroundColor: isCitizen ? const Color(0xFF78350F) : const Color(0xFF0C4A6E),
                 elevation: 0,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
-                  side: const BorderSide(color: Color(0xFFF59E0B)),
+                  side: BorderSide(
+                    color: isCitizen ? const Color(0xFFF59E0B) : const Color(0xFF38BDF8),
+                  ),
                 ),
               ),
             ),

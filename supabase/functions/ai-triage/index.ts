@@ -17,7 +17,16 @@ interface TriagePayload {
   image_base64?: string;
   mime_type?: string;
   selected_category?: string;
-  action?: "triage" | "validate_evidence";
+  action?: "triage" | "validate_evidence" | "translate";
+  text?: string;
+  target_language?: string;
+}
+
+interface TranslationResult {
+  translated_text: string;
+  detected_source_language: string;
+  target_language: string;
+  is_successful: boolean;
 }
 
 interface TriageResult {
@@ -157,7 +166,10 @@ serve(async (req) => {
 
     // 3. Request Validation & Input Sanitization
     const body: TriagePayload = await req.json().catch(() => ({}));
-    const isValidationAction = body.action === "validate_evidence" || (!!body.selected_category && !body.description);
+    const isValidationAction = body.action === "validate_evidence" || (!!body.selected_category && !body.description && body.action !== "translate");
+    const isTranslateAction = body.action === "translate";
+    const sourceText = maskPII(body.text || body.description || "");
+    const targetLanguage = (body.target_language || "en").toLowerCase();
     const sanitizedDescription = maskPII(body.description || "");
     const selectedCategory = body.selected_category || "";
     const imageBase64 = body.image_base64;
@@ -166,6 +178,21 @@ serve(async (req) => {
     // 4. Server-Side Gemini API Key Check
     const geminiApiKey = Deno.env.get("GEMINI_API_KEY");
     if (!geminiApiKey || geminiApiKey.length < 10) {
+      if (isTranslateAction) {
+        return new Response(
+          JSON.stringify({
+            success: true,
+            data: {
+              translated_text: sourceText,
+              detected_source_language: "auto",
+              target_language: targetLanguage,
+              is_successful: false,
+            },
+            mode: "deterministic_fallback",
+          }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
       if (isValidationAction) {
         const fallback = fallbackValidation(selectedCategory, sanitizedDescription);
         return new Response(
@@ -183,7 +210,24 @@ serve(async (req) => {
     // 5. Construct Structured AI Prompt based on Action
     let structuredPrompt = "";
 
-    if (isValidationAction) {
+    if (isTranslateAction) {
+      const langName = targetLanguage === "mr" ? "Marathi (मराठी)" : targetLanguage === "hi" ? "Hindi (हिंदी)" : "English";
+      structuredPrompt = `
+You are an expert translator for CivicResolve municipal platform.
+Translate the following citizen grievance or municipal officer note faithfully into ${langName}.
+Maintain dignified, clear civic terminology. Preserve proper names, landmarks, and numbers accurately.
+
+Source Text (PII Sanitized):
+"${sourceText}"
+
+Return ONLY a valid JSON object matching this schema:
+{
+  "translated_text": "string",
+  "detected_source_language": "string",
+  "target_language": "${targetLanguage}"
+}
+`;
+    } else if (isValidationAction) {
       structuredPrompt = `
 You are a precise Civic Photographic Evidence Classifier for CivicResolve.
 Your sole responsibility is to answer:
@@ -295,6 +339,20 @@ Return ONLY a valid JSON object matching this schema:
     cleanJson = cleanJson.trim();
 
     const parsed = JSON.parse(cleanJson);
+
+    if (isTranslateAction) {
+      const translationResult: TranslationResult = {
+        translated_text: maskPII(parsed.translated_text || sourceText),
+        detected_source_language: parsed.detected_source_language || "auto",
+        target_language: targetLanguage,
+        is_successful: true,
+      };
+
+      return new Response(
+        JSON.stringify({ success: true, data: translationResult, mode: "gemini_server_verified" }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     if (isValidationAction) {
       const matchStatus = parsed.category_match === "yes" ? "yes" : (parsed.category_match === "no" ? "no" : "uncertain");

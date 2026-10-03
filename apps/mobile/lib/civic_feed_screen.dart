@@ -8,6 +8,7 @@ import 'language_service.dart';
 import 'credit_service.dart';
 import 'location_service.dart';
 import 'category_selection_screen.dart';
+import 'dynamic_translatable_text.dart';
 
 class CivicFeedScreen extends StatefulWidget {
   final double? userLatitude;
@@ -31,6 +32,8 @@ class _CivicFeedScreenState extends State<CivicFeedScreen> {
 
   List<ComprehensiveReportModel> _feedItems = [];
   bool _isLoading = true;
+  bool _hasError = false;
+  String? _errorMessage;
   String _selectedCategory = 'All';
   String _selectedStatus = 'All'; // 'All', 'Active', 'In Progress', 'Resolved'
   String _sortBy = 'most_supported'; // 'most_supported', 'recent', 'nearby'
@@ -109,6 +112,8 @@ class _CivicFeedScreenState extends State<CivicFeedScreen> {
   Future<void> _loadFeed() async {
     setState(() {
       _isLoading = true;
+      _hasError = false;
+      _errorMessage = null;
     });
 
     final authService = AuthService.instance;
@@ -128,6 +133,7 @@ class _CivicFeedScreenState extends State<CivicFeedScreen> {
         setState(() {
           _feedItems = _sortReports(reports, _sortBy);
           _isLoading = false;
+          _hasError = false;
         });
       }
     } catch (e) {
@@ -135,6 +141,8 @@ class _CivicFeedScreenState extends State<CivicFeedScreen> {
       if (mounted) {
         setState(() {
           _isLoading = false;
+          _hasError = true;
+          _errorMessage = 'Unable to connect to municipal servers. Check connection and retry.';
         });
       }
     }
@@ -315,18 +323,23 @@ class _CivicFeedScreenState extends State<CivicFeedScreen> {
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator(color: Color(0xFF155EEF)))
-                : filtered.isEmpty
-                    ? _buildEmptyState()
+                : _hasError && filtered.isEmpty
+                    ? _buildErrorState()
                     : RefreshIndicator(
                         onRefresh: _loadFeed,
                         color: const Color(0xFF155EEF),
-                        child: ListView.separated(
-                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-                          itemCount: filtered.length,
-                          separatorBuilder: (_, __) => const SizedBox(height: 12),
-                          itemBuilder: (context, index) {
-                            return _buildFeedCard(filtered[index]);
-                          },
+                        child: ListView(
+                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                          children: [
+                            if (_hasError) _buildOfflineBanner(),
+                            if (filtered.isEmpty)
+                              _buildEmptyState()
+                            else
+                              ...filtered.map((item) => Padding(
+                                    padding: const EdgeInsets.only(bottom: 12),
+                                    child: _buildFeedCard(item),
+                                  )),
+                          ],
                         ),
                       ),
           ),
@@ -741,9 +754,9 @@ class _CivicFeedScreenState extends State<CivicFeedScreen> {
               const SizedBox(height: 5),
 
               // 3. Citizen Description
-              Text(
-                displayDescription,
-                maxLines: 3,
+              DynamicTranslatableText(
+                text: displayDescription,
+                maxLines: 4,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   fontSize: 12.5,
@@ -988,6 +1001,101 @@ class _CivicFeedScreenState extends State<CivicFeedScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildErrorState() {
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(32.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: const BoxDecoration(
+                color: Color(0xFFFEF2F2),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.wifi_off_rounded,
+                size: 38,
+                color: Color(0xFFDC2626),
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Connection Unavailable',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF0F172A),
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              _errorMessage ?? 'Unable to connect to municipal servers. Please check your network connection and retry.',
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 13, color: Color(0xFF64748B), height: 1.4),
+            ),
+            const SizedBox(height: 18),
+            ElevatedButton.icon(
+              onPressed: _loadFeed,
+              icon: const Icon(Icons.refresh_rounded, size: 16),
+              label: const Text('Retry Connection'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF155EEF),
+                foregroundColor: Colors.white,
+                elevation: 0,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildOfflineBanner() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFFBEB),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFFFDE68A)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.cloud_off_rounded, size: 16, color: Color(0xFFD97706)),
+          const SizedBox(width: 8),
+          const Expanded(
+            child: Text(
+              'Offline mode — Displaying cached reports',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF92400E),
+              ),
+            ),
+          ),
+          InkWell(
+            onTap: _loadFeed,
+            child: const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              child: Text(
+                'Retry',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFFB45309),
+                  decoration: TextDecoration.underline,
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
